@@ -2092,7 +2092,12 @@ export class StHandling {
         return this._type
     }
     public set type(v: number) {
-        this._type = v
+      //エラー値を除去
+      if(v==null||isNaN(v)){
+        this._type=0;
+      }else{
+        this._type = v;
+      }
     }
     /**
      * 到着時刻

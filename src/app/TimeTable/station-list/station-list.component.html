@@ -1,4 +1,4 @@
-<div>
-  <div *ngFor="let a of oudData.stations">{{a.name}}</div>
+<div id="stationList">
+  <app-station *ngFor="let a of oudData.stations" [station]="a"></app-station>
 
 </div>

@@ -1,1 +1,10 @@
-<div class="time">{{this.depTimeFormat()}}<br/></div>
+
+<div class="time">
+  <span *ngIf="showAri()">
+  {{this.ariTimeFormat()}}
+  </span>
+  <hr *ngIf="showDep()&&showAri()">
+  <span *ngIf="showDep()">
+  {{this.depTimeFormat()}}
+  </span>
+</div>

@@ -1,7 +1,7 @@
-<div>
-  列車番号とか
-  <br/>
-  列車種別とか
-  <br/>
-  列車名とか
+<div id="trainTitle" class="parent"  >
+  <app-train-name class="child" *ngFor="let i of this.useTimeTable()" [oud]="oudData" [train]="i"></app-train-name>
+
 </div>
+
+
+

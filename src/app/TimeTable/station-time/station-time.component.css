@@ -1,4 +1,12 @@
 .time{
-  width: 50px;
+  width: 2.7em;
   text-align: center;
 }
+hr {
+  height: 1px;
+  background-color:black;
+  width: 115%;
+  border: none;
+  margin: calc( 0.1em - 0.5px) 0  calc( 0.1em - 0.5px) 0 ;
+}
+

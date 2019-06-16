@@ -13,6 +13,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { TrainComponent } from './TimeTable/train/train.component';
 import { StationTimeComponent } from './TimeTable/station-time/station-time.component';
 import { StationComponent } from './TimeTable/station/station.component';
+import { TrainNameComponent } from './TimeTable/train-name/train-name.component';
 @NgModule({
   declarations: [
     AppComponent,
@@ -24,7 +25,8 @@ import { StationComponent } from './TimeTable/station/station.component';
     TrainListComponent,
     TrainComponent,
     StationTimeComponent,
-    StationComponent
+    StationComponent,
+    TrainNameComponent
   ],
   imports: [
     BrowserModule,

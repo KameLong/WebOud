@@ -8,11 +8,17 @@ import {DataSet, Streak} from '../../OuDiaData/OudOperator';
 })
 export class TrainComponent implements OnInit {
   @Input('oud') oudData: DataSet;
-  @Input('train')trainIndex: Streak;
+  @Input('train')train: Streak;
 
   constructor() { }
 
   ngOnInit() {
+  }
+  trainColor(): string {
+    return this.oudData.trainTypes[this.train.typeIdx].lineColor.RGB();
+  }
+  stopList(): IterableIterator<number> {
+    return this.train.stHandlings.keys();
   }
 
 }

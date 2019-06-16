@@ -1,13 +1,6 @@
-
-
-
-
-<table>
-  <tr>
-    <td *ngFor="let i of this.oudData.diagrams[0].downStreaks">
-      <app-train [oud]="oudData" [train]="i"></app-train>
-    </td>
-  </tr>
-</table>
-<div class="main">
+<div id="trainList" class="parent" (scroll)="onScroll($event)">
+  <app-train class="child" *ngFor="let i of this.useTimeTable()" [oud]="oudData" [train]="i"></app-train>
 </div>
+
+
+
