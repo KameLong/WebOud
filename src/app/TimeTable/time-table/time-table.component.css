@@ -1,0 +1,30 @@
+div{
+  display: flex;
+}
+app-timetable-menu{
+  height:30px;
+  width:100%;
+
+  display: flex;
+}
+app-station-title{
+  height:100px;
+  width:80px;
+  display: flex;
+}
+app-station-list{
+  height : calc(100% - 130px);
+  width:80px;
+  display: flex;
+}
+app-train-title{
+  height:100px;
+  width:calc(100% - 80px);
+  display: flex;
+}
+app-train-list{
+  height : calc(100% - 130px);
+  width:calc(100% - 80px);
+  display: flex;
+
+}
