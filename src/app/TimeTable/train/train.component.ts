@@ -1,5 +1,5 @@
 import {Component, Input, OnInit} from '@angular/core';
-import {DataSet, Streak} from '../../OuDiaData/OudOperator';
+import {DataSet, StHandling, Streak} from '../../OuDiaData/OudOperator';
 
 @Component({
   selector: 'app-train',
@@ -18,6 +18,10 @@ export class TrainComponent implements OnInit {
     return this.oudData.trainTypes[this.train.typeIdx].lineColor.RGB();
   }
   stopList(): IterableIterator<number> {
+    const s=this.train.stHandlings.length;
+    for(let  i =0;i<this.oudData.stations.length-s;i++){
+      this.train.stHandlings.push(new StHandling());
+    }
     return this.train.stHandlings.keys();
   }
 

@@ -1,1 +1,1 @@
-<app-station-time [style.color]="this.trainColor()" *ngFor="let a of train.stHandlings.keys()" [train]="train"  [station]="oudData.stations" [stationIndex]="a"></app-station-time>
+<app-station-time [style.color]="this.trainColor()" *ngFor="let a of stopList()" [train]="train"  [station]="oudData.stations" [stationIndex]="a"></app-station-time>
