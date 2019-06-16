@@ -17,12 +17,16 @@ export class TrainComponent implements OnInit {
   trainColor(): string {
     return this.oudData.trainTypes[this.train.typeIdx].lineColor.RGB();
   }
-  stopList(): IterableIterator<number> {
-    const s=this.train.stHandlings.length;
-    for(let  i =0;i<this.oudData.stations.length-s;i++){
-      this.train.stHandlings.push(new StHandling());
+  stopList(): Array<number> {
+    const s=this.oudData.stations.length;
+    let result=new Array<number>();
+    for(let  i =0;i<s;i++){
+      result.push(i);
+      if(s>this.train.stHandlings.length){
+        this.train.stHandlings.push(new StHandling());
+      }
     }
-    return this.train.stHandlings.keys();
+    return result;
   }
 
 }

@@ -11,6 +11,7 @@ import {Subscription} from 'rxjs';
 })
 export class StationListComponent implements OnInit,OnDestroy {
   @Input('oud') oudData: DataSet;
+  @Input('direction') direct: number;
   private subscription: Subscription;
 
   constructor(private scrollService: ScrollService) { }
@@ -28,6 +29,13 @@ export class StationListComponent implements OnInit,OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
+  }
+  stationList():Array<Station>{
+    if(this.direct===0){
+      return this.oudData.stations;
+    }else{
+      return this.oudData.stations.reverse() as Array<Station>;
+    }
   }
 
 }

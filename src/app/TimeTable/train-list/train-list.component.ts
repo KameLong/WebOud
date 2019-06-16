@@ -10,13 +10,20 @@ import {Scroll} from '@angular/router';
 })
 export class TrainListComponent implements OnInit {
   @Input('oud') oudData: DataSet;
+  @Input('diagramIndex') diagramIndex: number;
+  @Input('direction') direction: number;
   constructor(private scrollService: ScrollService) { }
 
   ngOnInit() {
   }
   useTimeTable(): Array<Streak> {
-    if(this.oudData.diagrams.length>0) {
-      return this.oudData.diagrams[0].downStreaks;
+    if(this.oudData.diagrams.length>this.diagramIndex) {
+      if(this.direction===0){
+        return this.oudData.diagrams[this.diagramIndex].downStreaks;
+      }else{
+        return this.oudData.diagrams[this.diagramIndex].upStreaks;
+
+      }
     } else {
       return new Array<Streak>();
     }

@@ -1,1 +1,5 @@
+<!--<svg width="2.7em" height="1000px">
+  <text *ngFor="let i of stopList()" >{{this.train.stHandlings[i].departure.h}}</text>
+</svg>-->
+
 <app-station-time [style.color]="this.trainColor()" *ngFor="let a of stopList()" [train]="train"  [station]="oudData.stations" [stationIndex]="a"></app-station-time>

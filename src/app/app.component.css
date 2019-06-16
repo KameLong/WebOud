@@ -1,8 +1,16 @@
-
+app-root{
+  float:left;
+}
+app-selector{
+  height:100px;
+  width:180px;
+  float:left;
+}
 app-time-table{
 
   height:100%;
-  width:100%;
+  width:calc(100% - 190px);
   overflow: hidden;
+  float:left;
 
 }

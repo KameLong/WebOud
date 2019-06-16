@@ -10,6 +10,9 @@ import {Subscription} from 'rxjs';
 })
 export class TrainTitleComponent implements OnInit ,OnDestroy{
   @Input('oud') oudData: DataSet=new DataSet();
+  @Input('diagramIndex') diagramIndex: number;
+  @Input('direction') direction: number;
+
   private subscription: Subscription;
   constructor(private scrollService: ScrollService) {
 
@@ -26,8 +29,13 @@ export class TrainTitleComponent implements OnInit ,OnDestroy{
     );
   }
   useTimeTable(): Array<Streak> {
-    if(this.oudData.diagrams.length>0) {
-      return this.oudData.diagrams[0].downStreaks;
+    if(this.oudData.diagrams.length>this.diagramIndex) {
+      if(this.direction===0){
+        return this.oudData.diagrams[this.diagramIndex].downStreaks;
+      }else{
+        return this.oudData.diagrams[this.diagramIndex].upStreaks;
+
+      }
     } else {
       return new Array<Streak>();
     }

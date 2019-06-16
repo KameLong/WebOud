@@ -1,42 +1,90 @@
-div{
-  line-height:120%;
-  display: flex;
-  font-size: 16px;
-  margin-left: 5px;
-}
-div{
-}
-app-timetable-menu{
-  height:30px;
-  width:100%;
+@media screen and (max-width: 400px) {
+  /* 表示領域が320px以下の場合に適用するスタイル */
+  div{
+    line-height:110%;
+    display: flex;
+    font-size: 10px;
+    margin-left: 3px;
+  }
+  div{
+  }
+  app-timetable-menu{
+    height:2em;
+    width:100%;
+    display: flex;
+  }
+  app-station-title{
+    height:7em;
+    width:5em;
+    display: flex;
+    border: solid black 2px;
+  }
+  app-station-list{
+    height : calc(90vh - 9em - 15px);
+    width:5em;
+    display: flex;
+    border: solid black 2px;
+    border-top: none;
 
-  display: flex;
-}
-app-station-title{
-  height:100px;
-  width:80px;
-  display: flex;
-  border: solid black 2px;
-}
-app-station-list{
-  height : calc(100vh - 165px);
-  width:80px;
-  display: flex;
-  border: solid black 2px;
-  border-top: none;
+  }
+  app-train-title{
+    height:7em;
+    width:calc(100% - 25px - 5em);
+    display: flex;
+    border: solid black 2px;
+    border-left: none;
 
-}
-app-train-title{
-  height:100px;
-  width:calc(100vw - 114px);
-  display: flex;
-  border: solid black 2px;
-  border-left: none;
+  }
+  app-train-list{
+    height : calc(90vh - 9em - 5px);
+    width:calc(100% - 15px - 5em);
+    display: flex;
 
+  }
 }
-app-train-list{
-  height : calc(100vh - 148px);
-  width:calc(100vw - 97px);
-  display: flex;
+@media screen and (min-width: 400px) {
+  div{
+    line-height:120%;
+    display: flex;
+    font-size: 16px;
+    margin-left: 5px;
+  }
+  div{
+  }
+  app-timetable-menu{
+    height:30px;
+    width:100%;
 
+    display: flex;
+  }
+  app-station-title{
+    height:100px;
+    width:80px;
+    display: flex;
+    border: solid black 2px;
+  }
+  app-station-list{
+    height : calc(100vh - 165px);
+    width:80px;
+    display: flex;
+    border: solid black 2px;
+    border-top: none;
+
+  }
+  app-train-title{
+    height:100px;
+    width:calc(100% - 114px);
+    display: flex;
+    border: solid black 2px;
+    border-left: none;
+
+  }
+  app-train-list{
+    height : calc(100vh - 148px);
+    width:calc(100% - 97px);
+    display: flex;
+
+  }
 }
+
+

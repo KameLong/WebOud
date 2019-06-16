@@ -8,6 +8,7 @@ import {DataSet, Station} from '../../OuDiaData/OudOperator';
 })
 export class StationComponent implements OnInit {
   @Input('station') station: Station;
+  @Input('direct') direction: number;
 
   constructor() {
   }
@@ -15,8 +16,6 @@ export class StationComponent implements OnInit {
   ngOnInit() {
   }
   height(): string {
-    const direction= 0;
-    if(direction===0) {
       if(this.station.timeType===0){
         return '1.2em';
       }
@@ -29,8 +28,6 @@ export class StationComponent implements OnInit {
       if(this.station.timeType===30){
         return '1.2em';
       }
-
-    }
   }
 
 
