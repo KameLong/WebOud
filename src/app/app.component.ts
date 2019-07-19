@@ -5,6 +5,7 @@ import {ActivatedRoute, Router} from '@angular/router';
 import {SelectorService} from './selector.service';
 import {Subscription} from 'rxjs';
 import {FileOpenService} from './file-open.service';
+import {TabModel} from './OuDiaData/tool';
 
 @Component({
   selector: 'app-root',
@@ -15,7 +16,7 @@ export class AppComponent implements OnInit,OnDestroy{
   private queryParams: any;
   private oudURL: string=null;
   private oud2URL: string=null;
-
+  public  tabs: Array<TabModel> = new Array();
   title = 'WebOud';
   oudiaData: DataSet=new DataSet();
   private subscription: Subscription;

@@ -1,15 +1,25 @@
 app-root{
   float:left;
+  height: 100vh;
 }
 app-selector{
   height:100px;
   width:180px;
   float:left;
 }
+
+app-tab-layout{
+
+  height:100%;
+  width:calc((100% - 180px) / 2 );
+  overflow: hidden;
+  float:left;
+
+}
 app-time-table{
 
   height:100%;
-  width:calc(100% - 190px);
+  width:calc((100% - 180px));
   overflow: hidden;
   float:left;
 

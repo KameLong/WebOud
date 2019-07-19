@@ -1,2 +1,14 @@
-app-station-time{
+.station-time{
+  width: 2.7em;
+  text-align: center;
+  display: block;
 }
+
+hr {
+  height: 1px;
+  background-color:black;
+  width: 115%;
+  border: none;
+  margin: calc( 0.1em - 0.5px) 0  calc( 0.1em - 0.5px) 0 ;
+}
+

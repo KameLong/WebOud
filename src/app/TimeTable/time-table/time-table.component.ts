@@ -1,5 +1,5 @@
-import {Component, Input, OnDestroy, OnInit} from '@angular/core';
-import {DataSet, Streak} from '../../OuDiaData/OudOperator';
+import {Component, Inject, Input, OnDestroy, OnInit} from '@angular/core';
+import {DataSet, Station, Streak} from '../../OuDiaData/OudOperator';
 import {Subscription} from 'rxjs';
 import {ScrollService} from '../scroll.service';
 import {SelectorService} from '../../selector.service';
@@ -10,31 +10,46 @@ import {SelectorService} from '../../selector.service';
   styleUrls: ['./time-table.component.css']
 })
 export class TimeTableComponent implements OnInit,OnDestroy {
-  @Input('oud') oudData: DataSet;
-  diagramIndex=0;
-  direct=0;
 
-  private subscription: Subscription;
-  constructor(private selectorService: SelectorService) {
+
+  constructor(
+    @Inject('oudData') public oudData: DataSet,
+    @Inject('diaIndex') private diagramIndex: number,
+    @Inject('direction') private direction: number
+    ) {
 
   }
 
   ngOnInit() {
-    // イベント登録
-    // サービスで共有しているデータが更新されたら発火されるイベントをキャッチする
-    this.subscription = this.selectorService.sharedDataSource$.subscribe(
-      msg => {
-        if(msg[0]===0){
-        this.diagramIndex=msg[1];
-        this.direct=msg[2];
-        }
-      }
-    );
   }
 
   ngOnDestroy(): void {
-    this.subscription.unsubscribe();
   }
+  useTimeTable(): Array<Streak> {
+    if(this.oudData.diagrams.length>this.diagramIndex) {
+      if(this.direction===0) {
+        return this.oudData.diagrams[this.diagramIndex].downStreaks;
+      } else {
+        return this.oudData.diagrams[this.diagramIndex].upStreaks;
 
+      }
+    } else {
+      return new Array<Streak>();
+    }
+  }
+  onScroll(event: Event) {
+    const trainList =document.getElementById('trainList');
+    const trainTitle =document.getElementById('trainTitle');
+    const stationList =document.getElementById('stationList');
+    trainTitle.scrollTo(trainList.scrollLeft,0);
+    stationList.scrollTo(0,trainList.scrollTop);
+  }
+  stationList(): Array<Station> {
+    if(this.direction===0) {
+      return this.oudData.stations;
+    } else {
+      return this.oudData.stations.reverse() as Array<Station>;
+    }
+  }
 
 }
