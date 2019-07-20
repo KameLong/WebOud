@@ -20,13 +20,20 @@ export class StationComponent implements OnInit {
         return '1.2em';
       }
       if(this.station.timeType===10){
-        return '2.5em';
+        return '2.62em';
       }
       if(this.station.timeType===20){
         return '1.2em';
       }
       if(this.station.timeType===30){
         return '1.2em';
+      }
+  }
+  public getStationName(){
+      if(this.station.name.length<6){
+          return this.station.name;
+      }else{
+          return this.station.name.substr(0,5);
       }
   }
 

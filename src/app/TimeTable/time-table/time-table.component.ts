@@ -10,17 +10,24 @@ import {SelectorService} from '../../selector.service';
   styleUrls: ['./time-table.component.css']
 })
 export class TimeTableComponent implements OnInit,OnDestroy {
+  @Input('oudData') public oudData: DataSet;
+  @Input('diaIndex') private diagramIndex: number;
+  @Input('direction') private direction: number;
 
 
-  constructor(
-    @Inject('oudData') public oudData: DataSet,
-    @Inject('diaIndex') private diagramIndex: number,
-    @Inject('direction') private direction: number
+  constructor(private selectorService:SelectorService
     ) {
 
   }
 
   ngOnInit() {
+    this.selectorService.sharedDataSource$.subscribe((list:Array<number>)=>{
+      this.diagramIndex=list[1];
+      this.direction=list[2];
+
+    })
+
+
   }
 
   ngOnDestroy(): void {

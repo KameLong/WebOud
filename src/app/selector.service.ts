@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import {Subject} from 'rxjs';
 import {Point} from './OuDiaData/tool';
+import {DataSet} from './OuDiaData/OudOperator';
 
 @Injectable({
   providedIn: 'root'
