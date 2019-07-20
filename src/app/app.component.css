@@ -11,7 +11,7 @@ app-selector{
 app-tab-layout{
 
   height:100%;
-  width:calc((100% - 180px) / 2 );
+  width:calc((100% - 180px) );
   overflow: hidden;
   float:left;
 
