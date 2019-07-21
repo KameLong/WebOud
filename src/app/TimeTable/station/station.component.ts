@@ -1,4 +1,4 @@
-import {Component, HostBinding, Input, OnInit} from '@angular/core';
+import {AfterViewChecked, Component, HostBinding, Input, OnInit} from '@angular/core';
 import {DataSet, Station} from '../../OuDiaData/OudOperator';
 
 @Component({
@@ -40,10 +40,11 @@ export class StationComponent implements OnInit {
       }
   }
   public border(){
-      if(this.direction==0){
+
+      if(this.direction===0){
           return this.oudData.stations[this.stationIndex].boundary;
-      }else if(this.stationIndex!=this.oudData.stations.length-1){
-          return this.oudData.stations[this.stationIndex+1].boundary;
+      }else if(this.stationIndex!==0){
+          return this.oudData.stations[this.stationIndex-1].boundary;
       }
       return false;
   }

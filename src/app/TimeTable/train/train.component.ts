@@ -1,4 +1,4 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {AfterViewChecked, Component, Input, OnInit} from '@angular/core';
 import {DataSet, StHandling, Streak} from '../../OuDiaData/OudOperator';
 
 @Component({
@@ -18,8 +18,14 @@ export class TrainComponent implements OnInit {
   trainColor(): string {
     return this.oudData.trainTypes[this.train.typeIdx].lineColor.RGB();
   }
-
   depTimeFormat(stationIndex: number): string {
+    let stationListIndex=0;
+    if(this.direction===0){
+      stationListIndex=stationIndex;
+    }else{
+      stationListIndex=this.oudData.stations.length-stationIndex-1;
+    }
+
     if(stationIndex>=this.train.stHandlings.length) {
       this.train.stHandlings[stationIndex]=new StHandling();
     }
@@ -29,7 +35,7 @@ export class TrainComponent implements OnInit {
         return '･ ･';
       case 1:
         if(time.departure.isNull) {
-          if(this.oudData.stations[stationIndex].timeType===10) {
+          if(this.oudData.stations[stationListIndex].timeType===10) {
             if(this.train.stHandlings.length>stationIndex+1) {
               switch (this.train.stHandlings[stationIndex + 1].type) {
                 case 0:
@@ -60,6 +66,13 @@ export class TrainComponent implements OnInit {
     }
   }
   ariTimeFormat(stationIndex: number): string {
+    let stationListIndex=0;
+    if(this.direction===0){
+      stationListIndex=stationListIndex;
+    }else{
+      stationListIndex=this.oudData.stations.length-stationIndex-1;
+    }
+
     if(stationIndex>=this.train.stHandlings.length) {
       this.train.stHandlings[stationIndex]=new StHandling();
     }
@@ -72,7 +85,7 @@ export class TrainComponent implements OnInit {
         break;
       case 1:
         if(time.arrival.isNull) {
-          if(this.oudData.stations[stationIndex].timeType===10) {
+          if(this.oudData.stations[stationListIndex].timeType===10) {
             if(stationIndex>0) {
               switch (this.train.stHandlings[stationIndex - 1].type) {
                 case 0:
@@ -80,7 +93,6 @@ export class TrainComponent implements OnInit {
                 case 3:
                   return '||';
                 default:
-                  console.log(this.train.stHandlings[stationIndex - 1].type);
                   return '○';
               }
             }
@@ -110,7 +122,11 @@ export class TrainComponent implements OnInit {
     }
   }
   showDep(stationIndex: number) {
-      if(this.oudData.stations[stationIndex].timeType===0) {
+    if(this.direction===1){
+      stationIndex=this.oudData.stations.length-stationIndex-1;
+    }
+
+    if(this.oudData.stations[stationIndex].timeType===0) {
         return true;
       }
       if(this.oudData.stations[stationIndex].timeType===10) {
@@ -124,6 +140,9 @@ export class TrainComponent implements OnInit {
       }
   }
   showAri(stationIndex: number) {
+    if(this.direction===1){
+      stationIndex=this.oudData.stations.length-stationIndex-1;
+    }
       if(this.oudData.stations[stationIndex].timeType===0) {
         return false;
       }
@@ -146,7 +165,7 @@ export class TrainComponent implements OnInit {
       if(stationIndex==this.oudData.stations.length-1){
         return false;
       }
-      return this.oudData.stations[stationIndex+1].boundary;
+      return this.oudData.stations[this.oudData.stations.length-stationIndex-2].boundary;
     }
   }
 
