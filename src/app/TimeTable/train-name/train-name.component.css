@@ -1,0 +1,28 @@
+hr {
+  height: 1px;
+  background-color:black;
+  width: 115%;
+  border: none;
+  margin: calc( 0.1em - 0.5px) 0  calc( 0.1em - 0.5px) 0 ;
+}
+div{
+  text-align: center;
+  overflow: hidden;
+}
+.trainNumber{
+  font-size:60%;
+}
+.trainName{
+  height:7em;
+  white-space: normal;
+}
+.gousuu{
+  height:3em;
+
+}
+.vertical{
+  -webkit-writing-mode: vertical-rl;
+  -ms-writing-mode: tb-rl;
+  writing-mode: vertical-rl;
+  overflow: hidden;
+}

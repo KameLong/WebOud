@@ -1,9 +1,20 @@
-<app-timetable-menu></app-timetable-menu>
-  <div>
-  <app-station-title></app-station-title>
-  <app-train-title [oud]="oudData" [diagramIndex]="diagramIndex" [direction]="direct"></app-train-title>
+<app-timetable-menu [oudData]="oudData" [diaIndex]="diagramIndex" [direction]="direction"></app-timetable-menu>
+<div id="title">
+  <div id="stationTitle">
+      <span class="vertical">列車名</span>
   </div>
-  <div>
-  <app-station-list [oud]="oudData" [direction]="direct"></app-station-list>
-  <app-train-list [oud]="oudData" [diagramIndex]="diagramIndex" [direction]="direct"></app-train-list>
+  <div  id="trainTitle">
+    <app-train-name  *ngFor="let i of this.useTimeTable()" [oud]="oudData" [train]="i"></app-train-name>
   </div>
+</div>
+<div id="time">
+  <div id="stationList">
+    <app-station *ngFor="let a of stationList() ; index as i " [stationIndex]="i" [oud]="oudData" [direct]="direction"></app-station>
+    <hr class="big"/>
+    <div class="remark"><span class="vertical">備考</span></div>
+    <br/><br/><br/><br/>
+  </div>
+  <div id="trainList" (scroll)="onScroll($event)">
+    <app-train *ngFor="let i of this.useTimeTable()" [oud]="oudData" [train]="i" [direction]="this.direction"></app-train>
+  </div>
+</div>

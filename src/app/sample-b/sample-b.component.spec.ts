@@ -1,20 +1,20 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { StationTimeComponent } from './station-time.component';
+import { SampleBComponent } from './sample-b.component';
 
-describe('StationTimeComponent', () => {
-  let component: StationTimeComponent;
-  let fixture: ComponentFixture<StationTimeComponent>;
+describe('SampleBComponent', () => {
+  let component: SampleBComponent;
+  let fixture: ComponentFixture<SampleBComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ StationTimeComponent ]
+      declarations: [ SampleBComponent ]
     })
     .compileComponents();
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(StationTimeComponent);
+    fixture = TestBed.createComponent(SampleBComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -1,5 +1,13 @@
-<!--<svg width="2.7em" height="1000px">
-  <text *ngFor="let i of stopList()" >{{this.train.stHandlings[i].departure.h}}</text>
-</svg>-->
+<div class="station-time" [style.color]="this.trainColor()" *ngFor="let a of oudData.stations ; index as i ">
+  <span *ngIf="showAri(i)">
+  {{this.ariTimeFormat(i)}}
+  </span>
+  <hr *ngIf="showDep(i)&&showAri(i)">
+  <span (click)="clickTest(i)" *ngIf="showDep(i)">
+  {{this.depTimeFormat(i)}}
+  </span>
+  <hr *ngIf="border(i)" class="big">
 
-<app-station-time [style.color]="this.trainColor()" *ngFor="let a of stopList()" [train]="train"  [station]="oudData.stations" [stationIndex]="a"></app-station-time>
+</div>
+<hr class="big">
+<div class="remark">{{this.train.comment}}</div>

@@ -1,0 +1,7 @@
+<div class="trainNumber" [style.color]="trainColor()">{{trainNumber()}}</div>
+<hr>
+<div [style.color]="trainColor()">{{typeName()}}</div>
+<hr>
+<div class="trainName"><span class="vertical" [style.color]="trainColor()">{{trainName()}}</span></div>
+<div *ngIf="visibleCount()" class="gousuu" [style.color]="trainColor()"><span class="vertical" ><span style="text-combine-upright: all;">{{count()}}</span>号</span></div>　　　　　
+<div *ngIf="!visibleCount()" class="gousuu" [style.color]="trainColor()">　　　　</div>　　　　　

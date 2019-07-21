@@ -1,90 +1,118 @@
-@media screen and (max-width: 400px) {
-  /* 表示領域が320px以下の場合に適用するスタイル */
-  div{
-    line-height:110%;
-    display: flex;
-    font-size: 10px;
-    margin-left: 3px;
-  }
-  div{
-  }
-  app-timetable-menu{
-    height:2em;
-    width:100%;
-    display: flex;
-  }
-  app-station-title{
-    height:7em;
-    width:5em;
-    display: flex;
-    border: solid black 2px;
-  }
-  app-station-list{
-    height : calc(90vh - 9em - 15px);
-    width:5em;
-    display: flex;
-    border: solid black 2px;
-    border-top: none;
 
-  }
-  app-train-title{
-    height:7em;
-    width:calc(100% - 25px - 5em);
-    display: flex;
-    border: solid black 2px;
-    border-left: none;
-
-  }
-  app-train-list{
-    height : calc(90vh - 9em - 5px);
-    width:calc(100% - 15px - 5em);
-    display: flex;
-
-  }
-}
-@media screen and (min-width: 400px) {
+@media screen and (min-width: 00px) {
   div{
     line-height:120%;
     display: flex;
     font-size: 16px;
-    margin-left: 5px;
+    margin-left: 0px;
   }
-  div{
+  hr.big {
+    height: 2px;
+    background-color:black;
+    width: 115%;
+    border: none;
+    margin: calc( 0.1em - 0.5px) 0  calc( 0.1em - 0.5px) 0 ;
+  }
+  .remark{
+    height:15em;
+    text-align: center;
+    width:80px;
+    display: block;
+
+
+  }
+  #time{
+    max-height : calc(100% - 265px);
+
   }
   app-timetable-menu{
     height:30px;
     width:100%;
 
     display: flex;
+
   }
-  app-station-title{
-    height:100px;
+  .vertical{
+    margin-top: 4em;
+    -webkit-writing-mode: vertical-rl;
+    -ms-writing-mode: tb-rl;
+    writing-mode: vertical-rl;
+
+  }
+  #stationTitle{
+    height:200px;
     width:80px;
-    display: flex;
+    display: block;
     border: solid black 2px;
+    text-align: center
+
   }
-  app-station-list{
-    height : calc(100vh - 165px);
+  #stationList{
+    max-height :calc( 100% - 17px);
     width:80px;
-    display: flex;
+    display: block;
     border: solid black 2px;
     border-top: none;
+    margin:0px;
+    overflow: hidden;
+    padding-top:2px;
+
 
   }
-  app-train-title{
-    height:100px;
+  #trainTitle{
+    height:200px;
     width:calc(100% - 114px);
-    display: flex;
+    display: block;
     border: solid black 2px;
     border-left: none;
+    overflow-x:hidden;
+    overflow-y:hidden;
+    white-space:nowrap;
+
 
   }
-  app-train-list{
-    height : calc(100vh - 148px);
+  #trainList{
+    max-height :100% ;
     width:calc(100% - 97px);
-    display: flex;
+    display: inline-block;
+    overflow-x:scroll;
+    overflow-y:scroll;
+    white-space:nowrap;
+  }
+  #trainList::-webkit-scrollbar{
+    width: 15px;
+    height: 15px;
+  }
+  #trainList::-webkit-scrollbar-track {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: inset 0 0 2px #777;
+    padding:2px;
+  }
+  #trainList::-webkit-scrollbar-thumb{
+    background: #aaa;
+    border-radius: 10px;
+    box-shadow: none;
+    padding:2px;
+  }
+  app-train-name{
+    display:inline-block;
+    width: 2.7em;
+    padding: 2px;
+    height:100%;
+    border-right: black solid 1px;
+  }
+  app-train{
+    display:inline-block;
+    vertical-align:top;
+    white-space:normal;
+    padding: 2px;
+    border-right: black solid 1px;
+    border-bottom: black solid 2px;
 
   }
 }
+
+
 
 

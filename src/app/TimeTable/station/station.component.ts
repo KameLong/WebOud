@@ -7,7 +7,8 @@ import {DataSet, Station} from '../../OuDiaData/OudOperator';
   styleUrls: ['./station.component.css']
 })
 export class StationComponent implements OnInit {
-  @Input('station') station: Station;
+  @Input('oud') oudData: DataSet;
+  @Input('stationIndex') stationIndex: number;
   @Input('direct') direction: number;
 
   constructor() {
@@ -16,19 +17,37 @@ export class StationComponent implements OnInit {
   ngOnInit() {
   }
   height(): string {
-      if(this.station.timeType===0){
+      const station=this.oudData.stations[this.stationIndex];
+      if(station.timeType===0){
         return '1.2em';
       }
-      if(this.station.timeType===10){
-        return '2.5em';
+      if(station.timeType===10){
+        return '2.62em';
       }
-      if(this.station.timeType===20){
+      if(station.timeType===20){
         return '1.2em';
       }
-      if(this.station.timeType===30){
+      if(station.timeType===30){
         return '1.2em';
       }
   }
+  public getStationName(){
+      const station=this.oudData.stations[this.stationIndex];
+      if(station.name.length<6){
+          return station.name;
+      }else{
+          return station.name.substr(0,5);
+      }
+  }
+  public border(){
+      if(this.direction==0){
+          return this.oudData.stations[this.stationIndex].boundary;
+      }else if(this.stationIndex!=this.oudData.stations.length-1){
+          return this.oudData.stations[this.stationIndex+1].boundary;
+      }
+      return false;
+  }
+
 
 
 }
