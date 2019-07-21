@@ -1581,6 +1581,9 @@ export class Station {
                 break;
             case "NextEkiDistance":
                 //todo
+            case "Kyoukaisen":
+                this.boundary=(value=="1");
+                //todo
                 break;
         }
     }

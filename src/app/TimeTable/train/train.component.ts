@@ -9,6 +9,7 @@ import {DataSet, StHandling, Streak} from '../../OuDiaData/OudOperator';
 export class TrainComponent implements OnInit {
   @Input('oud') oudData: DataSet;
   @Input('train')train: Streak;
+  @Input('direction')direction: number;
 
   constructor() { }
 
@@ -109,8 +110,6 @@ export class TrainComponent implements OnInit {
     }
   }
   showDep(stationIndex: number) {
-    const direction= 0;
-    if(direction===0) {
       if(this.oudData.stations[stationIndex].timeType===0) {
         return true;
       }
@@ -123,12 +122,8 @@ export class TrainComponent implements OnInit {
       if(this.oudData.stations[stationIndex].timeType===30) {
         return true;
       }
-
-    }
   }
   showAri(stationIndex: number) {
-    const direction= 0;
-    if(direction===0) {
       if(this.oudData.stations[stationIndex].timeType===0) {
         return false;
       }
@@ -141,11 +136,18 @@ export class TrainComponent implements OnInit {
       if(this.oudData.stations[stationIndex].timeType===30) {
         return false;
       }
-
-    }
   }
   clickTest(stationIndex: number) {
-    this.train.stHandlings[stationIndex].departure.m+=1;
+  }
+  border(stationIndex: number){
+    if(this.direction == 0){
+      return this.oudData.stations[stationIndex].boundary;
+    }else{
+      if(stationIndex==this.oudData.stations.length-1){
+        return false;
+      }
+      return this.oudData.stations[stationIndex+1].boundary;
+    }
   }
 
 

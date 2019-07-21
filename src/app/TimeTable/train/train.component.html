@@ -6,4 +6,8 @@
   <span (click)="clickTest(i)" *ngIf="showDep(i)">
   {{this.depTimeFormat(i)}}
   </span>
+  <hr *ngIf="border(i)" class="big">
+
 </div>
+<hr class="big">
+<div class="remark">{{this.train.comment}}</div>

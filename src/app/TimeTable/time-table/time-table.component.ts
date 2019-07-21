@@ -11,8 +11,8 @@ import {SelectorService} from '../../selector.service';
 })
 export class TimeTableComponent implements OnInit,OnDestroy {
   @Input('oudData') public oudData: DataSet;
-  @Input('diaIndex') private diagramIndex: number;
-  @Input('direction') private direction: number;
+  @Input('diaIndex') public diagramIndex: number;
+  @Input('direction') public direction: number;
 
 
   constructor(private selectorService:SelectorService
@@ -25,7 +25,7 @@ export class TimeTableComponent implements OnInit,OnDestroy {
       this.diagramIndex=list[1];
       this.direction=list[2];
 
-    })
+    });
 
 
   }
