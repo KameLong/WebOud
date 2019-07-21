@@ -1,4 +1,5 @@
-<app-timetable-menu [oudData]="oudData" [diaIndex]="diagramIndex" [direction]="direction"></app-timetable-menu>
+<app-timetable-menu [oudData]="oudData" [diaIndex]="diagramIndex" [direction]="direction">
+</app-timetable-menu>
 <div id="title">
   <div id="stationTitle">
       <span class="vertical">列車名</span>
@@ -9,7 +10,7 @@
 </div>
 <div id="time">
   <div id="stationList">
-    <app-station *ngFor="let a of stationList() ; index as i " [stationIndex]="i" [oud]="oudData" [direct]="direction"></app-station>
+    <app-station *ngFor="let i of stationIndexList() ; " [stationIndex]="i" [oud]="oudData" [direct]="direction"></app-station>
     <hr class="big"/>
     <div class="remark"><span class="vertical">備考</span></div>
     <br/><br/><br/><br/>

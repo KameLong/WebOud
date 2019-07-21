@@ -1,4 +1,10 @@
 <!--The content below is only a placeholder and can be replaced.-->
 <app-selector [oud]="this.oudiaData"></app-selector>
-<app-time-table [oudData]="this.oudiaData" [direction]="0" [diaIndex]="0"></app-time-table>
+<div *ngIf="!visible" class="load">
+    <div class="loader"></div>
+    <span class="loader-text">Loading...</span>
+</div>
 
+
+<app-time-table *ngIf="visible" [oudData]="this.oudiaData" [direction]="0" [diaIndex]="0">
+</app-time-table>

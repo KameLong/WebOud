@@ -23,5 +23,20 @@ export class TimetableMenuComponent implements OnInit {
 
     }
   }
+  lineName(){
+    try{
+      return this.oudData.name;
+    }catch (e) {
+      return "";
+    }
+  }
+  diaName(){
+    try{
+      return this.oudData.diagrams[this.diagramIndex].name;
+    }catch (e) {
+      return "";
+    }
+
+  }
 
 }

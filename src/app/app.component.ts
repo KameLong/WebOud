@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {AfterContentInit, AfterViewInit, Component, OnChanges, OnDestroy, OnInit, SimpleChanges} from '@angular/core';
 import {DataSet} from './OuDiaData/OudOperator';
 import {HttpClient} from '@angular/common/http';
 import {ActivatedRoute, Router} from '@angular/router';
@@ -12,7 +12,8 @@ import {TabModel} from './OuDiaData/tool';
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit,OnDestroy{
+export class AppComponent implements OnChanges,OnInit,OnDestroy,AfterViewInit,AfterContentInit{
+    public visible=false;
     private queryParams: any;
     private oudURL: string=null;
     private oud2URL: string=null;
@@ -29,14 +30,23 @@ export class AppComponent implements OnInit,OnDestroy{
 
 
     }
+    ngOnChanges(changes: SimpleChanges): void {
+        console.log("change");
+    }
+
+    ngAfterContentInit(): void {
+        console.log("aftercontnet");
+    }
+    ngAfterViewInit(): void {
+        console.log("afterView");
+    }
+
     ngOnInit(): void {
         this.queryParams = this._activatedRoute.snapshot.queryParams;
-        console.log(this.queryParams);
 
         this._activatedRoute.queryParams.subscribe(
             params => {
                 this.queryParams = params;
-                console.log(this.queryParams);
                 this.oudURL = this.queryParams.oudURL;
                 this.oud2URL = this.queryParams.oud2URL;
                 if(this.oudURL!=null){
@@ -48,7 +58,6 @@ export class AppComponent implements OnInit,OnDestroy{
                                 const reader = new FileReader();
                                 reader.onload = (event) => {
                                     this.oudiaData=new DataSet();
-                                    console.log("load72");
 
                                     this.oudiaData.fromOud2((reader.result as string).split('\r\n'));
                                     this.startInit();
@@ -58,6 +67,7 @@ export class AppComponent implements OnInit,OnDestroy{
                             },
                             error => {
                                 console.log('通信に失敗しました。');
+                                this.stopLoad();
                             }
                         );
                     return;
@@ -71,7 +81,6 @@ export class AppComponent implements OnInit,OnDestroy{
                                 const reader = new FileReader();
                                 reader.onload = (event) => {
                                     this.oudiaData=new DataSet();
-                                    console.log("load95");
 
                                     this.oudiaData.fromOud2((reader.result as string).split('\r\n'));
                                     this.startInit();
@@ -81,31 +90,13 @@ export class AppComponent implements OnInit,OnDestroy{
                             },
                             error => {
                                 console.log('通信に失敗しました。');
+                                this.stopLoad();
                             }
                         );
                     return;
                 }
                 return;
 
-                this.http.get('/assets/sample.oud', {
-                    responseType: 'blob',
-                }).subscribe(
-                    data => {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                            this.oudiaData=new DataSet();
-                            console.log("load118");
-
-                            this.oudiaData.fromOud2((reader.result as string).split('\r\n'));
-                            this.startInit();
-                        }
-                        reader.readAsText(data,'Shift_JIS');
-
-                    },
-                    error => {
-                        console.log('通信に失敗しました。');
-                    }
-                );
             }
         );
 
@@ -113,9 +104,17 @@ export class AppComponent implements OnInit,OnDestroy{
 
     startInit(): string {
         console.log('読み込みました');
+        this.visible=true;
 
         return ' ';
     }
+    stopLoad(): string {
+        console.log('読み込みに失敗しました');
+        this.visible=true;
+
+        return ' ';
+    }
+
     loadOud(url: string ,shiftJIS: boolean) {
         this.http.get(url, {
             responseType: 'blob',
@@ -125,7 +124,6 @@ export class AppComponent implements OnInit,OnDestroy{
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         this.oudiaData=new DataSet();
-                        console.log("load155");
 
                         this.oudiaData.fromOud2((reader.result as string).split('\r\n'));
                         this.startInit();
