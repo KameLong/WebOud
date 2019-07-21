@@ -18,7 +18,11 @@ export class TrainNameComponent implements OnInit {
     return this.oudData.trainTypes[this.train.typeIdx].lineColor.RGB();
   }
   trainNumber() {
-    return this.train.operationNum;
+    let result=this.train.operationNum;
+    if(result.length==0){
+      return '　';
+    }
+    return result;
   }
   typeName() {
     let result=this.oudData.trainTypes[this.train.typeIdx].shortname;
@@ -26,6 +30,20 @@ export class TrainNameComponent implements OnInit {
       return '　';
     }
     return result;
+  }
+  trainName(){
+    let result= this.train.name;
+    if(result.length<3){
+      return result+'　　　';
+    }
+    return result;
+  }
+  visibleCount(){
+    return (this.train.no!==undefined &&this.train.no.length>0);
+
+  }
+  count(){
+    return this.train.no;
   }
 
 

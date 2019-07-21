@@ -1,3 +1,10 @@
 div{
   width:100%;
 }
+hr.big {
+  height: 2px;
+  background-color:black;
+  width: 115%;
+  border: none;
+  margin: calc( 0.1em - 0.5px) 0  calc( 0.1em - 0.5px) 0 ;
+}

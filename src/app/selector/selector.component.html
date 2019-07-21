@@ -4,12 +4,12 @@
   <form>
   <input id="input" type="file" style="display: none" (change)="file($event)"/>
   </form>
-  <div id="openFile" (click)="openFile()" style="text-decoration: underline;">ファイルを開く</div>
+  <div  id="openFile" (click)="openFile()" style="display:none;text-decoration: underline;">ファイルを開く</div>
   <ul>
     <li>{{oudData.name}}</li>
     <ul>
-      <li>駅</li>
-      <li>列車種別</li>
+      <li style="display:none;">駅</li>
+      <li style="display:none;">列車種別</li>
       <li *ngFor="let a of oudData.diagrams">{{a.name}}
         <ul>
           <li style="text-decoration: underline;">
@@ -18,12 +18,12 @@
           <li style="text-decoration: underline;">
             <span (click)="openUpTimeTable(oudData.diagrams.indexOf(a))">上り時刻表</span>
           </li>
-          <li>
+          <li style="display:none;">
             ダイヤグラム
           </li>
         </ul>
       </li>
-      <li>
+      <li style="display:none;">
         コメント
       </li>
     </ul>
