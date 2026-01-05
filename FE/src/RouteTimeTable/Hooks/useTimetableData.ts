@@ -86,7 +86,7 @@ export function useStopTimeEditor(params: {
      */
     const changeStopTime = useCallback(
         async (stopTime: StopTimeDto) => {
-            const res = await fetch(`${SERVER_URL}/api/stopTimes/${stopTime.id}`, {
+            const res = await fetch(`${SERVER_URL}/stopTimes/${stopTime.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(stopTime),
@@ -124,7 +124,7 @@ export function useStopTimeEditor(params: {
     const promotePlaceholderAndSave = useCallback(
         async (stopTime: StopTimeDto) => {
             // 1) Trip作成
-            const res = await fetch(`${SERVER_URL}/api/trips`, {
+            const res = await fetch(`${SERVER_URL}/trips`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(routeId), // ← 現行仕様に合わせる（DTO化するならここを変更）
@@ -152,7 +152,7 @@ export function useStopTimeEditor(params: {
             stopTime.id = createdCell.id;
 
             // 4) stopTime 更新（PUT）
-            const res2 = await fetch(`${SERVER_URL}/api/stopTimes/${stopTime.id}`, {
+            const res2 = await fetch(`${SERVER_URL}/stopTimes/${stopTime.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(stopTime),
@@ -213,7 +213,7 @@ export function useStopTimeEditor(params: {
         // 1) サーバ削除（必要なら並列で）
         await Promise.all(
             ids.map(async (id) => {
-                const res = await fetch(`${SERVER_URL}/api/trips/${id}`, { method: "DELETE" });
+                const res = await fetch(`${SERVER_URL}/trips/${id}`, { method: "DELETE" });
                 if (!res.ok) {
                     const text = await res.text().catch(() => "");
                     throw new Error(`failed to delete trip ${id}: HTTP ${res.status} ${text}`);
@@ -230,7 +230,7 @@ export function useStopTimeEditor(params: {
     /** 空列車を挿入（DB保存不要の tempTrip） */
     const insertEmptyTripAt = useCallback(async(index: number) => {
         // 1) Trip作成
-        const res = await fetch(`${SERVER_URL}/api/trips`, {
+        const res = await fetch(`${SERVER_URL}/trips`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(routeId), // ← 現行仕様に合わせる（DTO化するならここを変更）

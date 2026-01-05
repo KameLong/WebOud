@@ -45,6 +45,8 @@ export function StationSidebar(props: {
                 flexShrink: 0,
                 zIndex: zLeft,
                 borderRight: "2px solid #333",
+                borderTop:'2px solid #333',
+                borderLeft:'2px solid #333',
                 borderBottom: "2px solid #333",
                 marginBottom: "10px",
 

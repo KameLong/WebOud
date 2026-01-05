@@ -4,7 +4,7 @@ using System;
 using WebOudDB;
 
 [ApiController]
-[Route("api/stopTimes")]
+[Route("stopTimes")]
 public class StopTimesController : ControllerBase
 {
     private readonly DiaDataContext _db;

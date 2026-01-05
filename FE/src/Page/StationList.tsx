@@ -204,7 +204,7 @@ export default function StationListPage({ routeId }: { routeId: number }) {
             HeaderComponent={() => (
                 <div style={{ display:"flex", border:"1px solid #ddd" }}>
                     <div style={{ ...styles.row, ...styles.headRow }}>
-                        <div style={{ ...styles.cell, ...styles.nameCell }}>駅名</div>
+                        <div style={{ ...styles.cell,  width: 240, padding: 8,boxSizing: "border-box",borderRight:"1px solid #ddd"}}>駅名</div>
                         <div style={{ ...styles.cell, ...styles.blockCell }}>
                             <div style={styles.blockTitle}>下り</div>
                             <div style={styles.checkGridHead}>

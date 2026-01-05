@@ -5,7 +5,7 @@ import type {TripDto, TripWithStopTimesDto} from "../DTO/TripDTO.ts";
 export async function addTripBlock(
     tripDtos: TripWithStopTimesDto[]
 ): Promise<TripWithStopTimesDto[]> {
-    const res = await fetch(`${SERVER_URL}/api/trips/block`, {
+    const res = await fetch(`${SERVER_URL}/trips/block`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tripDtos),
@@ -22,7 +22,7 @@ export async function addTripBlock(
 }
 
 export async function putTrip(trip: TripDto): Promise<void> {
-    const res = await fetch(`${SERVER_URL}/api/trips/${trip.id}`, {
+    const res = await fetch(`${SERVER_URL}/trips/${trip.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(trip),

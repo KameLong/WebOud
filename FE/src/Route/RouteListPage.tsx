@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {SERVER_URL} from "../server/ServerSetting.ts";
@@ -55,10 +56,10 @@ export default function RouteListPage() {
                     </tr>
                     </thead>
                     <tbody>
-                    {routes.map((r) => (
+                    {routes.filter(r=>r.id>0).map((r) => (
                         <tr
                             key={r.id}
-                            onClick={() => nav(`/routes/${r.id}`)} // 詳細/編集ページ想定
+                            onClick={() => nav(`/route/${r.id}`)} // 詳細/編集ページ想定
                             style={{ cursor: "pointer" }}
                         >
                             <td style={td}>{r.id}</td>

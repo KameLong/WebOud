@@ -181,7 +181,7 @@ export default function RouteTimetablePage() {
 
 
     return (
-        <div style={{ backgroundColor:"#FEE" ,height:'100%'}}>
+        <div style={{ height:'100%',padding:'10px'}}>
             <div
                 ref={scrollRef}
                 tabIndex={0}
@@ -402,8 +402,6 @@ export default function RouteTimetablePage() {
                     height:'calc(100%)',
                     outline: "none",
                     overflow: "auto",
-                    border: "1px solid #ddd",
-                    borderRadius: 8,
                     background: "#fff",
                     scrollPaddingTop: HEADER_H,
                     scrollPaddingLeft: STATION_NAME_WIDTH+LINE_HEIGHT,

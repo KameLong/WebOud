@@ -8,7 +8,7 @@ using WebOudDB;
 using static StopTimesController;
 
 [ApiController]
-[Route("api/trips")]
+[Route("trips")]
 public class TripsController : ControllerBase
 {
     private readonly DiaDataContext context;

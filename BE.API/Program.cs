@@ -19,7 +19,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-var cs = builder.Configuration.GetConnectionString("Default");
+//var cs = builder.Configuration.GetConnectionString("Default");
+var cs = builder.Configuration.GetConnectionString("Remote");
 builder.Services.AddDbContext<DiaDataContext>(o => o.UseNpgsql(cs));
 
 builder.Services.AddSignalR();
