@@ -1,5 +1,5 @@
-import type {Part, ShowStyle} from "./types.ts";
-import type {TripDto, TripWithStopTimesDto} from "../../server/DTO/TripDTO.ts";
+import type {Part} from "./types.ts";
+import type { TripWithStopTimesDto} from "../../server/DTO/TripDTO.ts";
 
 export const FONT_SIZE=14;
 export const LINE_HEIGHT=FONT_SIZE*1.25;
@@ -69,17 +69,7 @@ export function createPlaceholderTrip(routeID: number): TripWithStopTimesDto {
         stopTimesByStationId: {},
     };
 }
-export function isTripEmpty(t: TripWithStopTimesDto): boolean {
-    const hasMeta =
-        t.no.trim() !== "" ||
-        t.name.trim() !== "" ||
-        t.trainTypeID !== 0;
 
-    const hasStop =
-        Object.keys(t.stopTimesByStationId).length > 0;
-
-    return !hasMeta && !hasStop;
-}
 
 export function ensureTailPlaceholder(trips: TripWithStopTimesDto[], routeID: number): TripWithStopTimesDto[] {
     const nonPlaceholder = trips.filter(t => t.id !== -1);
@@ -93,39 +83,6 @@ export function ensureTailPlaceholder(trips: TripWithStopTimesDto[], routeID: nu
     result.push(tail ?? createPlaceholderTrip(routeID));
 
     return result;
-}
-export function generateTempTripID(trips: TripDto[]): number {
-    const min = trips.reduce((m, t) => Math.min(m, t.id), 0);
-    return Math.min(-2, min - 1); // -2, -3, ...
-}
-export function promoteIfNeeded(trips: TripWithStopTimesDto[], routeID: number): TripWithStopTimesDto[] {
-    if (trips.length === 0) {
-        return [createPlaceholderTrip(routeID)];
-    }
-
-    const last = trips[trips.length - 1];
-
-    // 末尾が placeholder でないなら保証だけする
-    if (last.id !== -1) {
-        return ensureTailPlaceholder(trips, routeID);
-    }
-
-    // placeholder がまだ空 → 何もしない
-    if (isTripEmpty(last)) {
-        return ensureTailPlaceholder(trips, routeID);
-    }
-
-    // === 昇格 ===
-    const promoted: TripWithStopTimesDto = {
-        ...last,
-        id: generateTempTripID(trips), // UI内一時ID
-    };
-
-    return [
-        ...trips.slice(0, -1),
-        promoted,
-        createPlaceholderTrip(routeID),
-    ];
 }
 
 

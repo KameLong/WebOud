@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { SERVER_URL } from "../server/ServerSetting";
 import {IndexedListComponent, type RowRenderProps} from "../component/IndexedListComponent";
 import type {TrainTypeDto} from "../server/DTO/TrainTypeDTO.ts";
+import {getErrorMessage} from "../Util.ts";
 
 
 const COL = {
@@ -99,8 +100,8 @@ function AppendTrainTypeRow({
 
             setNewName("");
             requestAnimationFrame(() => inputRef.current?.focus());
-        } catch (e: any) {
-            setCreateError(e?.message ?? "追加に失敗しました");
+        } catch (e: unknown) {
+            setCreateError(getErrorMessage(e));
             requestAnimationFrame(() => inputRef.current?.focus());
         } finally {
             setIsCreating(false);

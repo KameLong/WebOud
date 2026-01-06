@@ -5,12 +5,11 @@ import type {TrainTypeDto} from "../../server/DTO/TrainTypeDTO.ts";
 export function TrainHeader(props: {
     t: TripDto;
     traintype:TrainTypeDto;
-    invert: boolean;
     HEADER_H: number;
     zHeader: number;
     onDoubleClick?:  React.MouseEventHandler<HTMLDivElement>;
 }) {
-    const { t, invert, HEADER_H,  zHeader,traintype } = props;
+    const { t,  HEADER_H,  zHeader,traintype } = props;
     return (
         <div
             onDoubleClick={props.onDoubleClick}

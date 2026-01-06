@@ -11,11 +11,10 @@ const LABEL_WIDTH=LINE_HEIGHT;
 export function StationSidebar(props: {
     stations: StationDto[]; // ★StationDtoに変更
     HEADER_H: number;
-    HEADER_ROW_H: number;
     zLeft: number;
     zCorner: number;
 }) {
-    const { stations,  HEADER_H, HEADER_ROW_H, zLeft, zCorner } = props;
+    const { stations,  HEADER_H,  zLeft, zCorner } = props;
 
     // 1駅分のラベル構成（駅ごとのshowStyleから決める）
     function buildPartsForStation(st: StationDto): Array<{ key: Part; label: string }> {

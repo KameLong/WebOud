@@ -2,7 +2,6 @@ import './App.css'
 import {BrowserRouter, Route, Routes} from "react-router-dom";
 import StationListPage from "./Page/StationList.tsx";
 import TrainTypeListPage from "./Page/TrainTypeList.tsx";
-import {Test} from "./Page/Test.tsx";
 import RouteTimetablePage from "./RouteTimeTable/RouteTimetablePage.tsx";
 import RouteListPage from "./Route/RouteListPage.tsx";
 import RouteCreatePage from "./Route/RouteCreatePage.tsx";

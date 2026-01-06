@@ -1,6 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {
-    createPlaceholderTrip,
     decodeShowStyleDown,
     FONT_SIZE,
     isDigitKey,
@@ -11,16 +10,14 @@ import {useSelectionNavigation} from "./Hooks/useSelectionNavigation.ts";
 import {useAutoScrollCursor} from "./Hooks/useAutoScrollCursor.ts";
 import {StationSidebar} from "./Components/StationSidebar.tsx";
 import {TrainColumn} from "./Components/TrainColumn.tsx";
-import { SERVER_URL } from "../server/ServerSetting";
 import {StopTimeEditDialog} from "./Components/StopTimeEditDialog.tsx";
-import type {TimeTableDto} from "../server/DTO/RouteDTO.ts";
-import type {TripWithStopTimesDto} from "../server/DTO/TripDTO.ts";
 import type {StopTimeDto} from "../server/DTO/StopTimeDTO.ts";
 import {useStopTimeEditor, useTimetableData} from "./Hooks/useTimetableData.ts";
 import {useTripClipboard} from "./Hooks/useTripClopboard.ts";
 import {PasteMoveDialog} from "./Components/PasteMoveDialog.tsx";
 import {TrainPropertyDialog} from "./Components/TrainPropertyDialog.tsx";
 import {putTrip} from "../server/API/TripsAPI.ts";
+import type {Cursor} from "./domain/types.ts";
 
 /** ======================
  * main
@@ -74,7 +71,7 @@ export default function RouteTimetablePage() {
         getSelectedCols: () =>
             nav.isMultiColSelected ? Array.from(nav.selectedCols) : [nav.cursor.c],
         getCursorCol: () => nav.cursor.c,
-        onAfterMutate: (c) => nav.setCursor?.((cur: any) => ({ ...cur, c })),
+        onAfterMutate: (c) => nav.setCursor?.((cur: Cursor) => ({ ...cur, c })),
     });
     const [continuousInput, setContinuousInput] = useState(false);
 
@@ -120,10 +117,6 @@ export default function RouteTimetablePage() {
         const tr = trips[c];
         if (!st || !tr) return;
 
-        const s = decodeShowStyleDown(st.showStyle);
-
-        const key = `${st.id}:${tr.id}`;
-        // const cur = stopTimeMap.get(key);
 
         setEditTarget({
             stationName: st.name,
@@ -154,7 +147,6 @@ export default function RouteTimetablePage() {
             open: true,
             initialInput: initialChar ?? "",
         });
-        // setEditOpen(true);
     };
 
     const changeStopType=async(stopType:number)=>{
@@ -380,7 +372,7 @@ export default function RouteTimetablePage() {
                         // カーソルを安全な位置へクランプ（削除で列数が減るので）
                         // nav側に clamp があればそれを使う。無ければ簡易に：
                         const newLen = Math.max(1, trips.length - tripIds.length);
-                        nav.setCursor?.((cur: any) => ({ ...cur, c: Math.min(cur.c, newLen - 1) }));
+                        nav.setCursor?.((cur: Cursor) => ({ ...cur, c: Math.min(cur.c, newLen - 1) }));
                         return;
                     }
 
@@ -412,7 +404,6 @@ export default function RouteTimetablePage() {
                     <StationSidebar
                         stations={stations}
                         HEADER_H={HEADER_H}
-                        HEADER_ROW_H={HEADER_ROW_H}
                         zLeft={z.left}
                         zCorner={z.corner}
                     />

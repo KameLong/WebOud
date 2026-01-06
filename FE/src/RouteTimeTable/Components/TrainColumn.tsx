@@ -1,11 +1,11 @@
 import type {Cursor} from "../domain/types.ts";
-import React, {useEffect, useMemo, useState} from "react";
 import {TrainHeader} from "./TrainHeader.tsx";
 import { TRAIN_WIDTH} from "../domain/utils.ts";
 import {StopCell} from "./StopCell.tsx";
 import type {StationDto} from "../../server/DTO/StationDTO.ts";
 import type {TripWithStopTimesDto} from "../../server/DTO/TripDTO.ts";
 import type {TrainTypeDto} from "../../server/DTO/TrainTypeDTO.ts";
+import React from "react";
 
 export const TrainColumn = React.memo(
     function TrainColumn(props: {
@@ -32,7 +32,7 @@ export const TrainColumn = React.memo(
                 filter:invert?"invert(100%)":"",
 
             }}>
-                    <TrainHeader t={trip} invert={invert} HEADER_H={HEADER_H} zHeader={zHeader}
+                    <TrainHeader t={trip} HEADER_H={HEADER_H} zHeader={zHeader}
                                  onDoubleClick={(e) => {
                                      e.preventDefault();
                                      e.stopPropagation();
@@ -50,7 +50,6 @@ export const TrainColumn = React.memo(
                         key={st.id}
                         r={r}
                         c={c}
-                        invert={invert}
                         cursor={cursor}
                         stopTime={trip.stopTimesByStationId[st.id]}
                         station={st}

@@ -32,7 +32,7 @@ export function useSelectionNavigation(params: {
         return list;
     }, [stations]);
 
-    const moveVertical = (delta: -1 | 1) => {
+    const moveVertical = useCallback((delta: -1 | 1) => {
         if (verticalRoute.length === 0) return;
 
         const curIndex = verticalRoute.findIndex(
@@ -46,7 +46,7 @@ export function useSelectionNavigation(params: {
 
         const next = verticalRoute[idx];
         setCursor((cur) => ({ ...cur, r: next.r, part: next.part }));
-    };
+    },[verticalRoute,cursor]);
 
 
     const moveHorizontal = useCallback(

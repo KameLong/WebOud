@@ -1,7 +1,7 @@
 import {useCallback, useRef, useState} from "react";
 import type { TripWithStopTimesDto } from "../../server/DTO/TripDTO";
 import type { StopTimeDto } from "../../server/DTO/StopTimeDTO";
-import { ensureTailPlaceholder, generateTempTripID } from "../domain/utils";
+import { ensureTailPlaceholder} from "../domain/utils";
 import {addTripBlock} from "../../server/API/TripsAPI.ts";
 
 type ClipboardPayload = {
@@ -109,22 +109,23 @@ export function useTripClipboard(params: {
     }, [getSelectedCols, trips, setTrips, routeId, getCursorCol, onAfterMutate]);
 
     const paste = useCallback(async() => {
+        //クリップボードから取得
         const payload = clipRef.current;
         if (!payload || payload.trips.length === 0) return false;
 
+        //貼り付け移動量取得
         if (deltaSeconds > 0) offsetRef.current += deltaSeconds;
         const offsetSeconds = offsetRef.current;
 
-        let insertPosForCursor = 0;
-        let pastedCount = payload.trips.length;
 
-
+        //貼り付け位置取得
+        const pastedCount = payload.trips.length;
         const cursorCol = getCursorCol();
         const insertPosRaw = getPasteIndex ? getPasteIndex() : cursorCol;
-
         // prev.length - 1 は末尾placeholderの位置。そこには入れず、その手前まで。
-        const insertPos = Math.max(0, Math.min(insertPosRaw, trips.length - 1));
-        insertPosForCursor = insertPos;
+        const insertPosForCursor = Math.max(0, Math.min(insertPosRaw, trips.length - 1));
+
+        //新しいtripを作成
         const newTrips = payload.trips.map((t) => {
             const stMap: Record<string, StopTimeDto> = {};
             for (const [k, v] of Object.entries(t.stopTimesByStationId ?? {})) {
@@ -138,10 +139,8 @@ export function useTripClipboard(params: {
                 stopTimesByStationId: stMap,
             };
         });
+        //サーバーに追加
         const result=await addTripBlock(newTrips);
-        console.log(result);
-        // 4) 戻り値により分岐
-        //    (A) List<TripWithStopTimesDto> が返ってくる（推奨）
         if (Array.isArray(result)) {
             const createdTrips = result as TripWithStopTimesDto[];
 
@@ -157,11 +156,7 @@ export function useTripClipboard(params: {
             return true;
         }
         throw new Error("server error");
-
-
-
-
-    }, [deltaSeconds, getCursorCol, getPasteIndex, routeId, setTrips, onAfterMutate]);
+    }, [deltaSeconds, getCursorCol, getPasteIndex, routeId, setTrips, onAfterMutate,trips.length]);
 
 
 
@@ -171,7 +166,6 @@ export function useTripClipboard(params: {
     const onKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
             // IME中は無視
-            // @ts-ignore
             if (e.nativeEvent?.isComposing) return;
 
             const key = e.key.toLowerCase();

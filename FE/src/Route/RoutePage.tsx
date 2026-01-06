@@ -1,6 +1,6 @@
 import React from "react";
 import StationListPage from "../Page/StationList.tsx";
-import {useNavigate, useNavigation, useParams} from "react-router-dom";
+import {useNavigate,  useParams} from "react-router-dom";
 import TrainTypeListPage from "../Page/TrainTypeList.tsx";
 
 export function RoutePage(){

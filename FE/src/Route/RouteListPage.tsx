@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {SERVER_URL} from "../server/ServerSetting.ts";
+import {getErrorMessage} from "../Util.ts";
 
 type RouteDto = {
     id: number;
@@ -26,8 +27,8 @@ export default function RouteListPage() {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = (await res.json()) as RouteDto[];
             setRoutes(data);
-        } catch (e: any) {
-            setError(e?.message ?? "読み込みに失敗しました");
+        } catch (e:unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setLoading(false);
         }

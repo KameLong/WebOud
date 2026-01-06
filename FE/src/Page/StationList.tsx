@@ -3,6 +3,7 @@ import { SERVER_URL } from "../server/ServerSetting";
 import { ShowStyleComponent } from "../component/ShowStyleComponent";
 import {IndexedListComponent} from "../component/IndexedListComponent.tsx";
 import type {StationDto} from "../server/DTO/StationDTO.ts";
+import {getErrorMessage} from "../Util.ts";
 
 const COL = {
     name: 240,          // 駅名
@@ -106,8 +107,8 @@ function AppendComponent({routeId,stations,setStations}:{routeId:number,stations
 
             setNewName("");
             requestAnimationFrame(() => newInputRef.current?.focus());
-        } catch (e:any) {
-            setCreateError(e?.message ?? "追加に失敗しました");
+        } catch (e:unknown) {
+            setCreateError(getErrorMessage(e));
             requestAnimationFrame(() => newInputRef.current?.focus());
         } finally {
             setIsCreating(false);

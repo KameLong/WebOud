@@ -14,8 +14,6 @@ type FitTextXProps = {
     /** クラスや追加style */
     style?: React.CSSProperties;
     className?: string;
-    /** title 付与（ホバーで全文） */
-    title?: boolean;
 };
 
 /**
@@ -31,7 +29,6 @@ export function FitTextX({
                              align = "left",
                              style,
                              className,
-                             title = true,
                          }: FitTextXProps) {
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const textRef = useRef<SVGTextElement | null>(null);
@@ -81,49 +78,49 @@ export function FitTextX({
 
     // SVG textLength は「指定長に伸縮」なので、
     // scale を使って「指定長 = naturalW * scale」にする
-    const textLength = needCompress ? naturalW * scale : undefined;
-
-    const anchor = align === "left" ? "start" : align === "center" ? "middle" : "end";
-    const x = align === "left" ? paddingX : align === "center" ? wrapW / 2 : wrapW - paddingX;
+    // const textLength = needCompress ? naturalW * scale : undefined;
+    //
+    // const anchor = align === "left" ? "start" : align === "center" ? "middle" : "end";
+    // const x = align === "left" ? paddingX : align === "center" ? wrapW / 2 : wrapW - paddingX;
     // console.log(text,textLength,needCompress,naturalW,availableW);
     // 高さはフォントサイズ基準（見た目調整）
-    if(false){
-        return (
-            <div
-                ref={wrapRef}
-                className={className}
-                style={{
-                    display: "block",
-                    alignItems: "center",
-                    overflow: "hidden",
-                    textAlign:'justify',
-
-                    textJustify:'inter-character',
-                    textAlignLast:'justify',
-                    overflowX: 'hidden',
-                    whiteSpace: 'nowrap',
-                    ...style,
-                }}
-                // title={title ? text : undefined}
-            >
-                        <svg width="100%"  style={{ display: "block" }}>
-                            <text
-                                ref={textRef}
-                                x={x}
-                                y="50%"
-                                dominantBaseline="middle"
-                                textAnchor={anchor}
-                                fill={color}
-                                // これが横圧縮の肝
-                                lengthAdjust={needCompress ? "spacingAndGlyphs" : undefined}
-                                textLength={needCompress ? textLength : undefined}
-                            >
-                                {text}
-                            </text>
-                        </svg>
-            </div>
-        )
-    }
+    // if(false){
+    //     return (
+    //         <div
+    //             ref={wrapRef}
+    //             className={className}
+    //             style={{
+    //                 display: "block",
+    //                 alignItems: "center",
+    //                 overflow: "hidden",
+    //                 textAlign:'justify',
+    //
+    //                 textJustify:'inter-character',
+    //                 textAlignLast:'justify',
+    //                 overflowX: 'hidden',
+    //                 whiteSpace: 'nowrap',
+    //                 ...style,
+    //             }}
+    //             // title={title ? text : undefined}
+    //         >
+    //                     <svg width="100%"  style={{ display: "block" }}>
+    //                         <text
+    //                             ref={textRef}
+    //                             x={x}
+    //                             y="50%"
+    //                             dominantBaseline="middle"
+    //                             textAnchor={anchor}
+    //                             fill={color}
+    //                             // これが横圧縮の肝
+    //                             lengthAdjust={needCompress ? "spacingAndGlyphs" : undefined}
+    //                             textLength={needCompress ? textLength : undefined}
+    //                         >
+    //                             {text}
+    //                         </text>
+    //                     </svg>
+    //         </div>
+    //     )
+    // }
 
     return (
         <div

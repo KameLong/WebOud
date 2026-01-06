@@ -6,6 +6,7 @@ import {createPlaceholderTrip, ensureTailPlaceholder} from "../domain/utils";
 import type {StationDto} from "../../server/DTO/StationDTO.ts";
 import type {TimeTableDto} from "../../server/DTO/RouteDTO.ts";
 import type {TrainTypeDto} from "../../server/DTO/TrainTypeDTO.ts";
+import {getErrorMessage} from "../../Util.ts";
 
 
 export function useTimetableData(routeId: number) {
@@ -34,8 +35,8 @@ export function useTimetableData(routeId: number) {
             setStations(sortedStations);
             setTrips(normalizedTrips);
             setTraintypes(data.trainTypes);
-        } catch (e: any) {
-            setError(e?.message ?? "読み込みに失敗しました");
+        } catch (e:unknown) {
+            setError(getErrorMessage(e));
         } finally {
             setLoading(false);
         }
@@ -196,8 +197,8 @@ export function useStopTimeEditor(params: {
                 } else {
                     await changeStopTime(stopTime);
                 }
-            } catch (e: any) {
-                setError(e?.message ?? String(e));
+            } catch (e: unknown) {
+                setError(getErrorMessage(e));
                 throw e; // ページ側でも catch できるように
             } finally {
                 setSaving(false);

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {SERVER_URL} from "../server/ServerSetting.ts";
+import {getErrorMessage} from "../Util.ts";
 
 type RouteDto = { id: number; route_name: string };
 
@@ -34,7 +35,8 @@ export default function RouteCreatePage() {
             if (!res.ok) {
                 // できればサーバ側で ProblemDetails を返すとより良い
                 const text = await res.text().catch(() => "");
-                throw new Error(text || `HTTP ${res.status}`);
+                setError(text || `HTTP ${res.status}`);
+                return;
             }
 
             const dto = (await res.json()) as RouteDto;
@@ -42,8 +44,8 @@ export default function RouteCreatePage() {
 
             // 例：作成後に一覧へ（必要なら dto.id へ遷移でもOK）
             nav("/routes");
-        } catch (err: any) {
-            setError(err?.message ?? "作成に失敗しました");
+        } catch (err:unknown) {
+            setError(getErrorMessage(err));
         } finally {
             setIsSaving(false);
         }

@@ -21,7 +21,6 @@ export function TrainPropertyDialog(props: {
     const [trainTypeID, setTrainTypeID] = useState<number>(0);
     const [name, setName] = useState("");
     const [remark, setRemark] = useState("");
-    const [isEmpty, setIsEmpty] = useState(false);
 
     const noRef = useRef<HTMLInputElement | null>(null);
 
@@ -37,7 +36,6 @@ export function TrainPropertyDialog(props: {
         setTrainTypeID(initial.trainTypeID ?? fallbackTrainTypeID);
         setName(initial.name ?? "");
         // setRemark(initial.remark ?? "");
-        // setIsEmpty(!!initial.isEmpty);
 
         requestAnimationFrame(() => noRef.current?.focus());
     }, [open, initial, fallbackTrainTypeID]);
@@ -51,13 +49,7 @@ export function TrainPropertyDialog(props: {
             trainTypeID:trainTypeID,
             name:name,
         })
-        // onSave({
-        //     no: no.trim(),
-        //     trainTypeID,
-        //     name: name.trim(),
-        //     // remark: remark.trim(),
-        //     // isEmpty,
-        // });
+
     }
 
     return (
@@ -142,11 +134,6 @@ export function TrainPropertyDialog(props: {
                     {/*    placeholder="任意"*/}
                     {/*/>*/}
 
-                    {/*<div />*/}
-                    {/*<label style={{ display: "flex", gap: 8, alignItems: "center", userSelect: "none" }}>*/}
-                    {/*    <input type="checkbox" checked={isEmpty} onChange={(e) => setIsEmpty(e.target.checked)} />*/}
-                    {/*    <span style={{ fontSize: 12, color: "#444" }}>空行</span>*/}
-                    {/*</label>*/}
                 </div>
 
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>

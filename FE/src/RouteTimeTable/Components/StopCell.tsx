@@ -58,12 +58,11 @@ function ariTimeStr(stopTime:StopTimeDto,showArr:boolean,showDep:boolean,showPas
 export function StopCell(props: {
     r: number;
     c: number;
-    invert: boolean;
     cursor: Cursor; // 全体カーソル
     station: StationDto;
     stopTime:StopTimeDto;
 }){
-    const { r, c, invert, cursor, station,stopTime } = props;
+    const { r, c,  cursor, station,stopTime } = props;
     const ROW_H=cellHeight(station.showStyle);
     const inThisCell = cursor.r === r && cursor.c === c;
     const isPartSelected = (part: Part) => inThisCell && cursor.part === part;
