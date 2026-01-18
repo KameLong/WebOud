@@ -28,6 +28,7 @@ export const TrainColumn = React.memo(
                 width: TRAIN_WIDTH,
                 borderRight: "1px solid #333",
                 borderBottom: "2px solid #333",
+                borderTop: "2px solid #333",
                 color:trainType.color,
                 filter:invert?"invert(100%)":"",
 

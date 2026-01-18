@@ -73,6 +73,10 @@ export function StationSidebar(props: {
                     width: STATION_NAME_WIDTH+LABEL_WIDTH-4,
                     }}>
                     <FitTextX text={"列車種別"}/>
+                    <div style={{
+                        width:STATION_NAME_WIDTH+LABEL_WIDTH,
+                        borderBottom: '1px solid #333',
+                    }}> </div>
                     <FitTextX text={"列車番号"}/>
                     <div style={{
                         width:STATION_NAME_WIDTH+LABEL_WIDTH,
