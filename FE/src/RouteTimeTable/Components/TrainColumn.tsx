@@ -18,9 +18,11 @@ export const TrainColumn = React.memo(
         invert: boolean;
         HEADER_H: number;
         zHeader: number;
+        continuousInput:boolean;
         onOpenTripProperty:(tripId: number)=>void
+        cont: { buf: string, lastTime: number }
     }) {
-        const { trip, c, stations, cursor, isSelected, invert, HEADER_H,   zHeader,trainType } = props;
+        const { trip, c, stations, cursor, isSelected, invert, HEADER_H,   zHeader,trainType,continuousInput,cont } = props;
         // console.log(trip);
 
         return (
@@ -48,9 +50,11 @@ export const TrainColumn = React.memo(
                     void isSelected;
 
                     return <StopCell
+                        cont={cont}
                         key={st.id}
                         r={r}
                         c={c}
+                        continuousInput={continuousInput}
                         cursor={cursor}
                         stopTime={trip.stopTimesByStationId[st.id]}
                         station={st}

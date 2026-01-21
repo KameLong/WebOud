@@ -1,5 +1,7 @@
 import type {Part} from "./types.ts";
 import type { TripWithStopTimesDto} from "../../server/DTO/TripDTO.ts";
+import type {StopTimeDto} from "../../server/DTO/StopTimeDTO.ts";
+import type {StationDto} from "../../server/DTO/StationDTO.ts";
 
 export const FONT_SIZE=14;
 export const LINE_HEIGHT=FONT_SIZE*1.25;
@@ -126,4 +128,24 @@ export function timeStr2Int(timeStr:string):number{
 //入力したキーが数値か？
 export function isDigitKey(e: React.KeyboardEvent) {
     return e.key.length === 1 && e.key >= "0" && e.key <= "9";
+}
+
+
+//与えられたstoptimeの配列の中でstationIndexより前にある駅のうち、時刻があるものを返します。
+export function getLastTimeFormStopTimes(stopTimes:StopTimeDto[],stationIndex:number):number{
+    for(let i=stationIndex;i>=0;i--){
+        if(stopTimes[i]?.depTime>=0){
+            return stopTimes[i]?.depTime;
+        }
+        if(stopTimes[i]?.ariTime>=0){
+            return stopTimes[i]?.ariTime;
+        }
+    }
+    return -1;
+}
+
+export function makeStopTimeList(trip:TripWithStopTimesDto,stations:StationDto[]){
+    return stations.map(st=>{
+        return trip.stopTimesByStationId[st.id];
+    })
 }

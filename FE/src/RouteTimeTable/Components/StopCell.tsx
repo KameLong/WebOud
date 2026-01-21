@@ -54,15 +54,24 @@ function ariTimeStr(stopTime:StopTimeDto,showArr:boolean,showDep:boolean,showPas
 
 }
 
-
+function contStr( buf: string, lastTime: number ):string{
+    if(lastTime<0){
+        return buf.padEnd(4,"-");
+    }
+    const hh=Math.floor(lastTime/3600)%24;
+    console.log(hh);
+    return hh+buf.padEnd(2,"-");
+}
 export function StopCell(props: {
     r: number;
     c: number;
     cursor: Cursor; // 全体カーソル
     station: StationDto;
     stopTime:StopTimeDto;
+    continuousInput:boolean;
+    cont: { buf: string, lastTime: number }
 }){
-    const { r, c,  cursor, station,stopTime } = props;
+    const { r, c,  cursor, station,stopTime,continuousInput ,cont} = props;
     const ROW_H=cellHeight(station.showStyle);
     const inThisCell = cursor.r === r && cursor.c === c;
     const isPartSelected = (part: Part) => inThisCell && cursor.part === part;
@@ -77,12 +86,12 @@ export function StopCell(props: {
         textOverflow: "ellipsis",
         boxSizing: "border-box",
         outline: selected ? "1px dashed #333" : "1px solid transparent",
+        backgroundColor: selected && continuousInput ? "#eef8ff" : "white",
         outlineOffset: -1,
         // mixBlendMode:"difference"
     });
     const s = decodeShowStyleDown(station.showStyle);
     const showArrBottomBorder=s.showArr&&s.showDep;
-
     return (
         <div
             style={{
@@ -113,13 +122,12 @@ export function StopCell(props: {
                 </div>
             )}
 
-            {s.showDep && (
-                <div
-                    data-r={r}
-                    data-c={c}
-                    data-part="dep"
-                    style={{ ...partStyle(isPartSelected("dep"))}}>
-                    {depTimeStr(stopTime,s.showArr,s.showDep,false)}
+            { s.showDep && (
+                <div data-r={r} data-c={c} data-part="dep"
+                     style={{ ...partStyle(isPartSelected("dep")) }}>
+                    {isPartSelected("dep") && continuousInput
+                        ? contStr(cont.buf,cont.lastTime)
+                        : depTimeStr(stopTime, s.showArr, s.showDep, false)}
                 </div>
             )}
         </div>

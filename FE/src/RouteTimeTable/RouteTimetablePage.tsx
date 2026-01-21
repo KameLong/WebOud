@@ -1,9 +1,9 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {
     decodeShowStyleDown,
-    FONT_SIZE,
+    FONT_SIZE, getLastTimeFormStopTimes,
     isDigitKey,
-    LINE_HEIGHT,
+    LINE_HEIGHT, makeStopTimeList,
     STATION_NAME_WIDTH
 } from "./domain/utils.ts";
 import {useSelectionNavigation} from "./Hooks/useSelectionNavigation.ts";
@@ -18,6 +18,9 @@ import {PasteMoveDialog} from "./Components/PasteMoveDialog.tsx";
 import {TrainPropertyDialog} from "./Components/TrainPropertyDialog.tsx";
 import {putTrip} from "../server/API/TripsAPI.ts";
 import type {Cursor} from "./domain/types.ts";
+import {AsyncQueue} from "../Util.ts";
+
+const keyEventQueue=new AsyncQueue<unknown>();
 
 /** ======================
  * main
@@ -75,9 +78,6 @@ export default function RouteTimetablePage() {
     });
     const [continuousInput, setContinuousInput] = useState(false);
 
-    function toggleContinuousInput() {
-        setContinuousInput(v => !v);
-    }
 
 
 
@@ -89,10 +89,85 @@ export default function RouteTimetablePage() {
     const [tripPropTargetId, setTripPropTargetId] = useState<number | null>(null);
 
 
-    const contRef = useRef<{
+    const [contRef,setContRef] = useState<{
         buf: string;         // 例: "123" / "0930"
-        lastHour: number | null; // 上2桁（時）の補完用（推定）
-    }>({ buf: "", lastHour: null });
+        lastTime: number; // 上2桁（時）の補完用（推定）
+    }>({ buf: "", lastTime: -1 });
+
+    useEffect(() => {
+        setContRef(prev=>{return{
+            buf:prev.buf,
+            lastTime:getLastTimeFormStopTimes(makeStopTimeList(trips[nav.cursor.c],stations),nav.cursor.r),
+        }})
+    }, [nav.cursor.r,nav.cursor.c,nav.cursor.part,trips[nav.cursor.c]]);
+
+    useEffect(() => {
+        const ref={...contRef};
+        // 3桁 or 4桁で確定（推定仕様）
+        if (ref.buf.length === 2) {
+            console.log(ref);
+            const st = stations[nav.cursor.r];
+            const tr = trips[nav.cursor.c];
+
+            const s = ref.buf;
+            ref.buf = "";
+            if(ref.lastTime===-1){
+                //特殊処理、まだ登録されていないので
+                const hh = Number(s);
+                if ( hh < 0 || hh > 25) {
+                    console.log("不正")
+                    setContRef(ref);
+                    return;
+                }
+                ref.lastTime=hh*3600;
+                setContRef(ref);
+                return;
+            }
+            const mm = Number(s);
+            if ( mm < 0 || mm > 59) {
+                // 不正なら無視（必要ならエラー表示）
+                console.log("不正")
+                setContRef(ref);
+                return;
+            }
+            console.log(ref.lastTime,mm);
+
+            const part = nav.cursor.part;
+            const current = tr.stopTimesByStationId?.[st.id] ?? {
+                id: 0,
+                tripID: tr.id,
+                stationID: st.id,
+                ariTime: -1,
+                depTime: -1,
+                stop: 0,
+                stopType: 0,
+            };
+
+            const nextStopTime = { ...current };
+            let lastHH=Math.floor(ref.lastTime/3600)%24;
+            if(mm*60<ref.lastTime%3600){
+                lastHH++;
+            }
+            const seconds=lastHH*3600+mm*60;
+            if (part === "arr") nextStopTime.ariTime = seconds;
+            if (part === "dep") nextStopTime.depTime = seconds;
+            //
+            // stopType の自動補正（あなたの既存ロジックに合わせる）
+            if (nextStopTime.stopType === 0 || nextStopTime.stopType === 3) {
+                if (nextStopTime.ariTime >= 0 || nextStopTime.depTime >= 0) nextStopTime.stopType = 1;
+            }
+
+            // 反映（DB保存はここで呼んでもいいし、あとでまとめても良い）
+            changeStopTime(nextStopTime); // 既存の関数がある前提
+
+            // 次へ
+            nav.moveVertical(1);
+            setContRef(ref);
+
+        }
+
+    }, [contRef]);
+
 
 
     if (loading) return <div style={{ padding: 12 }}>loading...</div>;
@@ -149,6 +224,8 @@ export default function RouteTimetablePage() {
         });
     };
 
+
+
     const changeStopType=async(stopType:number)=>{
         if(!(stopType===2||stopType===3)){
             return;
@@ -169,6 +246,177 @@ export default function RouteTimetablePage() {
         nav.moveVertical(1);
     }
 
+    const keyEvent =async(e:React.KeyboardEvent) => {
+        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "t" || e.key === "T")) {
+            e.preventDefault();
+            if(continuousInput){
+                setContRef(prev=>{return{
+                    buf:"",
+                    lastTime:-1,
+                }})
+            }
+            setContinuousInput(v => !v);
+            return;
+        }
+        if (continuousInput && isDigitKey(e)) {
+            e.preventDefault();
+
+            const digit = e.key; // "0".."9"
+            const st = stations[nav.cursor.r];
+            const tr = trips[nav.cursor.c];
+            if (!st || !tr) return;
+            const ref=contRef;
+            setContRef(prev=>{return{
+                buf:prev.buf+digit,
+                lastTime:prev.lastTime,
+            }})
+
+            return;
+        }
+        if (continuousInput && e.key === "Escape") {
+            e.preventDefault();
+            setContRef(prev=>{return{
+                buf:"",
+                lastTime:prev.lastTime,
+            }})
+
+            // contRef.current.buf = "";
+            setContinuousInput(false);
+            return;
+        }
+
+        if (continuousInput && e.key === "Backspace") {
+            e.preventDefault();
+            setContRef(prev=>{return{
+                buf:contRef.buf.slice(0, -1),
+                lastTime:prev.lastTime,
+            }})
+
+            // contRef.current.buf = contRef.current.buf.slice(0, -1);
+            return;
+        }
+
+        // ★ Shift+Enter：貼り付け移動量設定
+        if (e.key === "Enter" && e.shiftKey) {
+            e.preventDefault();
+            setPasteMoveOpen(true);
+            return;
+        }
+
+        //編集開始
+        if (e.key === "Enter") {
+            e.preventDefault();
+            openEdit();
+            return;
+        }
+        //数値入力
+        if (isDigitKey(e)) {
+            e.preventDefault();
+            openEdit(e.key);
+            return;
+        }
+        if(e.key==='^'&&e.ctrlKey) {
+            //経由なしに変更する
+            await changeStopType(3);
+
+            e.preventDefault();
+            return;
+        }
+        if(e.key === "-") {
+            if(e.ctrlKey) {
+                //通過に変更する
+                await changeStopType(2);
+                e.preventDefault();
+                return;
+
+            }
+
+        }
+
+        //駅時刻削除
+        if(e.ctrlKey&&e.key==="Delete") {
+            console.log("Delete");
+            const cursor = nav.cursor;
+            const r = cursor.r;
+            const c = cursor.c;
+            const part = cursor.part;
+
+            const station = stations[r];         // StationDto[] を想定
+            const trip = trips[c];
+            const newStopTime = {...trip.stopTimesByStationId[station.id]};
+
+            console.log(newStopTime);
+            const showStyle=decodeShowStyleDown(station.showStyle);
+            if(!showStyle.showDep) {
+                newStopTime.depTime = -1;
+            }
+            if(!showStyle.showArr) {
+                newStopTime.ariTime = -1;
+            }
+            if(!showStyle.showTrack) {
+                newStopTime.stop = 0;
+            }
+
+            switch (part) {
+                case "dep":
+                    newStopTime.depTime = -1;
+                    break;
+                case "arr":
+                    newStopTime.ariTime = -1;
+                    break;
+                case "track":
+                    newStopTime.stop = 0;
+                    break;
+            }
+            if(newStopTime.depTime<0&&newStopTime.ariTime<0&&newStopTime.stop==0) {
+                newStopTime.stopType=0;
+            }
+            await changeStopTime(newStopTime);
+            nav.moveVertical(1);
+        }
+        // Delete：Trip削除
+        if (e.key === "Delete" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            e.preventDefault();
+
+            // 削除対象：複数選択があればそれ、なければカーソル列
+            const cols = nav.isMultiColSelected
+                ? Array.from(nav.selectedCols.values())
+                : [nav.cursor.c];
+
+            // tripIdに変換（placeholderはあとで弾く）
+            const tripIds = cols
+                .map(c => trips[c]?.id)
+                .filter((id): id is number => typeof id === "number");
+
+            // placeholder(-1)しかない場合は何もしない
+            const hasDeletable = tripIds.some(id => id !== -1);
+            if (!hasDeletable) return;
+
+            await deleteTrips(tripIds);
+
+            // カーソルを安全な位置へクランプ（削除で列数が減るので）
+            // nav側に clamp があればそれを使う。無ければ簡易に：
+            const newLen = Math.max(1, trips.length - tripIds.length);
+            nav.setCursor?.((cur: Cursor) => ({ ...cur, c: Math.min(cur.c, newLen - 1) }));
+            return;
+        }
+
+        // Ctrl+Insert：空列車挿入（現在列の手前）
+        if (e.ctrlKey && e.key === "Insert") {
+            e.preventDefault();
+            await insertEmptyTripAt(nav.cursor.c);
+            return;
+        }
+        tripClipboard.onKeyDown(e);
+        // ここで e.defaultPrevented なら他処理しない
+        if (e.defaultPrevented) return;
+
+
+
+        nav.onKeyDown(e);
+        await new Promise(res => setTimeout(res, 0))
+    };
+
 
 
 
@@ -177,219 +425,10 @@ export default function RouteTimetablePage() {
             <div
                 ref={scrollRef}
                 tabIndex={0}
-                onKeyDown={async(e: React.KeyboardEvent)=>{
-                    console.log(e.key);
-                    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "t" || e.key === "T")) {
-                        e.preventDefault();
-                        toggleContinuousInput();
-                        return;
-                    }
-                    // if (continuousInput && isDigitKey(e)) {
-                    //     e.preventDefault();
-                    //
-                    //     const digit = e.key; // "0".."9"
-                    //     const st = stations[nav.cursor.r];
-                    //     const tr = trips[nav.cursor.c];
-                    //     if (!st || !tr) return;
-                    //
-                    //     // placeholder列や temp列の扱いは、今まで通り stopTime保存フローへ寄せるのが安全
-                    //     // ここでは「state上の stopTimesByStationId を更新する」までやって、保存は既存の onSave/Editor に任せる案もOK
-                    //     // まずはローカル反映だけの例を書く（DB反映は changeStopTime を呼ぶ）
-                    //
-                    //     const ref = contRef.current;
-                    //     ref.buf += digit;
-                    //     if (ref.buf.length > 4) {
-                    //         // 4桁超えたら最後4桁だけ残す（連続打鍵時の事故防止）
-                    //         ref.buf = ref.buf.slice(-4);
-                    //     }
-                    //
-                    //     // 3桁 or 4桁で確定（推定仕様）
-                    //     if (ref.buf.length === 3 || ref.buf.length === 4) {
-                    //         const s = ref.buf;
-                    //         ref.buf = "";
-                    //
-                    //         // parse hmm / hhmm
-                    //         let hh: number, mm: number;
-                    //         if (s.length === 3) {
-                    //             hh = Number(s[0]);
-                    //             mm = Number(s.slice(1));
-                    //         } else {
-                    //             hh = Number(s.slice(0, 2));
-                    //             mm = Number(s.slice(2));
-                    //         }
-                    //
-                    //         // 範囲チェック（00:00～23:59）
-                    //         if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
-                    //             // 不正なら無視（必要ならエラー表示）
-                    //             return;
-                    //         }
-                    //
-                    //         // 秒単位で扱っている前提
-                    //         const seconds = hh * 3600 + mm * 60;
-                    //         ref.lastHour = hh;
-                    //
-                    //         const part = nav.cursor.part;
-                    //         const current = tr.stopTimesByStationId?.[st.id] ?? {
-                    //             id: 0,
-                    //             tripID: tr.id,
-                    //             stationID: st.id,
-                    //             ariTime: -1,
-                    //             depTime: -1,
-                    //             stop: 0,
-                    //             stopType: 0,
-                    //         };
-                    //
-                    //         const nextStopTime = { ...current };
-                    //
-                    //         if (part === "arr") nextStopTime.ariTime = seconds;
-                    //         if (part === "dep") nextStopTime.depTime = seconds;
-                    //
-                    //         // stopType の自動補正（あなたの既存ロジックに合わせる）
-                    //         if (nextStopTime.stopType === 0 || nextStopTime.stopType === 3) {
-                    //             if (nextStopTime.ariTime >= 0 || nextStopTime.depTime >= 0) nextStopTime.stopType = 1;
-                    //         }
-                    //
-                    //         // 反映（DB保存はここで呼んでもいいし、あとでまとめても良い）
-                    //         await changeStopTime(nextStopTime); // 既存の関数がある前提
-                    //
-                    //         // 次へ
-                    //         nav.moveVertical(1);
-                    //     }
-                    //
-                    //     return;
-                    // }
-                    if (continuousInput && e.key === "Escape") {
-                        e.preventDefault();
-                        contRef.current.buf = "";
-                        setContinuousInput(false);
-                        return;
-                    }
-
-                    if (continuousInput && e.key === "Backspace") {
-                        e.preventDefault();
-                        contRef.current.buf = contRef.current.buf.slice(0, -1);
-                        return;
-                    }
-
-                    // ★ Shift+Enter：貼り付け移動量設定
-                    if (e.key === "Enter" && e.shiftKey) {
-                        e.preventDefault();
-                        setPasteMoveOpen(true);
-                        return;
-                    }
-
-                    //編集開始
-                    if (e.key === "Enter") {
-                        e.preventDefault();
-                        openEdit();
-                        return;
-                    }
-                    //数値入力
-                    if (isDigitKey(e)) {
-                        e.preventDefault();
-                        openEdit(e.key);
-                        return;
-                    }
-                    if(e.key==='^'&&e.ctrlKey) {
-                        //経由なしに変更する
-                        changeStopType(3);
-
-                        e.preventDefault();
-                        return;
-                    }
-                    if(e.key === "-") {
-                        if(e.ctrlKey) {
-                            //通過に変更する
-                            changeStopType(2);
-                            e.preventDefault();
-                            return;
-
-                        }
-
-                    }
-
-                    //駅時刻削除
-                    if(e.ctrlKey&&e.key==="Delete") {
-                        console.log("Delete");
-                        const cursor = nav.cursor;
-                        const r = cursor.r;
-                        const c = cursor.c;
-                        const part = cursor.part;
-
-                        const station = stations[r];         // StationDto[] を想定
-                        const trip = trips[c];
-                        const newStopTime = {...trip.stopTimesByStationId[station.id]};
-
-                        console.log(newStopTime);
-                        const showStyle=decodeShowStyleDown(station.showStyle);
-                        if(!showStyle.showDep) {
-                            newStopTime.depTime = -1;
-                        }
-                        if(!showStyle.showArr) {
-                            newStopTime.ariTime = -1;
-                        }
-                        if(!showStyle.showTrack) {
-                            newStopTime.stop = 0;
-                        }
-
-                        switch (part) {
-                            case "dep":
-                                newStopTime.depTime = -1;
-                                break;
-                            case "arr":
-                                newStopTime.ariTime = -1;
-                                break;
-                            case "track":
-                                newStopTime.stop = 0;
-                                break;
-                        }
-                        if(newStopTime.depTime<0&&newStopTime.ariTime<0&&newStopTime.stop==0) {
-                            newStopTime.stopType=0;
-                        }
-                        await changeStopTime(newStopTime);
-                        nav.moveVertical(1);
-                    }
-                    // Delete：Trip削除
-                    if (e.key === "Delete" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                        e.preventDefault();
-
-                        // 削除対象：複数選択があればそれ、なければカーソル列
-                        const cols = nav.isMultiColSelected
-                            ? Array.from(nav.selectedCols.values())
-                            : [nav.cursor.c];
-
-                        // tripIdに変換（placeholderはあとで弾く）
-                        const tripIds = cols
-                            .map(c => trips[c]?.id)
-                            .filter((id): id is number => typeof id === "number");
-
-                        // placeholder(-1)しかない場合は何もしない
-                        const hasDeletable = tripIds.some(id => id !== -1);
-                        if (!hasDeletable) return;
-
-                        await deleteTrips(tripIds);
-
-                        // カーソルを安全な位置へクランプ（削除で列数が減るので）
-                        // nav側に clamp があればそれを使う。無ければ簡易に：
-                        const newLen = Math.max(1, trips.length - tripIds.length);
-                        nav.setCursor?.((cur: Cursor) => ({ ...cur, c: Math.min(cur.c, newLen - 1) }));
-                        return;
-                    }
-
-                    // Ctrl+Insert：空列車挿入（現在列の手前）
-                    if (e.ctrlKey && e.key === "Insert") {
-                        e.preventDefault();
-                        insertEmptyTripAt(nav.cursor.c);
-                        return;
-                    }
-                    tripClipboard.onKeyDown(e);
-                    // ここで e.defaultPrevented なら他処理しない
-                    if (e.defaultPrevented) return;
-
-
-
-                    nav.onKeyDown(e);
+                onKeyDown={(e)=> {
+                    keyEventQueue.push(()=>keyEvent(e));
                 }}
+
                 style={{
                     height:'calc(100%)',
                     outline: "none",
@@ -420,6 +459,8 @@ export default function RouteTimetablePage() {
 
                             return (
                                 <TrainColumn
+                                    cont={contRef}
+                                    continuousInput={continuousInput}
                                     key={t.id}
                                     trip={t}
                                     c={c}
