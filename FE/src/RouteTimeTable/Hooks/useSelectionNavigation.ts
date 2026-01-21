@@ -1,4 +1,4 @@
-import type {Cursor,  Part} from "../domain/types.ts";
+import type {Cursor, KeyLike, Part} from "../domain/types.ts";
 import {useCallback,  useMemo, useState} from "react";
 import {decodeDownParts, makeRangeSet} from "../domain/utils.ts";
 import type {StationDto} from "../../server/DTO/StationDTO.ts";
@@ -65,7 +65,7 @@ export function useSelectionNavigation(params: {
     );
 
     const onKeyDown = useCallback(
-        (e: React.KeyboardEvent) => {
+        (e: KeyLike) => {
             if (e.key === "ArrowDown") {
                 e.preventDefault();
                 moveVertical(1);

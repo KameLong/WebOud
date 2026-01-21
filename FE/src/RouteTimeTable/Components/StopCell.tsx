@@ -68,10 +68,9 @@ export function StopCell(props: {
     cursor: Cursor; // 全体カーソル
     station: StationDto;
     stopTime:StopTimeDto;
-    continuousInput:boolean;
-    cont: { buf: string, lastTime: number }
+    cont: { buf: string, lastTime: number ,enabled: boolean }
 }){
-    const { r, c,  cursor, station,stopTime,continuousInput ,cont} = props;
+    const { r, c,  cursor, station,stopTime,cont} = props;
     const ROW_H=cellHeight(station.showStyle);
     const inThisCell = cursor.r === r && cursor.c === c;
     const isPartSelected = (part: Part) => inThisCell && cursor.part === part;
@@ -86,7 +85,7 @@ export function StopCell(props: {
         textOverflow: "ellipsis",
         boxSizing: "border-box",
         outline: selected ? "1px dashed #333" : "1px solid transparent",
-        backgroundColor: selected && continuousInput ? "#eef8ff" : "white",
+        backgroundColor: selected && cont.enabled ? "#eef8ff" : "white",
         outlineOffset: -1,
         // mixBlendMode:"difference"
     });
@@ -125,7 +124,7 @@ export function StopCell(props: {
             { s.showDep && (
                 <div data-r={r} data-c={c} data-part="dep"
                      style={{ ...partStyle(isPartSelected("dep")) }}>
-                    {isPartSelected("dep") && continuousInput
+                    {isPartSelected("dep") && cont.enabled
                         ? contStr(cont.buf,cont.lastTime)
                         : depTimeStr(stopTime, s.showArr, s.showDep, false)}
                 </div>

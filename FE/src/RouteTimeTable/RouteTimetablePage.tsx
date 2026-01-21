@@ -1,9 +1,9 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {
     decodeShowStyleDown,
-    FONT_SIZE, getLastTimeFormStopTimes,
+    FONT_SIZE,
     isDigitKey,
-    LINE_HEIGHT, makeStopTimeList,
+    LINE_HEIGHT,
     STATION_NAME_WIDTH
 } from "./domain/utils.ts";
 import {useSelectionNavigation} from "./Hooks/useSelectionNavigation.ts";
@@ -17,8 +17,13 @@ import {useTripClipboard} from "./Hooks/useTripClopboard.ts";
 import {PasteMoveDialog} from "./Components/PasteMoveDialog.tsx";
 import {TrainPropertyDialog} from "./Components/TrainPropertyDialog.tsx";
 import {putTrip} from "../server/API/TripsAPI.ts";
-import type {Cursor} from "./domain/types.ts";
+import type {Cursor, KeyLike} from "./domain/types.ts";
 import {AsyncQueue} from "../Util.ts";
+import { useContinuousTimeInput } from "./Hooks/useContinuousTimeInput";
+import type {TrainTypeDto} from "../server/DTO/TrainTypeDTO.ts";
+
+
+
 
 const keyEventQueue=new AsyncQueue<unknown>();
 
@@ -50,6 +55,13 @@ export default function RouteTimetablePage() {
         trainsLen: trips.length,
         stations
     });
+    const cont = useContinuousTimeInput({
+        stations,
+        trips,
+        nav,
+        changeStopTime,
+    });
+
     const [pasteMoveOpen, setPasteMoveOpen] = useState(false);
     useAutoScrollCursor(scrollRef, nav.cursor);
 
@@ -76,97 +88,18 @@ export default function RouteTimetablePage() {
         getCursorCol: () => nav.cursor.c,
         onAfterMutate: (c) => nav.setCursor?.((cur: Cursor) => ({ ...cur, c })),
     });
-    const [continuousInput, setContinuousInput] = useState(false);
-
-
-
-
 
     useEffect(() => {
-        console.log(trips);
+        // console.log(trips);
     }, [trips]);
     const [tripPropOpen, setTripPropOpen] = useState(false);
     const [tripPropTargetId, setTripPropTargetId] = useState<number | null>(null);
 
-
-    const [contRef,setContRef] = useState<{
-        buf: string;         // 例: "123" / "0930"
-        lastTime: number; // 上2桁（時）の補完用（推定）
-    }>({ buf: "", lastTime: -1 });
-
-    useEffect(() => {
-        setContRef(prev=>{return{
-            buf:prev.buf,
-            lastTime:getLastTimeFormStopTimes(makeStopTimeList(trips[nav.cursor.c],stations),nav.cursor.r),
-        }})
-    }, [nav.cursor.r,nav.cursor.c,nav.cursor.part,trips[nav.cursor.c]]);
-
-    useEffect(() => {
-        const ref={...contRef};
-        // 3桁 or 4桁で確定（推定仕様）
-        if (ref.buf.length === 2) {
-            console.log(ref);
-            const st = stations[nav.cursor.r];
-            const tr = trips[nav.cursor.c];
-
-            const s = ref.buf;
-            ref.buf = "";
-            if(ref.lastTime===-1){
-                //特殊処理、まだ登録されていないので
-                const hh = Number(s);
-                if ( hh < 0 || hh > 25) {
-                    console.log("不正")
-                    setContRef(ref);
-                    return;
-                }
-                ref.lastTime=hh*3600;
-                setContRef(ref);
-                return;
-            }
-            const mm = Number(s);
-            if ( mm < 0 || mm > 59) {
-                // 不正なら無視（必要ならエラー表示）
-                console.log("不正")
-                setContRef(ref);
-                return;
-            }
-            console.log(ref.lastTime,mm);
-
-            const part = nav.cursor.part;
-            const current = tr.stopTimesByStationId?.[st.id] ?? {
-                id: 0,
-                tripID: tr.id,
-                stationID: st.id,
-                ariTime: -1,
-                depTime: -1,
-                stop: 0,
-                stopType: 0,
-            };
-
-            const nextStopTime = { ...current };
-            let lastHH=Math.floor(ref.lastTime/3600)%24;
-            if(mm*60<ref.lastTime%3600){
-                lastHH++;
-            }
-            const seconds=lastHH*3600+mm*60;
-            if (part === "arr") nextStopTime.ariTime = seconds;
-            if (part === "dep") nextStopTime.depTime = seconds;
-            //
-            // stopType の自動補正（あなたの既存ロジックに合わせる）
-            if (nextStopTime.stopType === 0 || nextStopTime.stopType === 3) {
-                if (nextStopTime.ariTime >= 0 || nextStopTime.depTime >= 0) nextStopTime.stopType = 1;
-            }
-
-            // 反映（DB保存はここで呼んでもいいし、あとでまとめても良い）
-            changeStopTime(nextStopTime); // 既存の関数がある前提
-
-            // 次へ
-            nav.moveVertical(1);
-            setContRef(ref);
-
-        }
-
-    }, [contRef]);
+    const trainTypeById = useMemo(() => {
+        const m = new Map<number, TrainTypeDto>();
+        traintypes.forEach(tt => m.set(tt.id, tt));
+        return m;
+    }, [traintypes]);
 
 
 
@@ -246,55 +179,8 @@ export default function RouteTimetablePage() {
         nav.moveVertical(1);
     }
 
-    const keyEvent =async(e:React.KeyboardEvent) => {
-        if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === "t" || e.key === "T")) {
-            e.preventDefault();
-            if(continuousInput){
-                setContRef(prev=>{return{
-                    buf:"",
-                    lastTime:-1,
-                }})
-            }
-            setContinuousInput(v => !v);
-            return;
-        }
-        if (continuousInput && isDigitKey(e)) {
-            e.preventDefault();
-
-            const digit = e.key; // "0".."9"
-            const st = stations[nav.cursor.r];
-            const tr = trips[nav.cursor.c];
-            if (!st || !tr) return;
-            const ref=contRef;
-            setContRef(prev=>{return{
-                buf:prev.buf+digit,
-                lastTime:prev.lastTime,
-            }})
-
-            return;
-        }
-        if (continuousInput && e.key === "Escape") {
-            e.preventDefault();
-            setContRef(prev=>{return{
-                buf:"",
-                lastTime:prev.lastTime,
-            }})
-
-            // contRef.current.buf = "";
-            setContinuousInput(false);
-            return;
-        }
-
-        if (continuousInput && e.key === "Backspace") {
-            e.preventDefault();
-            setContRef(prev=>{return{
-                buf:contRef.buf.slice(0, -1),
-                lastTime:prev.lastTime,
-            }})
-
-            // contRef.current.buf = contRef.current.buf.slice(0, -1);
-            return;
-        }
+    const keyEvent =async(e:KeyLike) => {
+        if(await cont.onKeyDown(e))return;
 
         // ★ Shift+Enter：貼り付け移動量設定
         if (e.key === "Enter" && e.shiftKey) {
@@ -328,9 +214,7 @@ export default function RouteTimetablePage() {
                 await changeStopType(2);
                 e.preventDefault();
                 return;
-
             }
-
         }
 
         //駅時刻削除
@@ -409,7 +293,6 @@ export default function RouteTimetablePage() {
         }
         tripClipboard.onKeyDown(e);
         // ここで e.defaultPrevented なら他処理しない
-        if (e.defaultPrevented) return;
 
 
 
@@ -425,9 +308,24 @@ export default function RouteTimetablePage() {
             <div
                 ref={scrollRef}
                 tabIndex={0}
-                onKeyDown={(e)=> {
-                    keyEventQueue.push(()=>keyEvent(e));
+                onKeyDown={(e) => {
+                    const ev = {
+                        key: e.key,
+                        altKey: e.altKey,
+                        ctrlKey: e.ctrlKey,
+                        metaKey: e.metaKey,
+                        shiftKey: e.shiftKey,
+                        // もし必要なら code / repeat なども
+                        preventDefault: () => e.preventDefault(),
+                        nativeEvent:e.nativeEvent,
+
+                    };
+
+                    keyEventQueue.push(() => keyEvent(ev));
                 }}
+                // onKeyDown={(e)=> {
+                //     keyEventQueue.push(()=>keyEvent(e));
+                // }}
 
                 style={{
                     height:'calc(100%)',
@@ -459,8 +357,7 @@ export default function RouteTimetablePage() {
 
                             return (
                                 <TrainColumn
-                                    cont={contRef}
-                                    continuousInput={continuousInput}
+                                    cont={cont.state}
                                     key={t.id}
                                     trip={t}
                                     c={c}
@@ -471,7 +368,7 @@ export default function RouteTimetablePage() {
                                     HEADER_H={HEADER_H}
                                     zHeader={z.header}
                                     onOpenTripProperty={openTripProperty}
-                                    trainType={traintypes.find(tt=>tt.id===t.trainTypeID)??{
+                                    trainType={trainTypeById.get(t.trainTypeID) ??{
                                         color:'#000',
                                         shortName:"",
                                         routeID:0,

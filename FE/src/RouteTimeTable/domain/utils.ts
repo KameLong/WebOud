@@ -1,4 +1,4 @@
-import type {Part} from "./types.ts";
+import type {KeyLike, Part} from "./types.ts";
 import type { TripWithStopTimesDto} from "../../server/DTO/TripDTO.ts";
 import type {StopTimeDto} from "../../server/DTO/StopTimeDTO.ts";
 import type {StationDto} from "../../server/DTO/StationDTO.ts";
@@ -126,7 +126,7 @@ export function timeStr2Int(timeStr:string):number{
 }
 
 //入力したキーが数値か？
-export function isDigitKey(e: React.KeyboardEvent) {
+export function isDigitKey(e: KeyLike) {
     return e.key.length === 1 && e.key >= "0" && e.key <= "9";
 }
 

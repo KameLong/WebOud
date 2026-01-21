@@ -3,6 +3,7 @@ import type { TripWithStopTimesDto } from "../../server/DTO/TripDTO";
 import type { StopTimeDto } from "../../server/DTO/StopTimeDTO";
 import { ensureTailPlaceholder} from "../domain/utils";
 import {addTripBlock} from "../../server/API/TripsAPI.ts";
+import type {KeyLike} from "../domain/types.ts";
 
 type ClipboardPayload = {
     trips: TripWithStopTimesDto[];
@@ -164,7 +165,7 @@ export function useTripClipboard(params: {
 
 
     const onKeyDown = useCallback(
-        (e: React.KeyboardEvent) => {
+        (e: KeyLike) => {
             // IME中は無視
             if (e.nativeEvent?.isComposing) return;
 
