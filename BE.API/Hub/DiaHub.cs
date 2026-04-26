@@ -1,10 +1,14 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using WebOudDB;
 
 public class DiaHub : Hub
 {
     // 例: 画面で開いている route の更新だけ受け取りたい
     public Task SubscribeRoute(int routeId)
-        => Groups.AddToGroupAsync(Context.ConnectionId, RouteGroup(routeId));
+    {
+        return Groups.AddToGroupAsync(Context.ConnectionId, RouteGroup(routeId));
+
+    }
 
     public Task UnsubscribeRoute(int routeId)
         => Groups.RemoveFromGroupAsync(Context.ConnectionId, RouteGroup(routeId));
@@ -15,5 +19,6 @@ public class DiaHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    private static string RouteGroup(int routeId) => $"route:{routeId}";
+
+    public static string RouteGroup(int routeId) => $"route:{routeId}";
 }

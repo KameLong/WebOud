@@ -169,6 +169,36 @@ export function useContinuousTimeInput(opts: Options) {
 
     const onKeyDown = useCallback(
         async (e: KeyLike) => {
+            // Alt+L / Alt+J
+            if (e.altKey) {
+                if (e.key.toLowerCase() === "l") {
+                    e.preventDefault();
+                    console.log("Alt+l");
+                    //１分進める
+
+
+
+                    // TODO: Ctrl+L の処理
+                    // 例:
+                    // await someAction();
+
+                    return true;
+                }
+
+                if (e.key.toLowerCase() === "j") {
+                    e.preventDefault();
+                    console.log("Alt+j");
+
+                    // TODO: Ctrl+J の処理
+                    // 例:
+                    // await someOtherAction();
+
+                    return true;
+                }
+            }
+
+
+
             // Alt+T トグル（あなたの仕様）
             if (
                 e.altKey &&
@@ -220,6 +250,7 @@ export function useContinuousTimeInput(opts: Options) {
 
                 return true;
             }
+
 
             return false;
         },

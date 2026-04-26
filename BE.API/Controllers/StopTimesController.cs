@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System;
 using WebOudDB;
@@ -8,7 +10,12 @@ using WebOudDB;
 public class StopTimesController : ControllerBase
 {
     private readonly DiaDataContext _db;
-    public StopTimesController(DiaDataContext db) => _db = db;
+    private readonly IHubContext<DiaHub> _hub;
+    public StopTimesController(DiaDataContext db, IHubContext<DiaHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     // GET api/stopTimes?tripId=123
     // GET api/stopTimes?tripId=123&stationId=45
@@ -75,7 +82,18 @@ public class StopTimesController : ControllerBase
         entity.StopType = dto.StopType;
         entity.Stop = dto.Stop;
 
+        StopTimeDto stopTimeDto = new StopTimeDto(id, dto.TripID, dto.StationID, dto.DepTime, dto.AriTime, dto.StopType, dto.Stop);
+
         await _db.SaveChangesAsync();
+        var routeID=_db.Trips.Where(trip => trip.Id == entity.TripID).First().RouteID;
+        await _hub.Clients
+            .Group($"route:{routeID}")
+            .SendAsync("StopTimeUpdated", new
+            {
+                stopTimeDto,
+                updatedAt = DateTimeOffset.Now
+            });
+
         return NoContent();
     }
 

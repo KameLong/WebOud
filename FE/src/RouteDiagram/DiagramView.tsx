@@ -1,10 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {DiagramData, DiagramStation, DiagramTrip} from "./DiagramData";
-import {
-    StationTime
-} from "../DiaData/DiaData";
-import {DiagramCanvas, DiagramLine, DiagramTransformC, Point} from "./DiagramCanvas";
-
+import {DiagramCanvas, type DiagramLine, DiagramTransformC} from "./DiagramCanvas";
+import type {DiagramStation} from "./DiagramData.ts";
 
 const fontSize=10;
 

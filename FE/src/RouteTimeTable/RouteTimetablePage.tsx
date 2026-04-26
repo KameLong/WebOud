@@ -22,7 +22,14 @@ import {AsyncQueue} from "../Util.ts";
 import { useContinuousTimeInput } from "./Hooks/useContinuousTimeInput";
 import type {TrainTypeDto} from "../server/DTO/TrainTypeDTO.ts";
 
-
+import {
+    JsonHubProtocol,
+    HubConnectionState,
+    HubConnectionBuilder,
+    LogLevel
+} from '@microsoft/signalr';
+import {SERVER_URL} from "../server/ServerSetting.ts";
+import type {TripWithStopTimesDto} from "../server/DTO/TripDTO.ts";
 
 
 const keyEventQueue=new AsyncQueue<unknown>();
@@ -48,6 +55,56 @@ export default function RouteTimetablePage() {
         routeId,
         setTrips,
     });
+
+    useEffect(() => {
+        const connection = new HubConnectionBuilder()
+            .withUrl(SERVER_URL+"/hub/dia")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("StopTimeUpdated", message => {
+            const stopTime:StopTimeDto=message.stopTimeDto;
+            console.log("StopTimeUpdated");
+            setTrips((prev)=>{
+                const next=[...prev];
+                const tripIndex=next.findIndex(trip=>trip.id===stopTime.tripID);
+                next[tripIndex].stopTimesByStationId={...next[tripIndex].stopTimesByStationId};
+                next[tripIndex].stopTimesByStationId[stopTime.stationID]=stopTime;
+                return next;
+            });
+        });
+        connection.on("TripUpdated", message => {
+            const trip:TripWithStopTimesDto=message.trip;
+            console.log(trip);
+            setTrips(prev=>{
+                return prev.map(tr =>
+                    tr.id === trip.id
+                        ?  trip  : tr
+                )
+            })
+            // setTrips((prev)=>{
+            //     const next=[...prev];
+            //     const tripIndex=next.findIndex(trip=>trip.id===stopTime.tripID);
+            //     next[tripIndex].stopTimesByStationId={...next[tripIndex].stopTimesByStationId};
+            //     next[tripIndex].stopTimesByStationId[stopTime.stationID]=stopTime;
+            //     return next;
+            // });
+        });
+
+        connection.start().then(()=>{
+            console.log("Connection started");
+            connection.invoke("SubscribeRoute", routeId);
+        })
+        return ()=>{
+            connection.stop();
+        }
+
+    }, [setTrips, routeId]);
+    useEffect(() => {
+        // console.log(trips);
+    }, [trips]);
+
+
 
 
     const nav = useSelectionNavigation({
@@ -180,6 +237,30 @@ export default function RouteTimetablePage() {
     }
 
     const keyEvent =async(e:KeyLike) => {
+        if(e.altKey && e.key==="l"){
+            const cursor = nav.cursor;
+            console.log("１分進める");
+            e.preventDefault();
+            const res = await fetch(`${SERVER_URL}/trips/ChangeTime/${trips[cursor.c].id}/${stations[cursor.r].id}/${cursor.part}/60`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            return;
+        }
+        if(e.altKey && e.key==="j"){
+            const cursor = nav.cursor;
+            console.log("１分戻す");
+            e.preventDefault();
+            const res = await fetch(`${SERVER_URL}/trips/ChangeTime/${trips[cursor.c].id}/${stations[cursor.r].id}/${cursor.part}/-60`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            });
+            return;
+        }
+
+
         if(await cont.onKeyDown(e))return;
 
         // ★ Shift+Enter：貼り付け移動量設定
@@ -293,6 +374,9 @@ export default function RouteTimetablePage() {
         }
         tripClipboard.onKeyDown(e);
         // ここで e.defaultPrevented なら他処理しない
+
+
+
 
 
 

@@ -92,25 +92,28 @@ export function useStopTimeEditor(params: {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(stopTime),
             });
-
             if (!res.ok) {
                 const text = await res.text().catch(() => "");
                 throw new Error(`failed to change StopTime: HTTP ${res.status} ${text}`);
             }
+            //StopTimeUpdatedが実施されます
 
-            // trips state へ反映
-            setTrips((prev) =>
-                prev.map((t) => {
-                    if (t.id !== stopTime.tripID) return t;
-                    return {
-                        ...t,
-                        stopTimesByStationId: {
-                            ...t.stopTimesByStationId,
-                            [stopTime.stationID]: stopTime, // stationID は number でもOK（JSは文字列化する）
-                        },
-                    };
-                })
-            );
+
+
+            //
+            // // trips state へ反映
+            // setTrips((prev) =>
+            //     prev.map((t) => {
+            //         if (t.id !== stopTime.tripID) return t;
+            //         return {
+            //             ...t,
+            //             stopTimesByStationId: {
+            //                 ...t.stopTimesByStationId,
+            //                 [stopTime.stationID]: stopTime, // stationID は number でもOK（JSは文字列化する）
+            //             },
+            //         };
+            //     })
+            // );
         },
         [setTrips]
     );
@@ -223,10 +226,10 @@ export function useStopTimeEditor(params: {
         );
 
         // 2) ローカルから削除して placeholder を整える
-        setTrips(prev => {
-            const next = prev.filter(t => !tripIds.includes(t.id)); // UI上の削除対象（tempも含めて消せる）
-            return ensureTailPlaceholder(next, routeId);
-        });
+        // setTrips(prev => {
+        //     const next = prev.filter(t => !tripIds.includes(t.id)); // UI上の削除対象（tempも含めて消せる）
+        //     return ensureTailPlaceholder(next, routeId);
+        // });
     }, [routeId, setTrips]);
     /** 空列車を挿入（DB保存不要の tempTrip） */
     const insertEmptyTripAt = useCallback(async(index: number) => {

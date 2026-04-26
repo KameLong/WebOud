@@ -6,6 +6,7 @@ import RouteTimetablePage from "./RouteTimeTable/RouteTimetablePage.tsx";
 import RouteListPage from "./Route/RouteListPage.tsx";
 import RouteCreatePage from "./Route/RouteCreatePage.tsx";
 import {RoutePage} from "./Route/RoutePage.tsx";
+import {RouteDiagramPage} from "./RouteDiagram/RouteDiagramPage.tsx";
 
 function App() {
 
@@ -17,6 +18,8 @@ function App() {
 
             <Route path="/routes/new" element={<RouteCreatePage />} />
             <Route path="/timetable/:routeID/:direct" element={<RouteTimetablePage />} />
+            <Route path="/diagram/:routeID" element={<RouteDiagramPage />} />
+
             <Route path="/stationList/" element={<StationListPage routeId={1}/>} />
             <Route path="/trainTypeList/" element={<TrainTypeListPage routeId={1}/>} />
         </Routes>

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System;
@@ -6,19 +7,25 @@ using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using WebOudDB;
 using static StopTimesController;
+using static System.Collections.Specialized.BitVector32;
 
 [ApiController]
 [Route("trips")]
 public class TripsController : ControllerBase
 {
-    private readonly DiaDataContext context;
-    public TripsController(DiaDataContext db) => context = db;
+    private readonly DiaDataContext _db;
+    private readonly IHubContext<DiaHub> _hub;
+    public TripsController(DiaDataContext db, IHubContext<DiaHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     // GET api/trips?routeId=1
     [HttpGet]
     public async Task<ActionResult<List<TripDto>>> GetTrips([FromQuery] int? routeId)
     {
-        var q = context.Trips.AsNoTracking();
+        var q = _db.Trips.AsNoTracking();
 
         if (routeId.HasValue)
             q = q.Where(x => x.RouteID == routeId.Value);
@@ -35,7 +42,7 @@ public class TripsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<TripDto>> GetTrip(int id)
     {
-        var x = await context.Trips.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        var x = await _db.Trips.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
         if (x == null) return NotFound();
 
         return Ok(new TripDto(x.Id, x.RouteID, x.Direct, x.TrainTypeID, x.Name, x.No));
@@ -50,20 +57,20 @@ public class TripsController : ControllerBase
 
             var trip = new Trip();
             trip.RouteID = routeID;
-            context.Trips.Add(trip);
-            await context.SaveChangesAsync();
-            context.AddRange(context.Stations.Where(s => s.RouteID == routeID)
+            _db.Trips.Add(trip);
+            await _db.SaveChangesAsync();
+            _db.AddRange(_db.Stations.Where(s => s.RouteID == routeID)
                 .Select(s => new StopTime()
                 {
                     TripID = trip.Id,
                     StationID = s.Id
                 }));
-            await context.SaveChangesAsync();
+            await _db.SaveChangesAsync();
 
 
 
             // ④ StopTime 一覧（その路線の列車分のみ）
-            var stopTimes = await context.StopTimes
+            var stopTimes = await _db.StopTimes
                 .AsNoTracking()
                 .Where(s => s.TripID == trip.Id)
                 .ToDictionaryAsync(s => s.StationID, s => new StopTimeDto(
@@ -108,7 +115,7 @@ public class TripsController : ControllerBase
     
     public async Task<ActionResult<List<TripWithStopTimesDto>>> AddTripBlock([FromBody] List<TripWithStopTimesDto> tripDtos)
     {
-        using (var tran = context.Database.BeginTransaction()) // トランザクション開始
+        using (var tran = _db.Database.BeginTransaction()) // トランザクション開始
         {
             try
             {
@@ -121,10 +128,10 @@ public class TripsController : ControllerBase
                     Id = 0,
                     RouteID = dto.RouteID,
                 }).ToList();
-                context.Trips.AddRange(
+                _db.Trips.AddRange(
                     trips
                 );
-                await context.SaveChangesAsync();
+                await _db.SaveChangesAsync();
 
                 var stopTimes = tripDtos.SelectMany((dto, i) =>
                 {
@@ -143,8 +150,8 @@ public class TripsController : ControllerBase
                         };
                     });
                 });
-                context.StopTimes.AddRange(stopTimes);
-                await context.SaveChangesAsync();
+                _db.StopTimes.AddRange(stopTimes);
+                await _db.SaveChangesAsync();
                 tran.Commit();
 
                 // ④ StopTime 一覧（その路線の列車分のみ）
@@ -152,7 +159,7 @@ public class TripsController : ControllerBase
                 return Ok(
                     trips.Select(trip =>
                     {
-                        var stopTimes = context.StopTimes
+                        var stopTimes = _db.StopTimes
                         .AsNoTracking()
                         .Where(s => s.TripID == trip.Id)
                         .ToDictionary(s => s.StationID, s => new StopTimeDto(
@@ -191,7 +198,7 @@ public class TripsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> UpdateTrip(int id, [FromBody] TripDto dto)
     {
-        var entity = await context.Trips.FirstOrDefaultAsync(x => x.Id == id);
+        var entity = await _db.Trips.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return NotFound();
 
         entity.RouteID = dto.RouteID;
@@ -200,7 +207,7 @@ public class TripsController : ControllerBase
         entity.Name = dto.Name ?? "";
         entity.No = dto.No ?? "";
 
-        await context.SaveChangesAsync();
+        await _db.SaveChangesAsync();
         return NoContent();
     }
 
@@ -208,19 +215,115 @@ public class TripsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteTrip(int id)
     {
-        var entity = await context.Trips.FirstOrDefaultAsync(x => x.Id == id);
+        var entity = await _db.Trips.FirstOrDefaultAsync(x => x.Id == id);
         if (entity == null) return NotFound();
 
         // StopTime を子に持つなら、DB側のFK設定で CASCADE にするのが理想。
         // ここでは安全側で先に削除（必要に応じて）
-        var children = await context.StopTimes.Where(s => s.TripID == id).ToListAsync();
-        context.StopTimes.RemoveRange(children);
+        var children = await _db.StopTimes.Where(s => s.TripID == id).ToListAsync();
+        _db.StopTimes.RemoveRange(children);
 
-        context.Trips.Remove(entity);
-        await context.SaveChangesAsync();
+        _db.Trips.Remove(entity);
+        await _db.SaveChangesAsync();
 
         return NoContent();
     }
+
+
+    [HttpPost("ChangeTime/{tripID:int}/{stationID:int}/{pos}/{sec:int}")]
+    public async Task<IActionResult> ChangeTime(int tripID, int stationID, string pos, int sec)
+    {
+        var trip = await _db.Trips
+            .Where(x => x.Id == tripID)
+            .Select(x => new
+            {
+                x.Id,
+                x.RouteID,
+                x.Direct,
+                x.TrainTypeID,
+                x.Name,
+                x.No
+            })
+            .FirstOrDefaultAsync();
+
+        if (trip == null) return NotFound();
+
+        var stationIds = await _db.Stations
+            .Where(s => s.RouteID == trip.RouteID)
+            .OrderBy(s => s.Index) 
+            .Select(s => s.Id)
+            .ToListAsync();
+
+        var stopTimes = await _db.StopTimes
+            .Where(st => st.TripID == tripID)
+            .ToListAsync();
+
+        var stDic = stopTimes.ToDictionary(st => st.StationID);
+
+        if (trip.Direct == 0)
+        {
+            bool target = false;
+
+            foreach (var stationId2 in stationIds)
+            {
+                if (stationId2 == stationID && (pos == "ari" || pos == "dep"))
+                {
+                    target = true;
+                }
+
+                if (!target) continue;
+
+                if (!stDic.TryGetValue(stationId2, out var st)) continue;
+
+                if (pos == "ari" && st.AriTime > 0)
+                {
+                    st.AriTime += sec;
+                    if (st.AriTime < 3600 * 3) st.AriTime += 86400;
+                }
+
+                if (pos == "dep" && st.DepTime > 0)
+                {
+                    st.DepTime += sec;
+                    if (st.DepTime < 3600 * 3) st.DepTime += 86400;
+                }
+            }
+        }
+
+        await _db.SaveChangesAsync();
+
+        var stopTimeDtos = stopTimes
+            .Select(s => new StopTimeDto(
+                s.Id,
+                s.TripID,
+                s.StationID,
+                s.DepTime,
+                s.AriTime,
+                s.StopType,
+                s.Stop
+            ))
+            .ToDictionary(x => x.StationID, x => x);
+
+        var tripWithStopTime = new TripWithStopTimesDto(
+            trip.Id,
+            trip.RouteID,
+            trip.Direct,
+            trip.TrainTypeID,
+            trip.Name,
+            trip.No,
+            stopTimeDtos
+        );
+
+        await _hub.Clients
+            .Group($"route:{trip.RouteID}")
+            .SendAsync("TripUpdated", new
+            {
+                trip = tripWithStopTime,
+                updatedAt = DateTimeOffset.Now
+            });
+
+        return Ok(tripWithStopTime);
+    }
+
 
     public record TripDto(
     int Id,
