@@ -106,6 +106,39 @@ export class DiagramCanvas{
         }
         //時間軸表示に合わせて描画する内容を切り替える
         //隣の文字との間隔が狭くなる時は一部の表示を無くすことで文字がかぶらないようにする
+        const draw30MinBlock=()=>{
+            if (this.fontSize * 5 < 30 * 60 * this.transform.xScale) {
+                for (let i = 0; i < 24; i++) {
+                    drawHourMinText(i,0);
+                    drawHourMinText(i,30);
+                }
+            } else {
+                for (let i = 0; i < 24; i++) {
+                    this.DrawText(i.toString(), (i * 3600+86400-this.transform.diagramStartTime)%86400+this.transform.diagramStartTime,
+                        -(this.fontSize*this.transform.SCALE));
+                }
+            }
+        }
+        const draw10MinBlock=()=>{
+            if (this.fontSize * 5 < 10 * 60 * this.transform.xScale) {
+                for (let i = 0; i < 24; i++) {
+                    drawHourMinText(i,10);
+                    drawHourMinText(i,20);
+                    drawHourMinText(i,40);
+                    drawHourMinText(i,50);
+                }
+            }
+            if (this.fontSize * 5 < 30 * 60 * this.transform.xScale) {
+                for (let i = 0; i < 24; i++) {
+                    drawHourMinText(i,0);
+                    drawHourMinText(i,30);
+                }
+            } else {
+                for (let i = 0; i < 24; i++) {
+                    this.DrawText(i.toString(), (i * 3600+86400-this.transform.diagramStartTime)%86400+this.transform.diagramStartTime, -50);
+                }
+            }
+        }
         this.ctx.fillStyle = "#888";
         switch(verticalAxis) {
             case 0:
@@ -138,18 +171,10 @@ export class DiagramCanvas{
                         drawHourMinText(i,45);
                     }
                 }
+                draw30MinBlock();
+                break;
             case 1:
-                if (this.fontSize * 5 < 30 * 60 * this.transform.xScale) {
-                    for (let i = 0; i < 24; i++) {
-                        drawHourMinText(i,0);
-                        drawHourMinText(i,30);
-                    }
-                } else {
-                    for (let i = 0; i < 24; i++) {
-                        this.DrawText(i.toString(), (i * 3600+86400-this.transform.diagramStartTime)%86400+this.transform.diagramStartTime,
-                            -(this.fontSize*this.transform.SCALE));
-                    }
-                }
+                draw30MinBlock();
                 break;
             case 7:
                 if (this.fontSize * 5 < 5 * 60 * this.transform.xScale) {
@@ -162,27 +187,12 @@ export class DiagramCanvas{
                         drawHourMinText(i,55);
                     }
                 }
+                draw10MinBlock();
+                break;
             case 6:
             case 5:
             case 4:
-                if (this.fontSize * 5 < 10 * 60 * this.transform.xScale) {
-                    for (let i = 0; i < 24; i++) {
-                        drawHourMinText(i,10);
-                        drawHourMinText(i,20);
-                        drawHourMinText(i,40);
-                        drawHourMinText(i,50);
-                    }
-                }
-                if (this.fontSize * 5 < 30 * 60 * this.transform.xScale) {
-                    for (let i = 0; i < 24; i++) {
-                        drawHourMinText(i,0);
-                        drawHourMinText(i,30);
-                    }
-                } else {
-                    for (let i = 0; i < 24; i++) {
-                        this.DrawText(i.toString(), (i * 3600+86400-this.transform.diagramStartTime)%86400+this.transform.diagramStartTime, -50);
-                    }
-                }
+                draw10MinBlock();
                 break;
         }
         this.ctx.fillStyle = "#000";
