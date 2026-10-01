@@ -6,20 +6,16 @@ function defaultState(): StoreState {
     return { version: 1, nextRouteId: 1, routes: [] };
 }
 
+function isValidStoreState(v: unknown): v is StoreState {
+    return !!v && typeof v === "object" && Array.isArray((v as StoreState).routes) && typeof (v as StoreState).nextRouteId === "number";
+}
+
 function loadState(): StoreState {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return defaultState();
         const parsed = JSON.parse(raw) as unknown;
-        if (
-            !parsed ||
-            typeof parsed !== "object" ||
-            !Array.isArray((parsed as StoreState).routes) ||
-            typeof (parsed as StoreState).nextRouteId !== "number"
-        ) {
-            return defaultState();
-        }
-        return parsed as StoreState;
+        return isValidStoreState(parsed) ? parsed : defaultState();
     } catch (e) {
         console.error("failed to load local data", e);
         return defaultState();
@@ -45,6 +41,32 @@ function persist() {
 function setState(next: StoreState) {
     state = next;
     persist();
+}
+
+/**
+ * 他のタブ/ウィンドウでの変更をこのタブへ反映する（最後に保存した方が勝つ）。
+ * `storage`イベントは変更元のタブでは発火しないため、他タブの更新のみを拾う。
+ */
+if (typeof window !== "undefined") {
+    window.addEventListener("storage", (event) => {
+        if (event.key !== STORAGE_KEY) return;
+
+        if (event.newValue == null) {
+            state = defaultState();
+            emit();
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(event.newValue) as unknown;
+            if (isValidStoreState(parsed)) {
+                state = parsed;
+                emit();
+            }
+        } catch (e) {
+            console.error("failed to sync state from another tab/window", e);
+        }
+    });
 }
 
 export function subscribe(listener: () => void) {

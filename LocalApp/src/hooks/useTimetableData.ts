@@ -3,6 +3,7 @@ import type { StopTimeDto, TripWithStopTimesDto, StationDto, TrainTypeDto } from
 import { createPlaceholderTrip, ensureTailPlaceholder } from "../domain/utils.ts";
 import { getErrorMessage } from "../Util.ts";
 import * as timetableApi from "../store/timetableApi.ts";
+import { subscribe } from "../store/localStore.ts";
 
 export function useTimetableData(routeId: number, direct: number) {
     const [stations, setStations] = useState<StationDto[]>([]);
@@ -34,6 +35,12 @@ export function useTimetableData(routeId: number, direct: number) {
 
     useEffect(() => {
         reload();
+        // 他のタブ/ウィンドウでの編集や、同じタブ内の他ページ（駅・種別編集など）での
+        // 変更も即座に反映する
+        const unsubscribe = subscribe(reload);
+        return () => {
+            unsubscribe();
+        };
     }, [reload]);
 
     const tripById = useMemo(() => {
