@@ -7,8 +7,8 @@ type Part = "arr" | "track" | "dep";
 
 const LABEL_WIDTH = LINE_HEIGHT;
 
-export function StationSidebar(props: { stations: StationDto[]; HEADER_H: number; zLeft: number; zCorner: number }) {
-    const { stations, HEADER_H, zLeft, zCorner } = props;
+export function StationSidebar(props: { stations: StationDto[]; HEADER_H: number; zLeft: number; zCorner: number; onStationClick?: (station: StationDto) => void }) {
+    const { stations, HEADER_H, zLeft, zCorner, onStationClick } = props;
 
     function buildPartsForStation(st: StationDto): Array<{ key: Part; label: string }> {
         const s = decodeShowStyleDown(st.showStyle);
@@ -102,7 +102,23 @@ export function StationSidebar(props: { stations: StationDto[]; HEADER_H: number
                                 boxSizing: "border-box",
                             }}
                         >
-                            <FitTextX text={st.name} />
+                            <div
+                                onClick={onStationClick ? () => onStationClick(st) : undefined}
+                                title={onStationClick ? `${st.name}の時刻順に列車を並び替え` : undefined}
+                                style={{
+                                    flex: "1 1 auto",
+                                    minWidth: 0,
+                                    cursor: onStationClick ? "pointer" : undefined,
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (onStationClick) e.currentTarget.style.background = "#eef6ff";
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "";
+                                }}
+                            >
+                                <FitTextX text={st.name} />
+                            </div>
 
                             <div
                                 style={{

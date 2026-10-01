@@ -11,6 +11,7 @@ import {
     listRoutes,
     subscribe,
 } from "../store/localStore.ts";
+import { createSampleRoute } from "../sampleData.ts";
 
 function downloadText(filename: string, text: string) {
     const blob = new Blob([text], { type: "application/json" });
@@ -51,6 +52,11 @@ export default function RouteListPage() {
 
     function onDuplicate(id: number) {
         duplicateRoute(id);
+    }
+
+    function onLoadSample() {
+        const created = createSampleRoute();
+        nav(`/route/${created.id}`);
     }
 
     function onExportRoute(id: number, name: string) {
@@ -106,6 +112,9 @@ export default function RouteListPage() {
                     style={{ padding: 10, fontSize: 16, flex: 1 }}
                 />
                 <button type="submit">＋ 新規作成</button>
+                <button type="button" onClick={onLoadSample}>
+                    サンプルダイヤを読み込む（神戸電鉄粟生線）
+                </button>
             </form>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>

@@ -161,6 +161,17 @@ export function shiftStopTime(routeId: number, tripId: number, stationId: number
     return updatedTrip;
 }
 
+/** 指定方向の列車を orderedTripIds の順番に並び替えます（他方向の列車の並びはそのまま） */
+export function reorderTrips(routeId: number, direct: number, orderedTripIds: number[]) {
+    updateRoute(routeId, (r) => {
+        const orderIndex = new Map(orderedTripIds.map((id, i) => [id, i]));
+        const others = r.trips.filter((t) => t.direct !== direct);
+        const sameDirection = r.trips.filter((t) => t.direct === direct);
+        const sorted = [...sameDirection].sort((a, b) => (orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+        return { ...r, trips: [...others, ...sorted] };
+    });
+}
+
 /** クリップボードからの複数Trip一括追加。新しいIDを採番して追加します */
 export function addTripBlock(routeId: number, trips: TripWithStopTimesDto[]): TripWithStopTimesDto[] {
     const created: TripWithStopTimesDto[] = [];
