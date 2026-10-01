@@ -147,3 +147,22 @@ export function makeStopTimeList(trip: TripWithStopTimesDto, stations: StationDt
         return trip.stopTimesByStationId[st.id];
     });
 }
+
+/**
+ * 指定駅の時刻を返します。まだ時刻が保存されていない場合は、
+ * その駅・列車に紐づく未保存のStopTimeDtoを作って返します
+ * （tripIDはtrip.idをそのまま使うため、placeholder列車(-1)でもそのまま機能します）。
+ */
+export function getOrCreateStopTime(trip: TripWithStopTimesDto, stationId: number): StopTimeDto {
+    return (
+        trip.stopTimesByStationId[stationId] ?? {
+            id: 0,
+            tripID: trip.id,
+            stationID: stationId,
+            ariTime: -1,
+            depTime: -1,
+            stop: 0,
+            stopType: 0,
+        }
+    );
+}

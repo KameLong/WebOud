@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { decodeShowStyleDown, FONT_SIZE, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { decodeShowStyleDown, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
 import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
 import { StationSidebar } from "../components/StationSidebar.tsx";
@@ -32,7 +32,7 @@ export default function RouteTimetablePage() {
     const scrollRef = useRef<HTMLDivElement | null>(null);
 
     const { stations, trips, setTrips, loading, error, traintypes } = useTimetableData(routeId, direct);
-    const { saveStopTime, changeStopTime, insertEmptyTripAt, deleteTrips } = useStopTimeEditor({
+    const { saveStopTime, insertEmptyTripAt, deleteTrips } = useStopTimeEditor({
         routeId,
         direct,
         setTrips,
@@ -47,7 +47,7 @@ export default function RouteTimetablePage() {
         stations,
         trips,
         nav,
-        changeStopTime,
+        changeStopTime: saveStopTime,
     });
 
     const [pasteMoveOpen, setPasteMoveOpen] = useState(false);
@@ -113,25 +113,10 @@ export default function RouteTimetablePage() {
             stationName: st.name,
             trainNo: tr.no,
         });
-        if (tr.id === -1) {
-            const newStopTime: StopTimeDto = {
-                depTime: -1,
-                ariTime: -1,
-                stop: 0,
-                stopType: 0,
-                id: 0,
-                tripID: -1,
-                stationID: st.id,
-            };
-            setEditInitial(newStopTime);
-            setEditState({
-                open: true,
-                initialInput: initialChar ?? "",
-            });
-            return;
-        }
 
-        setEditInitial(trips[c].stopTimesByStationId[st.id]);
+        // tr.id===-1（未作成の列車）でも、既存トリップの未入力駅でも、
+        // 同じ方法でデフォルトのStopTimeDtoを用意する
+        setEditInitial(getOrCreateStopTime(tr, st.id));
         setEditState({
             open: true,
             initialInput: initialChar ?? "",
@@ -147,13 +132,13 @@ export default function RouteTimetablePage() {
         const c = cursor.c;
         const station = stations[r];
         const trip = trips[c];
-        const newStopTime = { ...trip.stopTimesByStationId[station.id] };
+        const newStopTime = { ...getOrCreateStopTime(trip, station.id) };
 
         newStopTime.depTime = -1;
         newStopTime.ariTime = -1;
         newStopTime.stop = 0;
         newStopTime.stopType = stopType;
-        changeStopTime(newStopTime);
+        saveStopTime(newStopTime);
         nav.moveVertical(1);
     };
 
@@ -214,7 +199,7 @@ export default function RouteTimetablePage() {
 
             const station = stations[r];
             const trip = trips[c];
-            const newStopTime = { ...trip.stopTimesByStationId[station.id] };
+            const newStopTime = { ...getOrCreateStopTime(trip, station.id) };
 
             const showStyle = decodeShowStyleDown(station.showStyle);
             if (!showStyle.showDep) {
@@ -241,7 +226,7 @@ export default function RouteTimetablePage() {
             if (newStopTime.depTime < 0 && newStopTime.ariTime < 0 && newStopTime.stop == 0) {
                 newStopTime.stopType = 0;
             }
-            changeStopTime(newStopTime);
+            saveStopTime(newStopTime);
             nav.moveVertical(1);
             e.preventDefault();
             return;
