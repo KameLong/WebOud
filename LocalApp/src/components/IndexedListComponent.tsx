@@ -174,7 +174,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         setSelectedIds(new Set([created.id]));
         setCursorId(created.id);
         setAnchorId(created.id);
-        requestAnimationFrame(() => listRef.current?.focus());
+        requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
     function deleteSelected() {
@@ -218,7 +218,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         setCursorId(nextId);
         setAnchorId(nextId);
         setSelectedIds(nextId ? new Set([nextId]) : new Set());
-        requestAnimationFrame(() => listRef.current?.focus());
+        requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
     async function paste() {
@@ -244,7 +244,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         setSelectedIds(newSel);
         setAnchorId(createdList.length ? createdList[0].id : newCursor);
         setCursorId(newCursor);
-        requestAnimationFrame(() => listRef.current?.focus());
+        requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
     async function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -297,7 +297,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
     }
 
     const makeRowMouseDown = (id: number) => (e: React.MouseEvent) => {
-        listRef.current?.focus();
+        listRef.current?.focus({ preventScroll: true });
 
         const isSelected = selectedIds.has(id);
 
