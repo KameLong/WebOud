@@ -20,6 +20,8 @@ export function useTimetableData(routeId: number, direct: number) {
             const data = timetableApi.getTimetable(routeId);
 
             const sortedStations = [...data.stations].sort((a, b) => a.index - b.index);
+            // 上り(direct===1)は実際の走行方向に合わせて駅の並びを逆転させる
+            if (direct === 1) sortedStations.reverse();
             const directTrips = data.trips.filter((t) => t.direct === direct);
             const normalizedTrips = ensureTailPlaceholder(directTrips, routeId, direct);
 

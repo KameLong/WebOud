@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { StationDto } from "../domain/dto.ts";
-import { cellHeight, decodeShowStyleDown, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { cellHeight, decodeShowStyleDown, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { FitTextX } from "./FitText.tsx";
 
 type Part = "arr" | "track" | "dep";
@@ -100,6 +100,7 @@ export function StationSidebar(props: { stations: StationDto[]; HEADER_H: number
                                 height: ROW_H,
                                 background: "#fff",
                                 boxSizing: "border-box",
+                                gap: FONT_SIZE * 0.5,
                             }}
                         >
                             <div
