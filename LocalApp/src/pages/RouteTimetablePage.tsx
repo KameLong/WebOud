@@ -15,6 +15,7 @@ import { putTrip, reorderTrips, shiftStopTime } from "../store/timetableApi.ts";
 import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
+import { HelpDialog, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
 
 const keyEventQueue = new AsyncQueue<unknown>();
 
@@ -23,6 +24,7 @@ export default function RouteTimetablePage() {
     const routeId = Number(params.routeId ?? 0);
     const direct = Number(params.direct ?? 0);
     const nav_ = useNavigate();
+    const [helpOpen, setHelpOpen] = useState(false);
 
     const HEADER_ROW_H = LINE_HEIGHT;
     const HEADER_H = HEADER_ROW_H * 7 + 2;
@@ -302,6 +304,9 @@ export default function RouteTimetablePage() {
                 </div>
                 <button onClick={() => nav_(`/route/${routeId}/diagram`)}>ダイヤグラム</button>
                 <span style={{ fontSize: 12, color: "#888" }}>※ 左側の駅名をクリックすると、その駅の時刻順に列車を並び替えます</span>
+                <button onClick={() => setHelpOpen(true)} style={{ ...helpButtonStyle, marginLeft: "auto" }} title="ヘルプ">
+                    ？
+                </button>
             </div>
             <div
                 ref={scrollRef}
@@ -420,6 +425,34 @@ export default function RouteTimetablePage() {
                     scrollRef.current?.focus();
                 }}
             />
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="時刻表 - ヘルプ">
+                <HelpSection title="このページでできること">
+                    <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
+                        駅ごとの着時刻・発時刻・番線をマス目で編集します。「下り」「上り」ボタンで方向を切り替えられます（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。
+                    </p>
+                </HelpSection>
+                <HelpSection title="キーボードショートカット">
+                    <HelpShortcutTable
+                        rows={[
+                            ["↑ / ↓ / ← / →", "カーソルを移動（左右で列車の列を移動）"],
+                            ["Shift+← / Shift+→", "列車の列を範囲選択"],
+                            ["Enter", "カーソル位置の時刻を編集"],
+                            ["0〜9（数字キー）", "入力した数字から時刻編集を開始"],
+                            ["Alt+T", "連続入力モードの切り替え（数字2桁で時・分を順に確定し、入力後は自動で1段下へ）"],
+                            ["Alt+L", "カーソル位置の時刻を1分進める"],
+                            ["Alt+J", "カーソル位置の時刻を1分戻す"],
+                            ["Ctrl+Delete", "カーソル位置の時刻・番線を消去"],
+                            ["Ctrl+^", "カーソル位置を「経由なし」に設定"],
+                            ["Ctrl+-", "カーソル位置を「通過」に設定"],
+                            ["Delete", "選択中の列車（列）を削除"],
+                            ["Ctrl+Insert", "カーソル位置の手前に空の列車を挿入"],
+                            ["Ctrl+C / Ctrl+X", "選択中の列車をコピー／切り取り"],
+                            ["Ctrl+V", "コピーした列車をカーソル位置に貼り付け"],
+                            ["Shift+Enter", "貼り付け時の時刻移動量（分・秒）を設定"],
+                        ]}
+                    />
+                </HelpSection>
+            </HelpDialog>
         </div>
     );
 }

@@ -12,6 +12,7 @@ import {
     subscribe,
 } from "../store/localStore.ts";
 import { createSampleRoute } from "../sampleData.ts";
+import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
 
 function downloadText(filename: string, text: string) {
     const blob = new Blob([text], { type: "application/json" });
@@ -35,6 +36,7 @@ export default function RouteListPage() {
 
     const routeFileRef = useRef<HTMLInputElement | null>(null);
     const allFileRef = useRef<HTMLInputElement | null>(null);
+    const [helpOpen, setHelpOpen] = useState(false);
 
     function onCreate(e: React.FormEvent) {
         e.preventDefault();
@@ -99,7 +101,12 @@ export default function RouteListPage() {
 
     return (
         <div style={{ maxWidth: 860, margin: "24px auto", padding: 16 }}>
-            <h1>路線一覧</h1>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h1>路線一覧</h1>
+                <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
+                    ？
+                </button>
+            </div>
             <p style={{ color: "#666", fontSize: 13 }}>
                 データはこの端末のブラウザ内（ローカルストレージ）にのみ保存されます。他の端末に移す場合は「エクスポート」でファイルを書き出し、その端末で「インポート」してください。
             </p>
@@ -181,6 +188,26 @@ export default function RouteListPage() {
                     </tbody>
                 </table>
             )}
+
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="路線一覧 - ヘルプ">
+                <HelpSection title="このページでできること">
+                    <HelpList
+                        items={[
+                            "新しい路線（ダイヤ）を名前を付けて作成する",
+                            "サンプルダイヤ（神戸電鉄粟生線）を読み込んで試す",
+                            "路線名をクリックして駅・列車種別・時刻表の編集画面へ移動する",
+                            "路線を複製する／削除する（削除は確認あり、取り消せません）",
+                            "路線単体、または全データをJSONファイルとして書き出す（バックアップ・他端末への移行用）",
+                            "書き出したJSONファイルを読み込んで、路線を追加する、または全データを置き換える",
+                        ]}
+                    />
+                </HelpSection>
+                <HelpSection title="データの保存について">
+                    <p style={{ fontSize: 13, color: "#666", margin: 0 }}>
+                        データはこの端末のブラウザ内（localStorage）にのみ保存されます。サーバーには送信されません。端末やブラウザを変える場合は「全データをエクスポート」でファイルに書き出し、新しい環境で「全データを復元」してください。
+                    </p>
+                </HelpSection>
+            </HelpDialog>
         </div>
     );
 }
