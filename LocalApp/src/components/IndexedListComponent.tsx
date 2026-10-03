@@ -297,7 +297,16 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
     }
 
     const makeRowMouseDown = (id: number) => (e: React.MouseEvent) => {
-        listRef.current?.focus({ preventScroll: true });
+        // チェックボックスや入力欄など、行内の操作可能な要素をクリックした場合は
+        // ブラウザ標準のフォーカス付与に任せる。ここで listRef にフォーカスを
+        // 奪うと、ブラウザ側のフォーカス移動と競合してスクロール位置がずれ、
+        // 1回目のクリックが正しく反映されない(あるいは意図せずスクロールする)
+        // 不具合が起きるため。
+        const targetTag = (e.target as HTMLElement)?.tagName;
+        const isInteractiveTarget = targetTag === "INPUT" || targetTag === "SELECT" || targetTag === "TEXTAREA" || targetTag === "BUTTON";
+        if (!isInteractiveTarget) {
+            listRef.current?.focus({ preventScroll: true });
+        }
 
         const isSelected = selectedIds.has(id);
 
