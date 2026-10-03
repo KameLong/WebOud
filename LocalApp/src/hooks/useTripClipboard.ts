@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 import type { StopTimeDto, TripWithStopTimesDto } from "../domain/dto.ts";
-import { ensureTailPlaceholder } from "../domain/utils.ts";
 import { addTripBlock, deleteTrips as deleteTripsFromStore } from "../store/timetableApi.ts";
 import type { KeyLike } from "../domain/types.ts";
 
@@ -37,14 +36,13 @@ export function useTripClipboard(params: {
     routeId: number;
     direct: number;
     trips: TripWithStopTimesDto[];
-    setTrips: React.Dispatch<React.SetStateAction<TripWithStopTimesDto[]>>;
 
     getSelectedCols: () => number[];
     getCursorCol: () => number;
     getPasteIndex?: () => number;
     onAfterMutate?: (nextCursorCol: number) => void;
 }) {
-    const { routeId, direct, trips, setTrips, getSelectedCols, getCursorCol, getPasteIndex, onAfterMutate } = params;
+    const { routeId, direct, trips, getSelectedCols, getCursorCol, getPasteIndex, onAfterMutate } = params;
 
     const clipRef = useRef<ClipboardPayload | null>(null);
     const [pasteMove, setPasteMove] = useState({ minutes: 1, seconds: 0 });
@@ -66,7 +64,6 @@ export function useTripClipboard(params: {
 
     const cut = useCallback(() => {
         const cols = getSelectedCols();
-        const colSet = new Set(cols);
 
         const picked = cols.map((c) => trips[c]).filter((t): t is TripWithStopTimesDto => !!t && isEditableTripId(t.id));
 
@@ -75,18 +72,14 @@ export function useTripClipboard(params: {
         clipRef.current = { trips: picked.map(cloneTrip) };
         offsetRef.current = 0;
 
+        // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
         const ids = picked.map((t) => t.id);
         deleteTripsFromStore(routeId, ids);
-
-        setTrips((prev) => {
-            const next = prev.filter((t, idx) => !(colSet.has(idx) && isEditableTripId(t.id)));
-            return ensureTailPlaceholder(next, routeId, direct);
-        });
 
         const cursor = getCursorCol();
         onAfterMutate?.(Math.max(0, Math.min(cursor, trips.length - picked.length - 1)));
         return true;
-    }, [getSelectedCols, trips, setTrips, routeId, direct, getCursorCol, onAfterMutate]);
+    }, [getSelectedCols, trips, routeId, getCursorCol, onAfterMutate]);
 
     const paste = useCallback(async () => {
         const payload = clipRef.current;
@@ -116,20 +109,12 @@ export function useTripClipboard(params: {
 
         const result = addTripBlock(routeId, newTrips);
         if (Array.isArray(result)) {
-            const createdTrips = result;
-
-            setTrips((prev) => {
-                const insertPos = Math.max(0, Math.min(insertPosForCursor, prev.length - 1));
-                const next = [...prev];
-                next.splice(insertPos, 0, ...createdTrips);
-                return ensureTailPlaceholder(next, routeId, direct);
-            });
-
+            // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
             onAfterMutate?.(insertPosForCursor + pastedCount);
             return true;
         }
         throw new Error("paste failed");
-    }, [deltaSeconds, getCursorCol, getPasteIndex, routeId, direct, setTrips, onAfterMutate, trips.length]);
+    }, [deltaSeconds, getCursorCol, getPasteIndex, routeId, direct, onAfterMutate, trips.length]);
 
     const onKeyDown = useCallback(
         (e: KeyLike) => {

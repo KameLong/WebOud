@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { StopTimeDto, TripWithStopTimesDto, StationDto, TrainTypeDto } from "../domain/dto.ts";
-import { createPlaceholderTrip, ensureTailPlaceholder } from "../domain/utils.ts";
+import { ensureTailPlaceholder } from "../domain/utils.ts";
 import { getErrorMessage } from "../Util.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { subscribe } from "../store/localStore.ts";
@@ -67,40 +67,29 @@ export function useTimetableData(routeId: number, direct: number) {
  * - tripID !== -1: そのtripの時刻を更新
  * - tripID === -1: 新規Tripを作成してから時刻を保存し、末尾placeholderを追加
  */
-export function useStopTimeEditor(params: {
-    routeId: number;
-    direct: number;
-    setTrips: React.Dispatch<React.SetStateAction<TripWithStopTimesDto[]>>;
-}) {
-    const { routeId, direct, setTrips } = params;
+export function useStopTimeEditor(params: { routeId: number; direct: number }) {
+    const { routeId, direct } = params;
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // trips の反映は useTimetableData 側の store 購読(reload)に任せる。
+    // ここで setTrips を直接呼ぶと、reload による更新と二重に適用されて
+    // 列車が重複してしまうため呼ばない。
     const changeStopTime = useCallback(
         (stopTime: StopTimeDto) => {
-            const updatedTrip = timetableApi.setStopTime(routeId, stopTime);
-            if (!updatedTrip) return;
-            setTrips((prev) => prev.map((t) => (t.id === updatedTrip.id ? updatedTrip : t)));
+            timetableApi.setStopTime(routeId, stopTime);
         },
-        [routeId, setTrips]
+        [routeId]
     );
 
     const promotePlaceholderAndSave = useCallback(
         (stopTime: StopTimeDto) => {
             const trip = timetableApi.createTrip(routeId, direct);
-
             const nextStopTime: StopTimeDto = { ...stopTime, tripID: trip.id };
-            const updatedTrip = timetableApi.setStopTime(routeId, nextStopTime);
-            if (!updatedTrip) return;
-
-            setTrips((prev) => {
-                const next = prev.map((t) => (t.id >= 0 ? t : updatedTrip));
-                next.push(createPlaceholderTrip(routeId, direct));
-                return next;
-            });
+            timetableApi.setStopTime(routeId, nextStopTime);
         },
-        [routeId, direct, setTrips]
+        [routeId, direct]
     );
 
     const saveStopTime = useCallback(
@@ -127,24 +116,15 @@ export function useStopTimeEditor(params: {
         (tripIds: number[]) => {
             const ids = tripIds.filter((id) => id > 0);
             timetableApi.deleteTrips(routeId, ids);
-            setTrips((prev) => {
-                const next = prev.filter((t) => !tripIds.includes(t.id));
-                return ensureTailPlaceholder(next, routeId, direct);
-            });
         },
-        [routeId, direct, setTrips]
+        [routeId]
     );
 
     const insertEmptyTripAt = useCallback(
         (index: number) => {
-            const newTrip = timetableApi.insertTripAt(routeId, index, direct);
-            setTrips((prev) => {
-                const next = [...prev];
-                next.splice(index, 0, newTrip);
-                return ensureTailPlaceholder(next, routeId, direct);
-            });
+            timetableApi.insertTripAt(routeId, index, direct);
         },
-        [routeId, direct, setTrips]
+        [routeId, direct]
     );
 
     return {

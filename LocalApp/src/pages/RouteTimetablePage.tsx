@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { decodeShowStyleDown, ensureTailPlaceholder, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { decodeShowStyleDown, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
 import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
 import { StationSidebar } from "../components/StationSidebar.tsx";
@@ -31,11 +31,10 @@ export default function RouteTimetablePage() {
 
     const scrollRef = useRef<HTMLDivElement | null>(null);
 
-    const { stations, trips, setTrips, loading, error, traintypes } = useTimetableData(routeId, direct);
+    const { stations, trips, loading, error, traintypes } = useTimetableData(routeId, direct);
     const { saveStopTime, insertEmptyTripAt, deleteTrips } = useStopTimeEditor({
         routeId,
         direct,
-        setTrips,
     });
 
     const nav = useSelectionNavigation({
@@ -67,7 +66,6 @@ export default function RouteTimetablePage() {
         routeId,
         direct,
         trips,
-        setTrips,
         getSelectedCols: () => (nav.isMultiColSelected ? Array.from(nav.selectedCols) : [nav.cursor.c]),
         getCursorCol: () => nav.cursor.c,
         onAfterMutate: (c) => nav.setCursor?.((cur: Cursor) => ({ ...cur, c })),
@@ -138,8 +136,12 @@ export default function RouteTimetablePage() {
         const real = trips.filter((t) => t.id !== -1);
         const sorted = [...real].sort((a, b) => sortKey(a) - sortKey(b));
 
-        reorderTrips(routeId, direct, sorted.map((t) => t.id));
-        setTrips(ensureTailPlaceholder(sorted, routeId, direct));
+        // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
+        reorderTrips(
+            routeId,
+            direct,
+            sorted.map((t) => t.id)
+        );
     };
 
     const changeStopType = (stopType: number) => {
@@ -410,18 +412,8 @@ export default function RouteTimetablePage() {
                     scrollRef.current?.focus();
                 }}
                 onSave={(trip) => {
+                    // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
                     putTrip(routeId, trip);
-                    setTrips((prev) =>
-                        prev.map((t) => {
-                            if (t.id !== trip.id) return t;
-                            return {
-                                ...t,
-                                no: trip.no,
-                                trainTypeID: trip.trainTypeID,
-                                name: trip.name,
-                            };
-                        })
-                    );
 
                     setTripPropOpen(false);
                     setTripPropTargetId(null);
