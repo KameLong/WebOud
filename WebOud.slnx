@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="BE.API/BE.API.csproj" />
-  <Project Path="TestCommand/TestCommand.csproj" />
-  <Project Path="WebOudDB/WebOudDB.csproj" />
-</Solution>
