@@ -331,7 +331,9 @@ export class DiagramCanvas {
             this._DrawLine(0, this.transform.getCanvasY(station.stationTime), stationViewWidth, this.transform.getCanvasY(station.stationTime), width, "#808080");
             this.ctx.font = `${this.fontSize * this.transform.SCALE}px sans-serif`;
             this.ctx.fillStyle = "#000";
-            this.ctx.fillText(station.station.name, 5, this.transform.getCanvasY(station.stationTime) - 10);
+            // 駅名が表示枠を超える場合は、はみ出さないよう横幅を詰めて描画する
+            const nameMaxWidth = stationViewWidth - 10 * this.transform.SCALE;
+            this.ctx.fillText(station.station.name, 5, this.transform.getCanvasY(station.stationTime) - 10, nameMaxWidth);
         }
     }
 }
