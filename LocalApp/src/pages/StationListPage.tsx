@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
-import { IndexedListComponent } from "../components/IndexedListComponent.tsx";
+import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { StationDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute } from "../store/localStore.ts";
@@ -105,6 +105,55 @@ function AppendComponent({ routeId, stations, setStations }: { routeId: number; 
     );
 }
 
+function StationHeaderComponent() {
+    return (
+        <div style={{ display: "flex", border: "1px solid #ddd" }}>
+            <div style={{ ...styles.row, ...styles.headRow }}>
+                <div style={{ ...styles.cell, width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>駅名</div>
+                <div style={{ ...styles.cell, ...styles.blockCell }}>
+                    <div style={styles.blockTitle}>下り</div>
+                    <div style={styles.checkGridHead}>
+                        <span>着</span>
+                        <span>番線</span>
+                        <span>発</span>
+                    </div>
+                </div>
+                <div style={{ ...styles.cell, ...styles.blockCell }}>
+                    <div style={styles.blockTitle}>上り</div>
+                    <div style={styles.checkGridHead}>
+                        <span>着</span>
+                        <span>番線</span>
+                        <span>発</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: RowRenderProps<StationDto>) {
+    return (
+        <div
+            onMouseDown={onMouseDown}
+            style={{
+                ...styles.row,
+                background: isSelected ? "#e6f2ff" : undefined,
+            }}
+        >
+            <div style={{ width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>
+                <div>{item.name}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
+            </div>
+
+            <ShowStyleComponent bits={item.showStyle & 0b111} onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: (x.showStyle & ~0b111) | (bits & 0b111) }))} />
+            <ShowStyleComponent
+                bits={(item.showStyle >> 3) & 0b111}
+                onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: (x.showStyle & ~(0b111 << 3)) | ((bits & 0b111) << 3) }))}
+            />
+        </div>
+    );
+}
+
 export default function StationListPage({ routeId }: { routeId: number }) {
     const [stations, setStations] = useState<StationDto[]>([]);
     const [dirty, setDirty] = useState<Record<number, StationDto>>({});
@@ -147,50 +196,8 @@ export default function StationListPage({ routeId }: { routeId: number }) {
             createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: 0x00040004 })}
             toClip={(s) => s}
             fromClip={(c, routeId, index) => ({ id: 0, name: c.name, routeID: routeId, index, showStyle: c.showStyle })}
-            HeaderComponent={() => (
-                <div style={{ display: "flex", border: "1px solid #ddd" }}>
-                    <div style={{ ...styles.row, ...styles.headRow }}>
-                        <div style={{ ...styles.cell, width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>駅名</div>
-                        <div style={{ ...styles.cell, ...styles.blockCell }}>
-                            <div style={styles.blockTitle}>下り</div>
-                            <div style={styles.checkGridHead}>
-                                <span>着</span>
-                                <span>番線</span>
-                                <span>発</span>
-                            </div>
-                        </div>
-                        <div style={{ ...styles.cell, ...styles.blockCell }}>
-                            <div style={styles.blockTitle}>上り</div>
-                            <div style={styles.checkGridHead}>
-                                <span>着</span>
-                                <span>番線</span>
-                                <span>発</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-            RowComponent={({ item, isSelected, onMouseDown, updateLocal }) => (
-                <div
-                    key={item.index}
-                    onMouseDown={onMouseDown}
-                    style={{
-                        ...styles.row,
-                        background: isSelected ? "#e6f2ff" : undefined,
-                    }}
-                >
-                    <div style={{ width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>
-                        <div>{item.name}</div>
-                        <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
-                    </div>
-
-                    <ShowStyleComponent bits={item.showStyle & 0b111} onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: (x.showStyle & ~0b111) | (bits & 0b111) }))} />
-                    <ShowStyleComponent
-                        bits={(item.showStyle >> 3) & 0b111}
-                        onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: (x.showStyle & ~(0b111 << 3)) | ((bits & 0b111) << 3) }))}
-                    />
-                </div>
-            )}
+            HeaderComponent={StationHeaderComponent}
+            RowComponent={StationRowComponent}
             AppendRowComponent={<AppendComponent stations={stations} setStations={setStations} routeId={routeId} />}
         />
     );

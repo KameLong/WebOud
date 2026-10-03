@@ -1,23 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
+/** index(並び順)で管理される一覧アイテムが最低限持つべきフィールド */
 export type IndexedItemBase = {
     id: number;
     routeID: number;
     index: number;
 };
 
+/** コピー＆ペースト用にクリップボードへ書き出す/読み込むデータの形式 */
 export type ClipboardPayload<TClip> = {
     kind: "indexed-list-v1";
     items: TClip[];
 };
 
+/** 呼び出し側がRowComponentへ渡す1行分の描画props */
 export type RowRenderProps<TItem> = {
     item: TItem;
     isSelected: boolean;
     onMouseDown: (e: React.MouseEvent) => void;
+    /** 行内の値を更新する(ローカルstateとdirtyの両方を更新する) */
     updateLocal: (updater: (x: TItem) => TItem) => void;
 };
 
+/** IndexedListComponentのprops。データの読み書きと行/ヘッダーの描画を呼び出し側に委譲する */
 type Props<TItem extends IndexedItemBase> = {
     routeId: number;
 
@@ -42,10 +47,22 @@ type Props<TItem extends IndexedItemBase> = {
     AppendRowComponent?: React.ReactNode;
 };
 
+/** nをmin〜maxの範囲に収める */
 function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));
 }
 
+/**
+ * 駅一覧・列車種別一覧などの「並び替え可能な一覧」を共通化したコンポーネント。
+ * 選択(単一/範囲/Ctrl多重選択)、キーボード操作(矢印キー/Delete/Ctrl+C,V,Insert)、
+ * コピー＆ペースト、行の挿入・削除・並び替えのロジックをここに集約し、
+ * 行とヘッダーの実際の見た目だけを呼び出し側(RowComponent/HeaderComponent)に委ねる。
+ *
+ * RowComponent/HeaderComponentは必ずモジュールスコープの安定した関数として渡すこと。
+ * 呼び出し側のJSX内でインライン定義すると、親が再レンダリングするたびに
+ * 別のコンポーネント型として扱われ、Reactが全行を作り直してしまう
+ * (フォーカス喪失やスクロール位置のずれの原因になる)。
+ */
 export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props<TItem>) {
     const {
         routeId,
@@ -65,22 +82,30 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         AppendRowComponent,
     } = props;
 
+    /** 一覧ルートのdiv。キーボードショートカットを受け取るためtabIndexを持つ */
     const listRef = useRef<HTMLDivElement | null>(null);
 
+    /** キーボード操作の基準となる「今いる行」のid */
     const [cursorId, setCursorId] = useState<number | null>(null);
+    /** Shift+矢印キーなどの範囲選択で、選択範囲の起点となる行のid */
     const [anchorId, setAnchorId] = useState<number | null>(null);
+    /** 現在選択されている行idの集合(ハイライト表示・削除/コピー対象に使う) */
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
+    /** navigator.clipboardが使えない場合のフォールバック用クリップボード */
     const clipRef = useRef<ClipboardPayload<TItem> | null>(null);
 
+    /** この路線(routeId)に属するアイテムをindex順に並べたもの */
     const ordered = useMemo(() => {
         return [...items].filter((x) => x.routeID === routeId).sort((a, b) => a.index - b.index);
     }, [items, routeId]);
 
     const orderedIds = useMemo(() => ordered.map((x) => x.id), [ordered]);
 
+    /** orderedIds内でのidの位置を返す(見つからなければ-1) */
     const indexOfId = (id: number | null) => (id == null ? -1 : orderedIds.indexOf(id));
 
+    /** 選択中のid集合の中で、表示順が最も後ろにあるidを返す */
     const lastSelectedId = (sel: Set<number>) => {
         let bestIdx = -1,
             bestId: number | null = null;
@@ -94,6 +119,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return bestId;
     };
 
+    /** aIdからbIdまでの表示順範囲にある全idを選択状態として返す(Shift選択用) */
     const rangeSelect = (aId: number, bId: number) => {
         const a = indexOfId(aId);
         const b = indexOfId(bId);
@@ -102,11 +128,13 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return new Set(orderedIds.slice(lo, hi + 1));
     };
 
+    /** setDirtyの更新関数の中から最新のitemsを参照するためのref(クロージャの古い値を避ける) */
     const itemsRef = useRef<TItem[]>([]);
     useEffect(() => {
         itemsRef.current = items;
     }, [items]);
 
+    /** 指定idのアイテムをupdaterで更新し、itemsとdirty(未保存変更)の両方へ反映する */
     const updateLocalById = (id: number, updater: (x: TItem) => TItem) => {
         setItems((prev) => prev.map((x) => (x.id === id ? updater(x) : x)));
         setDirty((prev) => {
@@ -118,6 +146,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         });
     };
 
+    /** 選択中アイテムをtoClip形式に変換してシステムクリップボードへ書き込む(失敗時はclipRefにのみ保持) */
     async function writeClipboard(payload: ClipboardPayload<TItem>) {
         clipRef.current = payload;
         try {
@@ -126,6 +155,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
             console.warn(ex);
         }
     }
+    /** システムクリップボードからこの一覧形式のデータを読み込む。取得失敗時はclipRefにフォールバックする */
     async function readClipboard(): Promise<ClipboardPayload<TItem> | null> {
         try {
             const text = await navigator.clipboard.readText();
@@ -137,6 +167,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return clipRef.current;
     }
 
+    /** 現在のカーソル位置を基準に、新規挿入すべきindex値を返す(カーソルが無ければ末尾) */
     const getInsertIndex = () => {
         const curIdx = indexOfId(cursorId);
         const insertPos = curIdx >= 0 ? curIdx : ordered.length;
@@ -144,6 +175,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return ordered.length ? ordered[ordered.length - 1].index + 1 : 0;
     };
 
+    /** fromIndex以降のアイテムのindexをdelta分ずらす(挿入/ペーストで隙間を作るため)。サーバー側にも反映する */
     function shiftIndices(fromIndex: number, delta: number) {
         const toShift = ordered.filter((x) => x.index >= fromIndex).sort((a, b) => b.index - a.index);
         for (const x of toShift) {
@@ -164,6 +196,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         });
     }
 
+    /** カーソル位置の手前に空のアイテムを1件挿入し、新規アイテムを選択状態にする(Ctrl+Insert) */
     function insertOne() {
         const insertIndex = getInsertIndex();
         shiftIndices(insertIndex, 1);
@@ -177,6 +210,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
+    /** 選択中のアイテムを確認ダイアログ付きで削除し、カーソルを近傍の残存アイテムへ移動する(Delete/Backspace) */
     function deleteSelected() {
         const ids = Array.from(selectedIds);
         if (ids.length === 0) return;
@@ -202,6 +236,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         setAnchorId(nextId);
     }
 
+    /** 選択中のアイテムをクリップボードへコピーし、カーソルを選択範囲の次の行へ進める(Ctrl+C) */
     async function handleCopy() {
         if (selectedIds.size === 0) return;
         const selectedOrdered = ordered.filter((x) => selectedIds.has(x.id));
@@ -221,6 +256,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
+    /** クリップボードの内容をカーソル位置(または末尾)へ新規アイテムとして貼り付ける(Ctrl+V) */
     async function paste() {
         const clip = await readClipboard();
         if (!clip || clip.items.length === 0) return;
@@ -247,6 +283,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
+    /** 一覧ルートのonKeyDownハンドラ。矢印キーでの移動/範囲選択とコピペ・挿入・削除のショートカットをまとめて処理する */
     async function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
         const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
         if (tag === "input" || tag === "textarea") return;
@@ -296,6 +333,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         }
     }
 
+    /** idの行用のonMouseDownハンドラを作る。単一選択/Ctrl追加選択/Shift範囲選択を切り替える */
     const makeRowMouseDown = (id: number) => (e: React.MouseEvent) => {
         // チェックボックスや入力欄など、行内の操作可能な要素をクリックした場合は
         // ブラウザ標準のフォーカス付与に任せる。ここで listRef にフォーカスを
@@ -330,6 +368,8 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
             return;
         }
     };
+
+    // マウント時に一覧データを読み込む
     useEffect(() => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps

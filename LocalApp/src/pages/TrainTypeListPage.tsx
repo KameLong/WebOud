@@ -99,6 +99,21 @@ function AppendTrainTypeRow({ routeId, items, setItems }: { routeId: number; ite
     );
 }
 
+function TrainTypeHeaderComponent() {
+    return (
+        <div style={{ display: "flex", border: "1px solid #ddd" }}>
+            <div style={{ ...styles.row, ...styles.headRow }}>
+                <div style={{ ...styles.cell, ...styles.nameCell }}>種別名</div>
+                <div style={{ ...styles.cell, ...styles.shortCell }}>略称</div>
+                <div style={{ ...styles.cell, ...styles.colorCell }}>色</div>
+                <div style={{ ...styles.cell, ...styles.chkCell }}>太字</div>
+                <div style={{ ...styles.cell, ...styles.chkCell }}>線太</div>
+                <div style={{ ...styles.cell, ...styles.styleCell }}>線種</div>
+            </div>
+        </div>
+    );
+}
+
 function TrainTypeRowComponent({ item, isSelected, onMouseDown, updateLocal }: RowRenderProps<TrainTypeDto>) {
     return (
         <div
@@ -200,18 +215,7 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
                 lineBold: c.lineBold,
                 lineStyle: Number(c.lineStyle ?? 0),
             })}
-            HeaderComponent={() => (
-                <div style={{ display: "flex", border: "1px solid #ddd" }}>
-                    <div style={{ ...styles.row, ...styles.headRow }}>
-                        <div style={{ ...styles.cell, ...styles.nameCell }}>種別名</div>
-                        <div style={{ ...styles.cell, ...styles.shortCell }}>略称</div>
-                        <div style={{ ...styles.cell, ...styles.colorCell }}>色</div>
-                        <div style={{ ...styles.cell, ...styles.chkCell }}>太字</div>
-                        <div style={{ ...styles.cell, ...styles.chkCell }}>線太</div>
-                        <div style={{ ...styles.cell, ...styles.styleCell }}>線種</div>
-                    </div>
-                </div>
-            )}
+            HeaderComponent={TrainTypeHeaderComponent}
             RowComponent={TrainTypeRowComponent}
             AppendRowComponent={<AppendTrainTypeRow routeId={routeId} items={items} setItems={setItems} />}
         />
