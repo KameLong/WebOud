@@ -264,22 +264,6 @@ export default function RouteTimetablePage() {
     return (
         <div style={{ height: "100%", padding: "10px" }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
-                <button onClick={() => nav_(`/route/${routeId}`)}>← 路線編集へ</button>
-                <div style={{ display: "flex", gap: 4 }}>
-                    <button
-                        onClick={() => nav_(`/route/${routeId}/timetable/0`)}
-                        style={{ fontWeight: direct === 0 ? 700 : 400 }}
-                    >
-                        下り
-                    </button>
-                    <button
-                        onClick={() => nav_(`/route/${routeId}/timetable/1`)}
-                        style={{ fontWeight: direct === 1 ? 700 : 400 }}
-                    >
-                        上り
-                    </button>
-                </div>
-                <button onClick={() => nav_(`/route/${routeId}/diagram`)}>ダイヤグラム</button>
                 <span style={{ fontSize: 12, color: "#888" }}>※ 左側の駅名をクリックすると、その駅の時刻順に列車を並び替えます</span>
                 <button onClick={() => setHelpOpen(true)} style={{ ...helpButtonStyle, marginLeft: "auto" }} title="ヘルプ">
                     ？
@@ -405,7 +389,7 @@ export default function RouteTimetablePage() {
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
                     <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
-                        駅ごとの着時刻・発時刻・番線をマス目で編集します。「下り」「上り」ボタンで方向を切り替えられます（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。
+                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。
                     </p>
                 </HelpSection>
                 <HelpSection title="キーボードショートカット">
