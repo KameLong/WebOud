@@ -163,13 +163,15 @@ export default function RouteTimetablePage() {
      * @param e キーイベント（キューで直列実行される）
      */
     const keyEvent = async (e: KeyLike) => {
-        if (e.altKey && e.key === "l") {
+        // macOSはAlt(Option)併用時にkeyが特殊文字に化ける(例: Alt+T→†)ため、
+        // Alt併用のショートカットはレイアウト非依存のe.codeで判定する
+        if (e.altKey && e.code === "KeyL") {
             const cursor = nav.cursor;
             e.preventDefault();
             shiftStopTime(routeId, trips[cursor.c].id, stations[cursor.r].id, cursor.part, 60);
             return;
         }
-        if (e.altKey && e.key === "j") {
+        if (e.altKey && e.code === "KeyJ") {
             const cursor = nav.cursor;
             e.preventDefault();
             shiftStopTime(routeId, trips[cursor.c].id, stations[cursor.r].id, cursor.part, -60);
@@ -203,12 +205,10 @@ export default function RouteTimetablePage() {
             return;
         }
         // Ctrl+-はChromeの画面縮小に割り当てられているためAltを使う
-        if (e.key === "-") {
-            if (e.altKey) {
-                changeStopType(2);
-                e.preventDefault();
-                return;
-            }
+        if (e.altKey && e.code === "Minus") {
+            changeStopType(2);
+            e.preventDefault();
+            return;
         }
 
         // 駅時刻削除
@@ -296,6 +296,7 @@ export default function RouteTimetablePage() {
                 onKeyDown={(e) => {
                     const ev: KeyLike = {
                         key: e.key,
+                        code: e.code,
                         altKey: e.altKey,
                         ctrlKey: e.ctrlKey,
                         metaKey: e.metaKey,
@@ -308,7 +309,7 @@ export default function RouteTimetablePage() {
                     const combo = [ev.ctrlKey && "Ctrl", ev.altKey && "Alt", ev.shiftKey && "Shift", ev.metaKey && "Meta", ev.key]
                         .filter(Boolean)
                         .join("+");
-                    console.log("[keydown]", combo);
+                    console.log("[keydown]", combo, `(code: ${ev.code})`);
 
                     keyEventQueue.push(() => keyEvent(ev));
                 }}

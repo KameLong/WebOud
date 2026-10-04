@@ -172,7 +172,8 @@ export function useContinuousTimeInput(opts: Options) {
          * @param e キーイベント（Alt+Tで切替、数字/Backspace/Escapeを処理）
          */
         async (e: KeyLike) => {
-            if (e.altKey && (e.key === "t" || e.key === "T") && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            // macOSはAlt(Option)併用時にkeyが特殊文字に化ける(例: Alt+T→†)ため、e.codeで判定する
+            if (e.altKey && e.code === "KeyT" && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
                 e.preventDefault?.();
                 toggle();
                 return true;
