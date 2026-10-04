@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { decodeShowStyleDown, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { decodeShowStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
 import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
 import { StationSidebar } from "../components/StationSidebar.tsx";
@@ -201,7 +201,7 @@ export default function RouteTimetablePage() {
             const trip = trips[c];
             const newStopTime = { ...getOrCreateStopTime(trip, station.id) };
 
-            const showStyle = decodeShowStyleDown(station.showStyle);
+            const showStyle = decodeShowStyle(station.showStyle);
             if (!showStyle.showDep) {
                 newStopTime.depTime = -1;
             }

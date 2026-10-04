@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { StationDto, TripWithStopTimesDto } from "../domain/dto.ts";
-import { cellHeight, decodeShowStyleDown, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { cellHeight, decodeShowStyle, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { FitTextX } from "./FitText.tsx";
 import { reorderTrips } from "../store/timetableApi.ts";
 
@@ -44,8 +44,8 @@ export function StationSidebar(props: {
         );
     }
 
-    function buildPartsForStation(st: StationDto): Array<{ key: Part; label: string }> {
-        const s = decodeShowStyleDown(st.showStyle);
+    function buildPartsForStation(showStyle:number): Array<{ key: Part; label: string }> {
+        const s = decodeShowStyle(showStyle);
         const parts: Array<{ key: Part; label: string }> = [];
         if (s.showArr) parts.push({ key: "arr", label: "着" });
         if (s.showTrack) parts.push({ key: "track", label: "番線" });
@@ -56,8 +56,8 @@ export function StationSidebar(props: {
         return parts;
     }
 
-    function withSeparatorsForStation(st: StationDto): boolean {
-        const s = decodeShowStyleDown(st.showStyle);
+    function withSeparatorsForStation(showStyle:number): boolean {
+        const s = decodeShowStyle(showStyle);
         return s.showTrack;
     }
 
@@ -116,10 +116,11 @@ export function StationSidebar(props: {
 
             <div style={{ display: "flex", flexDirection: "column" }}>
                 {stations.map((st) => {
-                    const parts = buildPartsForStation(st);
-                    const withSep = withSeparatorsForStation(st);
+                    const showStyle=direct==0 ? st.showStyle&0b111 : (st.showStyle>>3)&0b111;
+                    const parts = buildPartsForStation(showStyle);
+                    const withSep = withSeparatorsForStation(showStyle);
                     const sepH = 1;
-                    const ROW_H = cellHeight(st.showStyle);
+                    const ROW_H = cellHeight(showStyle);
                     const sepCount = withSep ? Math.max(0, parts.length - 1) : 0;
                     const contentH = Math.max(0, ROW_H - sepCount * sepH);
                     const unitH = parts.length > 0 ? Math.floor(contentH / parts.length) : ROW_H;

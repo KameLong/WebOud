@@ -1,6 +1,6 @@
 import type { Cursor, Part } from "../domain/types.ts";
 import type { StationDto, StopTimeDto } from "../domain/dto.ts";
-import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, decodeShowStyleDown, LINE_HEIGHT, timeInt2Str } from "../domain/utils.ts";
+import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, decodeShowStyle, LINE_HEIGHT, timeInt2Str } from "../domain/utils.ts";
 
 function depTimeStr(stopTime: StopTimeDto, showArr: boolean, _showDep: boolean, showPass: boolean): string {
     if (!stopTime) {
@@ -84,7 +84,7 @@ export function StopCell(props: {
         backgroundColor: selected && cont.enabled ? "#eef8ff" : "white",
         outlineOffset: -1,
     });
-    const s = decodeShowStyleDown(station.showStyle);
+    const s = decodeShowStyle(station.showStyle);
     const showArrBottomBorder = s.showArr && s.showDep;
     return (
         <div

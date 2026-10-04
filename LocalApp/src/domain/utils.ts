@@ -20,7 +20,7 @@ export function makeRangeSet(a: number, b: number) {
     return s;
 }
 
-export function decodeShowStyleDown(showStyle: number): { showArr: boolean; showTrack: boolean; showDep: boolean } {
+export function decodeShowStyle(showStyle: number): { showArr: boolean; showTrack: boolean; showDep: boolean } {
     const bits = showStyle & 0b111; // 下り（低位3bit）
     return {
         showArr: (bits & 0b001) !== 0,
@@ -43,7 +43,7 @@ export function decodeDownParts(stationShowStyle: number): Part[] {
 }
 
 export function cellHeight(style: number) {
-    const showStyle = decodeShowStyleDown(style);
+    const showStyle = decodeShowStyle(style);
     let result = 0;
     if (showStyle.showArr) {
         result += LINE_HEIGHT;
