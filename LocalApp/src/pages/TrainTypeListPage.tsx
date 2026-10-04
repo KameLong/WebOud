@@ -5,11 +5,11 @@ import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute } from "../store/localStore.ts";
 
 const COL = {
-    name: 220,
-    short: 120,
-    color: 90,
-    chk: 70,
-    style: 110,
+    name: 140,
+    short: 70,
+    color: 50,
+    chk: 40,
+    style: 100,
 };
 
 const styles: Record<string, React.CSSProperties> = {

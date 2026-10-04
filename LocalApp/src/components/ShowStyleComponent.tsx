@@ -22,8 +22,8 @@ function set(bits: number, flag: number, on: boolean) {
 
 export function ShowStyleComponent({ bits, disabled, onChangeBits }: Props) {
     return (
-        <div style={{ display: "grid", gap: 6, padding: 8, borderRight: "1px solid #eee" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+        <div style={{ display: "grid", gap: 4, padding: 6, borderRight: "1px solid #eee" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4 }}>
                 <div style={chkCell}>
                     <input
                         type="checkbox"
@@ -58,7 +58,7 @@ export function ShowStyleComponent({ bits, disabled, onChangeBits }: Props) {
     );
 }
 const chkCell: React.CSSProperties = {
-    width: 50,
+    width: 42,
     height: 36,
     display: "flex",
     alignItems: "center",

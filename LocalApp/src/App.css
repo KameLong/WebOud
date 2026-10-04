@@ -5,8 +5,77 @@
 }
 
 /* 狭い画面(モバイル想定)では左の路線ツリーを隠し、各ページ内のナビゲーションボタンに任せる */
-@media (max-width: 900px) {
+@media (max-width: 780px) {
     .route-tree-sidebar {
         display: none;
     }
+}
+
+/* モバイル用ボトムシートメニュー：PC幅(780px以上)では非表示 */
+.mobile-menu-edge,
+.mobile-menu-fab {
+    display: none;
+}
+
+@media (max-width: 780px) {
+    .mobile-menu-edge {
+        display: block;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 20px;
+        z-index: 1000;
+    }
+
+    .mobile-menu-fab {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        position: fixed;
+        left: 50%;
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%);
+        z-index: 1001;
+        border-radius: 999px;
+        padding: 10px 18px;
+        background: #0f5b8a;
+        color: #fff;
+        border: none;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        font-weight: 600;
+    }
+}
+
+.mobile-menu-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1002;
+    display: flex;
+    align-items: flex-end;
+}
+
+@media (min-width: 780px) {
+    .mobile-menu-scrim {
+        display: none;
+    }
+}
+
+.mobile-menu-sheet {
+    width: 100%;
+    max-height: 75vh;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-menu-grabber {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: #ccc;
+    margin: 10px auto 4px;
 }

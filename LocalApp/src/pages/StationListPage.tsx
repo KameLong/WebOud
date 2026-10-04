@@ -5,10 +5,12 @@ import type { StationDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute } from "../store/localStore.ts";
 
+// ShowStyleComponent(駅一覧の着/番線/発チェックボックス群)の実寸に合わせた値。
+// 変更する場合はShowStyleComponent.tsx側のchkCell/padding/gapも揃えること。
 const COL = {
-    name: 240,
-    block: 50 * 3 + 8 * 2 + 6 * 2,
-    chk: 50,
+    name: 200,
+    block: 42 * 3 + 4 * 2 + 6 * 2,
+    chk: 42,
 };
 const styles: Record<string, React.CSSProperties> = {
     row: {
@@ -83,7 +85,7 @@ function AppendComponent({ routeId, stations, setStations }: { routeId: number; 
 
     return (
         <div style={{ ...styles.row, background: "#f0fff4" }}>
-            <div style={{ width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>
+            <div style={{ ...styles.cell, ...styles.nameCell }}>
                 <input
                     ref={newInputRef}
                     value={newName}
@@ -109,7 +111,7 @@ function StationHeaderComponent() {
     return (
         <div style={{ display: "flex", border: "1px solid #ddd" }}>
             <div style={{ ...styles.row, ...styles.headRow }}>
-                <div style={{ ...styles.cell, width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>駅名</div>
+                <div style={{ ...styles.cell, ...styles.nameCell }}>駅名</div>
                 <div style={{ ...styles.cell, ...styles.blockCell }}>
                     <div style={styles.blockTitle}>下り</div>
                     <div style={styles.checkGridHead}>
@@ -140,7 +142,7 @@ function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: Row
                 background: isSelected ? "#e6f2ff" : undefined,
             }}
         >
-            <div style={{ width: 240, padding: 8, boxSizing: "border-box", borderRight: "1px solid #ddd" }}>
+            <div style={{ ...styles.cell, ...styles.nameCell }}>
                 <div>{item.name}</div>
                 <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
             </div>
