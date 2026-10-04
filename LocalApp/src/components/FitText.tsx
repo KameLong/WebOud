@@ -13,6 +13,10 @@ type FitTextXProps = {
 
 /**
  * 指定幅の中にテキストを収めて表示するコンポーネント。
+ *
+ * @param text 表示する文字列
+ * @param style 追加のスタイル
+ * @param className 追加のクラス名
  */
 export function FitTextX({ text, style, className }: FitTextXProps) {
     return (

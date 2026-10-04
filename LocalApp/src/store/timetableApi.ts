@@ -1,6 +1,11 @@
 import { getRoute, updateRoute } from "./localStore.ts";
 import type { StationDto, StopTimeDto, TimeTableDto, TrainTypeDto, TripDto, TripWithStopTimesDto } from "../domain/dto.ts";
 
+/**
+ * 路線の駅・列車種別・列車をまとめて返します（路線が無ければ空）。
+ *
+ * @param routeId 路線ID
+ */
 export function getTimetable(routeId: number): TimeTableDto {
     const route = getRoute(routeId);
     if (!route) return { stations: [], trainTypes: [], trips: [] };
@@ -9,6 +14,12 @@ export function getTimetable(routeId: number): TimeTableDto {
 
 /* ---------------- Stations ---------------- */
 
+/**
+ * 駅を追加します。
+ *
+ * @param routeId 路線ID
+ * @param dto idを除いた駅データ（idは自動採番）
+ */
 export function addStation(routeId: number, dto: Omit<StationDto, "id">): StationDto {
     let created!: StationDto;
     updateRoute(routeId, (r) => {
@@ -19,16 +30,34 @@ export function addStation(routeId: number, dto: Omit<StationDto, "id">): Statio
     return created;
 }
 
+/**
+ * 駅を更新します。
+ *
+ * @param routeId 路線ID
+ * @param item 更新後の駅（idで対象を特定）
+ */
 export function updateStation(routeId: number, item: StationDto) {
     updateRoute(routeId, (r) => ({ ...r, stations: r.stations.map((s) => (s.id === item.id ? item : s)) }));
 }
 
+/**
+ * 駅を削除します。
+ *
+ * @param routeId 路線ID
+ * @param id 削除する駅ID
+ */
 export function deleteStation(routeId: number, id: number) {
     updateRoute(routeId, (r) => ({ ...r, stations: r.stations.filter((s) => s.id !== id) }));
 }
 
 /* ---------------- TrainTypes ---------------- */
 
+/**
+ * 列車種別を追加します。
+ *
+ * @param routeId 路線ID
+ * @param dto idを除いた種別データ（idは自動採番）
+ */
 export function addTrainType(routeId: number, dto: Omit<TrainTypeDto, "id">): TrainTypeDto {
     let created!: TrainTypeDto;
     updateRoute(routeId, (r) => {
@@ -39,16 +68,34 @@ export function addTrainType(routeId: number, dto: Omit<TrainTypeDto, "id">): Tr
     return created;
 }
 
+/**
+ * 列車種別を更新します。
+ *
+ * @param routeId 路線ID
+ * @param item 更新後の種別（idで対象を特定）
+ */
 export function updateTrainType(routeId: number, item: TrainTypeDto) {
     updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.map((t) => (t.id === item.id ? item : t)) }));
 }
 
+/**
+ * 列車種別を削除します。
+ *
+ * @param routeId 路線ID
+ * @param id 削除する種別ID
+ */
 export function deleteTrainType(routeId: number, id: number) {
     updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.filter((t) => t.id !== id) }));
 }
 
 /* ---------------- Trips / StopTimes ---------------- */
 
+/**
+ * 空の列車を末尾に追加します。
+ *
+ * @param routeId 路線ID
+ * @param direct 0:下り 1:上り
+ */
 export function createTrip(routeId: number, direct: number): TripWithStopTimesDto {
     let created!: TripWithStopTimesDto;
     updateRoute(routeId, (r) => {
@@ -67,6 +114,13 @@ export function createTrip(routeId: number, direct: number): TripWithStopTimesDt
     return created;
 }
 
+/**
+ * 同じ方向の列車の中で、指定位置に空の列車を挿入します。
+ *
+ * @param routeId 路線ID
+ * @param index 同方向の列車内での挿入位置（範囲外は端に丸める）
+ * @param direct 0:下り 1:上り
+ */
 export function insertTripAt(routeId: number, index: number, direct: number): TripWithStopTimesDto {
     let created!: TripWithStopTimesDto;
     updateRoute(routeId, (r) => {
@@ -89,6 +143,12 @@ export function insertTripAt(routeId: number, index: number, direct: number): Tr
     return created;
 }
 
+/**
+ * 列車のプロパティ（番号・名前・種別・方向）を更新します。時刻は変更しません。
+ *
+ * @param routeId 路線ID
+ * @param trip 更新後の列車情報（idで対象を特定）
+ */
 export function putTrip(routeId: number, trip: TripDto) {
     updateRoute(routeId, (r) => ({
         ...r,
@@ -98,12 +158,23 @@ export function putTrip(routeId: number, trip: TripDto) {
     }));
 }
 
+/**
+ * 列車を削除します。
+ *
+ * @param routeId 路線ID
+ * @param ids 削除する列車IDの配列
+ */
 export function deleteTrips(routeId: number, ids: number[]) {
     const idSet = new Set(ids);
     updateRoute(routeId, (r) => ({ ...r, trips: r.trips.filter((t) => !idSet.has(t.id)) }));
 }
 
-/** 指定tripの指定駅の時刻を作成/更新し、更新後のTripを返します */
+/**
+ * 指定tripの指定駅の時刻を作成/更新し、更新後のTripを返します
+ *
+ * @param routeId 路線ID
+ * @param stopTime 保存する時刻（tripID/stationIDで対象を特定。idが未採番なら新規採番）
+ */
 export function setStopTime(routeId: number, stopTime: StopTimeDto): TripWithStopTimesDto | undefined {
     let updatedTrip: TripWithStopTimesDto | undefined;
     updateRoute(routeId, (r) => {
@@ -134,7 +205,15 @@ export function setStopTime(routeId: number, stopTime: StopTimeDto): TripWithSto
     return updatedTrip;
 }
 
-/** 指定tripの指定駅・パートの時刻をoffsetSeconds分だけずらします */
+/**
+ * 指定tripの指定駅・パートの時刻をoffsetSeconds分だけずらします
+ *
+ * @param routeId 路線ID
+ * @param tripId 対象の列車ID
+ * @param stationId 対象の駅ID
+ * @param part ずらす対象（arr:着 dep:発。trackは何もしない）
+ * @param offsetSeconds ずらす秒数（負で戻す）
+ */
 export function shiftStopTime(routeId: number, tripId: number, stationId: number, part: "arr" | "dep" | "track", offsetSeconds: number) {
     let updatedTrip: TripWithStopTimesDto | undefined;
     updateRoute(routeId, (r) => {
@@ -161,7 +240,13 @@ export function shiftStopTime(routeId: number, tripId: number, stationId: number
     return updatedTrip;
 }
 
-/** 指定方向の列車を orderedTripIds の順番に並び替えます（他方向の列車の並びはそのまま） */
+/**
+ * 指定方向の列車を orderedTripIds の順番に並び替えます（他方向の列車の並びはそのまま）
+ *
+ * @param routeId 路線ID
+ * @param direct 並び替える方向（0:下り 1:上り）
+ * @param orderedTripIds 新しい並び順の列車ID配列
+ */
 export function reorderTrips(routeId: number, direct: number, orderedTripIds: number[]) {
     updateRoute(routeId, (r) => {
         const orderIndex = new Map(orderedTripIds.map((id, i) => [id, i]));
@@ -172,7 +257,12 @@ export function reorderTrips(routeId: number, direct: number, orderedTripIds: nu
     });
 }
 
-/** クリップボードからの複数Trip一括追加。新しいIDを採番して追加します */
+/**
+ * クリップボードからの複数Trip一括追加。新しいIDを採番して追加します
+ *
+ * @param routeId 路線ID
+ * @param trips 追加する列車（id/tripIDはプレースホルダ可。採番し直される）
+ */
 export function addTripBlock(routeId: number, trips: TripWithStopTimesDto[]): TripWithStopTimesDto[] {
     const created: TripWithStopTimesDto[] = [];
     updateRoute(routeId, (r) => {

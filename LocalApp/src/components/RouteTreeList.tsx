@@ -4,7 +4,11 @@ import { listRoutes, subscribe } from "../store/localStore.ts";
 
 type ActivePage = "edit" | "down" | "up" | "diagram" | null;
 
-/** 現在のURLから、アクティブな路線IDと表示中のページ種別を判定する */
+/**
+ * 現在のURLから、アクティブな路線IDと表示中のページ種別を判定する
+ *
+ * @param pathname 現在のURLパス
+ */
 function parseActive(pathname: string): { routeId: number | null; page: ActivePage } {
     const m = pathname.match(/^\/route\/(\d+)(?:\/timetable\/(\d+)|\/diagram)?\/?$/);
     if (!m) return { routeId: null, page: null };
@@ -20,6 +24,8 @@ function parseActive(pathname: string): { routeId: number | null; page: ActivePa
  * シートを閉じるなど、呼び出し側固有の後処理のために呼ばれる)。
  * 各路線行の▶/▼で開閉する(複数の路線を同時に開いておける)。
  * 現在表示中の路線は自動的に開いた状態になる。
+ *
+ * @param props onNavigate:遷移後の後処理（ボトムシートを閉じる等）
  */
 export function RouteTreeList(props: { onNavigate?: () => void }) {
     const { onNavigate } = props;
@@ -36,6 +42,11 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
         setOpenIds((prev) => (prev.has(activeRouteId) ? prev : new Set(prev).add(activeRouteId)));
     }, [activeRouteId]);
 
+    /**
+     * 路線の開閉を切り替えます。
+     *
+     * @param id 開閉する路線ID
+     */
     function toggle(id: number) {
         setOpenIds((prev) => {
             const next = new Set(prev);
@@ -45,6 +56,11 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
         });
     }
 
+    /**
+     * 指定パスへ遷移し、onNavigateを呼びます。
+     *
+     * @param path 遷移先のパス
+     */
     function go(path: string) {
         nav(path);
         onNavigate?.();
@@ -114,6 +130,11 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
     );
 }
 
+/**
+ * ツリーの1項目を描画します。
+ *
+ * @param props label:表示名 / active:現在のページか / onClick:クリック時の処理
+ */
 function TreeItem(props: { label: string; active: boolean; onClick: () => void }) {
     return (
         <div

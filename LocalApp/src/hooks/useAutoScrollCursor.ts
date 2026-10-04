@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import type { Cursor } from "../domain/types.ts";
 
-/** cursor変化で自動スクロール（rAFでまとめる） */
+/**
+ * cursor変化で自動スクロール（rAFでまとめる）
+ *
+ * @param scrollRootRef スクロール対象コンテナのref
+ * @param cursor 現在のカーソル位置。変化するとそのセルが見える位置までスクロールする
+ */
 export function useAutoScrollCursor(scrollRootRef: React.RefObject<HTMLElement | null>, cursor: Cursor) {
     const rafId = useRef<number | null>(null);
 

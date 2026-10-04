@@ -29,6 +29,12 @@ const RAPID_PASS_INDICES = new Set([1, 2, 6, 7, 10, 11, 12]);
 
 const ARR_DEP = 0b101; // 着+発（番線なし）
 
+/**
+ * 時・分を0:00からの経過秒に変換します。
+ *
+ * @param hh 時
+ * @param mm 分
+ */
 function hm(hh: number, mm: number) {
     return hh * 3600 + mm * 60;
 }
@@ -95,6 +101,16 @@ export function createSampleRoute(): RouteRecord {
         lineStyle: 0,
     });
 
+    /**
+     * 1本分の列車データを作ります。
+     *
+     * @param direct 0:下り 1:上り
+     * @param trainTypeID 列車種別ID
+     * @param no 列車番号
+     * @param startSeconds 始発駅の発車時刻（秒）
+     * @param secondsPerStation 1駅あたりの所要秒数
+     * @param isRapid trueなら快速として通過駅を設定する
+     */
     const makeTrip = (direct: number, trainTypeID: number, no: string, startSeconds: number, secondsPerStation: number, isRapid: boolean): TripWithStopTimesDto => {
         const order = direct === 0 ? stations : stationsUp;
         const passIndices = isRapid ? RAPID_PASS_INDICES : new Set<number>();

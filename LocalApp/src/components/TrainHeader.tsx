@@ -1,6 +1,11 @@
 import { LINE_HEIGHT } from "../domain/utils.ts";
 import type { TripDto, TrainTypeDto } from "../domain/dto.ts";
 
+/**
+ * 列車の見出し（種別略称・番号・列車名）を描画します。
+ *
+ * @param props t:列車 / traintype:種別 / HEADER_H:高さ / zHeader:z-index / onDoubleClick:ダブルクリック時の処理
+ */
 export function TrainHeader(props: {
     t: TripDto;
     traintype: TrainTypeDto;

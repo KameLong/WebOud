@@ -55,6 +55,13 @@ const styles: Record<string, React.CSSProperties> = {
     },
 };
 
+/**
+ * 駅名を入力してEnterで駅を追加する最下行です。
+ *
+ * @param routeId 路線ID
+ * @param stations 現在の駅一覧（次のindex算出に使う）
+ * @param setStations 駅一覧のstate更新関数
+ */
 function AppendComponent({ routeId, stations, setStations }: { routeId: number; stations: StationDto[]; setStations: React.Dispatch<React.SetStateAction<StationDto[]>> }) {
     const [newName, setNewName] = useState("");
     const newInputRef = useRef<HTMLInputElement | null>(null);
@@ -66,6 +73,11 @@ function AppendComponent({ routeId, stations, setStations }: { routeId: number; 
         }
         return max + 1;
     }
+    /**
+     * 名前から駅を作成し、一覧へ反映します。
+     *
+     * @param nameRaw 入力された駅名（前後の空白は除去、空なら何もしない）
+     */
     function createStationByName(nameRaw: string) {
         const name = nameRaw.trim();
         if (!name) return;
@@ -133,6 +145,14 @@ function StationHeaderComponent() {
     );
 }
 
+/**
+ * 駅一覧の1行を描画します。
+ *
+ * @param item 表示する駅
+ * @param isSelected 選択中か
+ * @param onMouseDown 行のmousedownハンドラ（選択処理）
+ * @param updateLocal 行の値を更新する関数（未保存変更として記録される）
+ */
 function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: RowRenderProps<StationDto>) {
     return (
         <div
@@ -156,6 +176,11 @@ function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: Row
     );
 }
 
+/**
+ * 駅の一覧編集UIです。
+ *
+ * @param routeId 編集する路線ID
+ */
 export default function StationListPage({ routeId }: { routeId: number }) {
     const [stations, setStations] = useState<StationDto[]>([]);
     const [dirty, setDirty] = useState<Record<number, StationDto>>({});
@@ -166,14 +191,29 @@ export default function StationListPage({ routeId }: { routeId: number }) {
         setDirty({});
     }
 
+    /**
+     * 駅の変更を保存します。
+     *
+     * @param item 更新後の駅
+     */
     function updateRemote(item: StationDto) {
         timetableApi.updateStation(routeId, item);
     }
 
+    /**
+     * 駅を作成します。
+     *
+     * @param dto idを除いた駅データ
+     */
     function createRemote(dto: Omit<StationDto, "id">) {
         return timetableApi.addStation(routeId, dto);
     }
 
+    /**
+     * 駅を削除します。
+     *
+     * @param id 駅ID
+     */
     function deleteRemote(id: number) {
         timetableApi.deleteStation(routeId, id);
     }

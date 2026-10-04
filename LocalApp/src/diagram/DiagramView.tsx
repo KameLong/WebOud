@@ -44,6 +44,11 @@ interface DiagramViewProps {
     downLines: DiagramLine[];
     upLines: DiagramLine[];
 }
+/**
+ * ダイヤグラムをcanvasに描画し、スクロール・ズーム操作を処理します。
+ *
+ * @param props routeStations:縦位置つきの駅 / downLines:下りの運行線 / upLines:上りの運行線
+ */
 export function DiagramView({ routeStations, downLines, upLines }: DiagramViewProps) {
     const SCALE: number = window.devicePixelRatio;
     const [diagramCanvas, setDiagramCanvas] = useState<DiagramCanvas>(new DiagramCanvas(undefined));
@@ -54,6 +59,11 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
         xEnd: 3600 * 27,
     });
 
+    /**
+     * 縦スクロール量を、ダイヤの範囲内に収めた値にします。
+     *
+     * @param diagramRect ダイヤの表示範囲
+     */
     function Ypos(diagramRect: DiagramRect) {
         const windowHeight = window.innerHeight * SCALE;
         const newY = Math.min(transform.y, -(windowHeight - 50) / transform.yScale / SCALE + diagramRect.yEnd);
@@ -92,6 +102,11 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    /**
+     * キャンバス全体を再描画します。
+     *
+     * @param t 描画に使う座標変換（スクロール量・拡大率）
+     */
     const render = useCallback(
         (t: DiagramTransformC) => {
             diagramCanvas.Clear();
@@ -114,6 +129,11 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
 
     const ref = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
+        /**
+         * 2本指タッチの開始位置を記録します（ピンチズーム用）。
+         *
+         * @param e タッチイベント
+         */
         const onTouchStart = (e: TouchEvent): void => {
             if (e.touches.length >= 2) {
                 zoomX.isDrag = Math.abs(e.touches[0].clientX - e.touches[1].clientX) > 100;
@@ -128,6 +148,11 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
                 e.preventDefault();
             }
         };
+        /**
+         * 2本指のピンチ操作で拡大率とスクロール位置を更新します。
+         *
+         * @param e タッチイベント
+         */
         const onTouchMove = (e: TouchEvent) => {
             if (e.touches.length >= 2) {
                 e.preventDefault();
@@ -189,6 +214,11 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
                 });
             }
         };
+        /**
+         * Ctrl+ホイールで拡大・縮小します。
+         *
+         * @param e ホイールイベント（deltaYで縦、deltaXで横の拡大率を変える）
+         */
         const onMouseWheel = (e: WheelEvent) => {
             if (e.ctrlKey) {
                 const rect = ref.current?.getBoundingClientRect();

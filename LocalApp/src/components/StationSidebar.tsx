@@ -11,6 +11,11 @@ const LABEL_WIDTH = LINE_HEIGHT;
 // 3:00 を日の始まりとして扱う(ダイヤグラムと同じ基準)
 const DIAGRAM_START = 3 * 3600;
 
+/**
+ * 左側の駅名欄を描画します。
+ *
+ * @param props stations:表示順の駅 / trips:列車一覧 / routeId:路線ID / direct:方向 / HEADER_H:見出し高さ / zLeft,zCorner:sticky用のz-index
+ */
 export function StationSidebar(props: {
     stations: StationDto[];
     trips: TripWithStopTimesDto[];
@@ -22,11 +27,25 @@ export function StationSidebar(props: {
 }) {
     const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner } = props;
 
-    /** 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。確認ダイアログでキャンセルした場合は何もしない。 */
+    /**
+     * 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。確認ダイアログでキャンセルした場合は何もしない。
+     *
+     * @param station 並び替えの基準にする駅
+     */
     function sortByStation(station: StationDto) {
         if (!confirm(`${station.name}の時刻順に列車を並び替えますか？`)) return;
 
+        /**
+         * 3:00より前の時刻を翌日扱いにします。
+         *
+         * @param time 0:00からの秒
+         */
         const normalize = (time: number) => (time < DIAGRAM_START ? time + 24 * 3600 : time);
+        /**
+         * 並び替え用のキー（発優先の時刻、無ければ最大値）を返します。
+         *
+         * @param t 対象の列車
+         */
         const sortKey = (t: TripWithStopTimesDto) => {
             const st = t.stopTimesByStationId[station.id];
             if (!st) return Number.MAX_SAFE_INTEGER;
@@ -46,6 +65,11 @@ export function StationSidebar(props: {
         );
     }
 
+    /**
+     * 表示するパート（着/番線/発）と見出しラベルを返します。
+     *
+     * @param showStyle 方向別に取り出した3bitの表示スタイル
+     */
     function buildPartsForStation(showStyle:number): Array<{ key: Part; label: string }> {
         const s = decodeShowStyle(showStyle);
         const parts: Array<{ key: Part; label: string }> = [];
@@ -58,6 +82,11 @@ export function StationSidebar(props: {
         return parts;
     }
 
+    /**
+     * パート間に区切り線を入れるか（番線を表示するか）を返します。
+     *
+     * @param showStyle 方向別に取り出した3bitの表示スタイル
+     */
     function withSeparatorsForStation(showStyle:number): boolean {
         const s = decodeShowStyle(showStyle);
         return s.showTrack;

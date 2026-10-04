@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
+/**
+ * 列車貼り付け時の時刻移動量（分・秒）を設定するダイアログです。
+ *
+ * @param props open:表示中か / value:現在の移動量 / onCancel:閉じる / onSave:保存（秒は0〜59に丸める）
+ */
 export function PasteMoveDialog(props: {
     open: boolean;
     value: { minutes: number; seconds: number };

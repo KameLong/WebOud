@@ -47,7 +47,13 @@ type Props<TItem extends IndexedItemBase> = {
     AppendRowComponent?: React.ReactNode;
 };
 
-/** nをmin〜maxの範囲に収める */
+/**
+ * nをmin〜maxの範囲に収める
+ *
+ * @param n 対象の値
+ * @param min 下限
+ * @param max 上限
+ */
 function clamp(n: number, min: number, max: number) {
     return Math.max(min, Math.min(max, n));
 }
@@ -102,10 +108,18 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
 
     const orderedIds = useMemo(() => ordered.map((x) => x.id), [ordered]);
 
-    /** orderedIds内でのidの位置を返す(見つからなければ-1) */
+    /**
+     * orderedIds内でのidの位置を返す(見つからなければ-1)
+     *
+     * @param id 検索する行ID（nullなら-1）
+     */
     const indexOfId = (id: number | null) => (id == null ? -1 : orderedIds.indexOf(id));
 
-    /** 選択中のid集合の中で、表示順が最も後ろにあるidを返す */
+    /**
+     * 選択中のid集合の中で、表示順が最も後ろにあるidを返す
+     *
+     * @param sel 選択中の行ID集合
+     */
     const lastSelectedId = (sel: Set<number>) => {
         let bestIdx = -1,
             bestId: number | null = null;
@@ -119,7 +133,12 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return bestId;
     };
 
-    /** aIdからbIdまでの表示順範囲にある全idを選択状態として返す(Shift選択用) */
+    /**
+     * aIdからbIdまでの表示順範囲にある全idを選択状態として返す(Shift選択用)
+     *
+     * @param aId 範囲の一端の行ID
+     * @param bId 範囲のもう一端の行ID
+     */
     const rangeSelect = (aId: number, bId: number) => {
         const a = indexOfId(aId);
         const b = indexOfId(bId);
@@ -134,7 +153,12 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         itemsRef.current = items;
     }, [items]);
 
-    /** 指定idのアイテムをupdaterで更新し、itemsとdirty(未保存変更)の両方へ反映する */
+    /**
+     * 指定idのアイテムをupdaterで更新し、itemsとdirty(未保存変更)の両方へ反映する
+     *
+     * @param id 更新する行のID
+     * @param updater 現在の行を受け取り、更新後の行を返す関数
+     */
     const updateLocalById = (id: number, updater: (x: TItem) => TItem) => {
         setItems((prev) => prev.map((x) => (x.id === id ? updater(x) : x)));
         setDirty((prev) => {
@@ -146,7 +170,11 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         });
     };
 
-    /** 選択中アイテムをtoClip形式に変換してシステムクリップボードへ書き込む(失敗時はclipRefにのみ保持) */
+    /**
+     * 選択中アイテムをtoClip形式に変換してシステムクリップボードへ書き込む(失敗時はclipRefにのみ保持)
+     *
+     * @param payload 書き込む内容
+     */
     async function writeClipboard(payload: ClipboardPayload<TItem>) {
         clipRef.current = payload;
         try {
@@ -175,7 +203,12 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return ordered.length ? ordered[ordered.length - 1].index + 1 : 0;
     };
 
-    /** fromIndex以降のアイテムのindexをdelta分ずらす(挿入/ペーストで隙間を作るため)。サーバー側にも反映する */
+    /**
+     * fromIndex以降のアイテムのindexをdelta分ずらす(挿入/ペーストで隙間を作るため)。サーバー側にも反映する
+     *
+     * @param fromIndex この値以上のindexを持つ行をずらす
+     * @param delta ずらす量（挿入件数）
+     */
     function shiftIndices(fromIndex: number, delta: number) {
         const toShift = ordered.filter((x) => x.index >= fromIndex).sort((a, b) => b.index - a.index);
         for (const x of toShift) {
@@ -283,7 +316,11 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
-    /** 一覧ルートのonKeyDownハンドラ。矢印キーでの移動/範囲選択とコピペ・挿入・削除のショートカットをまとめて処理する */
+    /**
+     * 一覧ルートのonKeyDownハンドラ。矢印キーでの移動/範囲選択とコピペ・挿入・削除のショートカットをまとめて処理する
+     *
+     * @param e 一覧ルートで受け取ったキーイベント
+     */
     async function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
         const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
         if (tag === "input" || tag === "textarea") return;
@@ -333,7 +370,11 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         }
     }
 
-    /** idの行用のonMouseDownハンドラを作る。単一選択/Ctrl追加選択/Shift範囲選択を切り替える */
+    /**
+     * idの行用のonMouseDownハンドラを作る。単一選択/Ctrl追加選択/Shift範囲選択を切り替える
+     *
+     * @param id 対象の行ID
+     */
     const makeRowMouseDown = (id: number) => (e: React.MouseEvent) => {
         // チェックボックスや入力欄など、行内の操作可能な要素をクリックした場合は
         // ブラウザ標準のフォーカス付与に任せる。ここで listRef にフォーカスを

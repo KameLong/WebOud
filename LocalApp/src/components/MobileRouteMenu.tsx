@@ -13,9 +13,19 @@ export function MobileRouteMenu() {
     const [open, setOpen] = useState(false);
     const touchStartY = useRef<number | null>(null);
 
+    /**
+     * 下端検知帯のタッチ開始位置を記録します。
+     *
+     * @param e タッチイベント
+     */
     function onEdgeTouchStart(e: React.TouchEvent) {
         touchStartY.current = e.touches[0].clientY;
     }
+    /**
+     * 下端から上へ一定量スワイプしたらメニューを開きます。
+     *
+     * @param e タッチイベント
+     */
     function onEdgeTouchMove(e: React.TouchEvent) {
         if (touchStartY.current == null) return;
         const movedUp = touchStartY.current - e.touches[0].clientY;
@@ -28,9 +38,19 @@ export function MobileRouteMenu() {
         touchStartY.current = null;
     }
 
+    /**
+     * シート上のタッチ開始位置を記録します。
+     *
+     * @param e タッチイベント
+     */
     function onSheetTouchStart(e: React.TouchEvent) {
         touchStartY.current = e.touches[0].clientY;
     }
+    /**
+     * シートを下へ一定量スワイプしたらメニューを閉じます。
+     *
+     * @param e タッチイベント
+     */
     function onSheetTouchMove(e: React.TouchEvent) {
         if (touchStartY.current == null) return;
         const movedDown = e.touches[0].clientY - touchStartY.current;

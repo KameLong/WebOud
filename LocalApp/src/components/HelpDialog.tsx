@@ -3,6 +3,8 @@ import React, { useEffect } from "react";
 /**
  * 各ページ共通のヘルプダイアログ。そのページでできる操作とショートカットキーを表示する。
  * 背景クリックまたはEscapeキーで閉じる。
+ *
+ * @param props open:表示中か / onClose:閉じる処理 / title:見出し / children:本文
  */
 export function HelpDialog(props: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
     const { open, onClose, title, children } = props;
@@ -64,7 +66,11 @@ export function HelpDialog(props: { open: boolean; onClose: () => void; title: s
     );
 }
 
-/** ヘルプダイアログ内の見出し付きセクション */
+/**
+ * ヘルプダイアログ内の見出し付きセクション
+ *
+ * @param props title:見出し / children:本文
+ */
 export function HelpSection(props: { title: string; children: React.ReactNode }) {
     return (
         <div style={{ marginBottom: 16 }}>
@@ -74,7 +80,11 @@ export function HelpSection(props: { title: string; children: React.ReactNode })
     );
 }
 
-/** できることの箇条書きリスト */
+/**
+ * できることの箇条書きリスト
+ *
+ * @param props items:各項目の内容
+ */
 export function HelpList(props: { items: React.ReactNode[] }) {
     return (
         <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.7 }}>
@@ -85,7 +95,11 @@ export function HelpList(props: { items: React.ReactNode[] }) {
     );
 }
 
-/** キー操作一覧の表 */
+/**
+ * キー操作一覧の表
+ *
+ * @param props rows:[キー, 説明]の配列
+ */
 export function HelpShortcutTable(props: { rows: [string, string][] }) {
     return (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>

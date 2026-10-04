@@ -40,6 +40,13 @@ const styles: Record<string, React.CSSProperties> = {
     styleCell: { width: COL.style, minWidth: COL.style, maxWidth: COL.style },
 };
 
+/**
+ * 種別名を入力してEnterで種別を追加する最下行です。
+ *
+ * @param routeId 路線ID
+ * @param items 現在の種別一覧（次のindex算出に使う）
+ * @param setItems 種別一覧のstate更新関数
+ */
 function AppendTrainTypeRow({ routeId, items, setItems }: { routeId: number; items: TrainTypeDto[]; setItems: React.Dispatch<React.SetStateAction<TrainTypeDto[]>> }) {
     const [newName, setNewName] = useState("");
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -52,6 +59,11 @@ function AppendTrainTypeRow({ routeId, items, setItems }: { routeId: number; ite
         return max + 1;
     }
 
+    /**
+     * 名前から列車種別を作成し、一覧へ反映します。
+     *
+     * @param nameRaw 入力された種別名（前後の空白は除去、空なら何もしない）
+     */
     function createByName(nameRaw: string) {
         const name = nameRaw.trim();
         if (!name) return;
@@ -114,6 +126,14 @@ function TrainTypeHeaderComponent() {
     );
 }
 
+/**
+ * 列車種別一覧の1行を描画します。
+ *
+ * @param item 表示する種別
+ * @param isSelected 選択中か
+ * @param onMouseDown 行のmousedownハンドラ（選択処理）
+ * @param updateLocal 行の値を更新する関数（未保存変更として記録される）
+ */
 function TrainTypeRowComponent({ item, isSelected, onMouseDown, updateLocal }: RowRenderProps<TrainTypeDto>) {
     return (
         <div
@@ -153,6 +173,11 @@ function TrainTypeRowComponent({ item, isSelected, onMouseDown, updateLocal }: R
         </div>
     );
 }
+/**
+ * 列車種別の一覧編集UIです。
+ *
+ * @param routeId 編集する路線ID
+ */
 export default function TrainTypeListPage({ routeId }: { routeId: number }) {
     const [items, setItems] = useState<TrainTypeDto[]>([]);
     const [dirty, setDirty] = useState<Record<number, TrainTypeDto>>({});
@@ -163,14 +188,29 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
         setDirty({});
     }
 
+    /**
+     * 種別の変更を保存します。
+     *
+     * @param item 更新後の種別
+     */
     function updateRemote(item: TrainTypeDto) {
         timetableApi.updateTrainType(routeId, item);
     }
 
+    /**
+     * 種別を作成します。
+     *
+     * @param dto idを除いた種別データ
+     */
     function createRemote(dto: Omit<TrainTypeDto, "id">) {
         return timetableApi.addTrainType(routeId, dto);
     }
 
+    /**
+     * 種別を削除します。
+     *
+     * @param id 種別ID
+     */
     function deleteRemote(id: number) {
         timetableApi.deleteTrainType(routeId, id);
     }

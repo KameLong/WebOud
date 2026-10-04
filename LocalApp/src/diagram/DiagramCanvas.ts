@@ -17,6 +17,15 @@ export class DiagramTransformC {
     yScale: number;
     diagramStartTime: number = 3600 * 3;
     SCALE: number = 1;
+    /**
+     * 座標変換の設定を作ります。
+     *
+     * @param x 横スクロール量
+     * @param y 縦スクロール量
+     * @param xScale 横方向の拡大率
+     * @param yScale 縦方向の拡大率
+     * @param SCALE devicePixelRatio
+     */
     constructor(x: number, y: number, xScale: number, yScale: number, SCALE: number) {
         this.x = x;
         this.y = y;
@@ -24,9 +33,19 @@ export class DiagramTransformC {
         this.yScale = yScale;
         this.SCALE = SCALE;
     }
+    /**
+     * ダイヤ上の時刻(秒)をキャンバスのX座標(px)に変換します。
+     *
+     * @param x 0:00からの秒
+     */
     public getCanvasX(x: number): number {
         return (x - this.diagramStartTime) * this.xScale * this.SCALE - this.x * this.SCALE + 80 * this.SCALE;
     }
+    /**
+     * ダイヤ上の縦位置（駅間の累積秒）をキャンバスのY座標(px)に変換します。
+     *
+     * @param y 駅の縦位置
+     */
     public getCanvasY(y: number): number {
         return y * this.yScale * this.SCALE - this.y * this.SCALE + 30 * this.SCALE;
     }
@@ -38,6 +57,11 @@ export class DiagramCanvas {
     public diaRect: { xStart: number; yStart: number; xEnd: number; yEnd: number } = { xStart: 0, yStart: 0, xEnd: 0, yEnd: 0 };
 
     public fontSize: number = 12;
+    /**
+     * キャンバスの2Dコンテキストを取得して全面を消去します。
+     *
+     * @param canvas 描画先。undefinedなら何も描画しない空の状態にする
+     */
     constructor(canvas: HTMLCanvasElement | undefined) {
         if (canvas === undefined) {
             return;
@@ -51,6 +75,16 @@ export class DiagramCanvas {
         }
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     }
+    /**
+     * ダイヤ座標系で線を引きます。
+     *
+     * @param x1 始点の時刻(秒)
+     * @param y1 始点の縦位置
+     * @param x2 終点の時刻(秒)
+     * @param y2 終点の縦位置
+     * @param width 線の太さ（SCALE倍して描画）
+     * @param color 線の色
+     */
     DrawLine(x1: number, y1: number, x2: number, y2: number, width: number, color: string) {
         if (this.ctx === undefined) {
             return;
@@ -62,6 +96,16 @@ export class DiagramCanvas {
         this.ctx.lineTo(this.transform.getCanvasX(x2), this.transform.getCanvasY(y2));
         this.ctx.stroke();
     }
+    /**
+     * キャンバス座標(px)でそのまま線を引きます。
+     *
+     * @param x1 始点X
+     * @param y1 始点Y
+     * @param x2 終点X
+     * @param y2 終点Y
+     * @param width 線の太さ
+     * @param color 線の色
+     */
     _DrawLine(x1: number, y1: number, x2: number, y2: number, width: number, color: string) {
         if (this.ctx === undefined) {
             return;
@@ -73,6 +117,13 @@ export class DiagramCanvas {
         this.ctx.lineTo(x2, y2);
         this.ctx.stroke();
     }
+    /**
+     * ダイヤ座標系で文字を描きます。
+     *
+     * @param text 描画する文字列
+     * @param x 時刻(秒)
+     * @param y 縦位置
+     */
     DrawText(text: string, x: number, y: number) {
         if (this.ctx === undefined) {
             return;
@@ -80,6 +131,13 @@ export class DiagramCanvas {
         this.ctx.font = `${this.fontSize * this.transform.SCALE}px sans-serif`;
         this.ctx.fillText(text, this.transform.getCanvasX(x), this.transform.getCanvasY(y));
     }
+    /**
+     * キャンバス座標(px)で文字を描きます。
+     *
+     * @param text 描画する文字列
+     * @param x X座標
+     * @param y Y座標
+     */
     DrawText_(text: string, x: number, y: number) {
         if (this.ctx === undefined) {
             return;
@@ -88,12 +146,23 @@ export class DiagramCanvas {
         this.ctx.fillText(text, x, y);
     }
 
+    /**
+     * 上部の時刻ラベルを描きます。拡大率に応じて表示する刻みを間引きます。
+     *
+     * @param verticalAxis 縦線の刻みの種別（0:1時間 1:30分 2:20分 3:15分 4〜:10分 7:5分）
+     */
     DrawTimeHeader(verticalAxis: number) {
         if (this.ctx === undefined) {
             return;
         }
         this.ctx.clearRect(0, 0, 86400 * this.transform.SCALE * this.transform.xScale, 1.8 * this.fontSize * this.transform.SCALE);
 
+        /**
+         * 指定した時・分のラベルを描きます。
+         *
+         * @param hour 時
+         * @param min 分
+         */
         const drawHourMinText = (hour: number, min: number) => {
             this.DrawText_(
                 `${hour}:${min.toString().padStart(2, "0")}`,
@@ -206,7 +275,17 @@ export class DiagramCanvas {
         this.ctx.fillStyle = "#000";
     }
 
+    /**
+     * 時刻の縦線を描きます。
+     *
+     * @param verticalAxis 縦線の刻みの種別（DrawTimeHeaderと同じ）
+     */
     DrawVerticalAxis(verticalAxis: number) {
+        /**
+         * 太い縦線（1時間ごと）を描きます。
+         *
+         * @param time 時刻(秒)
+         */
         const DrawBoldLine = (time: number) => {
             this.DrawLine(
                 ((time - this.transform.diagramStartTime + 86400) % 86400) + this.transform.diagramStartTime,
@@ -217,6 +296,11 @@ export class DiagramCanvas {
                 "#AAA"
             );
         };
+        /**
+         * 通常の縦線を描きます。
+         *
+         * @param time 時刻(秒)
+         */
         const DrawMainLine = (time: number) => {
             this.DrawLine(
                 ((time - this.transform.diagramStartTime + 86400) % 86400) + this.transform.diagramStartTime,
@@ -227,6 +311,11 @@ export class DiagramCanvas {
                 "#AAA"
             );
         };
+        /**
+         * 細い縦線（補助線）を描きます。
+         *
+         * @param time 時刻(秒)
+         */
         const DrawSubLine = (time: number) => {
             this.DrawLine(
                 ((time - this.transform.diagramStartTime + 86400) % 86400) + this.transform.diagramStartTime,
@@ -272,11 +361,21 @@ export class DiagramCanvas {
             DrawBoldLine(i * 3600);
         }
     }
+    /**
+     * 駅ごとの横線を描きます。
+     *
+     * @param stations 縦位置つきの駅一覧
+     */
     DrawStationAxis(stations: DiagramStation[]) {
         for (let i = 0; i < stations.length; i++) {
             this.DrawLine(this.transform.diagramStartTime, stations[i].stationTime, this.transform.diagramStartTime + 86400, stations[i].stationTime, 1, "#808080");
         }
     }
+    /**
+     * 列車の運行線と列車番号を描きます。
+     *
+     * @param trips 描画する運行線（2点未満は無視）
+     */
     DrawTrips(trips: DiagramLine[]) {
         if (this.ctx === undefined) {
             return;
@@ -305,6 +404,11 @@ export class DiagramCanvas {
             this.ctx.restore();
         });
     }
+    /**
+     * 左側の駅名欄を描きます。
+     *
+     * @param routeStations 縦位置つきの駅一覧（先頭・末尾は太線）
+     */
     DrawStations(routeStations: DiagramStation[]) {
         if (this.ctx === undefined) {
             return;

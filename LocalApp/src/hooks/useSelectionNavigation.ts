@@ -3,7 +3,11 @@ import { useCallback, useMemo, useState } from "react";
 import { decodeDownParts, makeRangeSet } from "../domain/utils.ts";
 import type { StationDto } from "../domain/dto.ts";
 
-/** 選択とキー操作をまとめる */
+/**
+ * 選択とキー操作をまとめる
+ *
+ * @param params stationsLen:駅数 / trainsLen:列車数 / stations:カーソル移動の経路を作るための駅一覧
+ */
 export function useSelectionNavigation(params: {
     stationsLen: number;
     trainsLen: number;
@@ -32,6 +36,11 @@ export function useSelectionNavigation(params: {
     }, [stations]);
 
     const moveVertical = useCallback(
+        /**
+         * カーソルを表示パート単位で上下に動かします。
+         *
+         * @param delta -1:上へ 1:下へ
+         */
         (delta: -1 | 1) => {
             if (verticalRoute.length === 0) return;
 
@@ -48,6 +57,12 @@ export function useSelectionNavigation(params: {
     );
 
     const moveHorizontal = useCallback(
+        /**
+         * カーソルを列車の列方向に動かします。
+         *
+         * @param delta -1:左へ 1:右へ
+         * @param withShift trueなら起点列からの範囲選択を拡張する
+         */
         (delta: -1 | 1, withShift: boolean) => {
             const nc = Math.max(0, Math.min(trainsLen - 1, cursor.c + delta));
             setCursor((cur) => ({ ...cur, c: nc }));
@@ -63,6 +78,11 @@ export function useSelectionNavigation(params: {
     );
 
     const onKeyDown = useCallback(
+        /**
+         * 矢印キーでカーソル移動・範囲選択を行います。
+         *
+         * @param e キーイベント
+         */
         (e: KeyLike) => {
             if (e.key === "ArrowDown") {
                 e.preventDefault();
@@ -83,6 +103,10 @@ export function useSelectionNavigation(params: {
 
     /** クリック（イベント委譲のために上位で使う） */
     const onMouseDownDelegated = useCallback(
+        /**
+         * @param e グリッド上のmousedownイベント（data-r/c/part属性を持つ要素を探す）
+         * @param focus 選択後にグリッドへフォーカスを戻す関数
+         */
         (e: React.MouseEvent, focus?: () => void) => {
             const target = e.target as HTMLElement | null;
             if (!target) return;

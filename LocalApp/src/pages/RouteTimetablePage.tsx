@@ -94,12 +94,22 @@ export default function RouteTimetablePage() {
             </div>
         );
 
+    /**
+     * 列車プロパティのダイアログを開きます。
+     *
+     * @param tripId 編集する列車ID
+     */
     const openTripProperty = (tripId: number) => {
         setTripPropTargetId(tripId);
         setTripPropOpen(true);
     };
     const targetTrip = tripPropTargetId == null ? undefined : trips.find((t) => t.id === tripPropTargetId);
 
+    /**
+     * カーソル位置の時刻編集ダイアログを開きます。
+     *
+     * @param initialChar 最初に入力欄へ入れる1文字（数字キーで開始した場合）
+     */
     const openEdit = (initialChar?: string) => {
         const cursor = nav.cursor;
         const r = cursor.r;
@@ -123,6 +133,11 @@ export default function RouteTimetablePage() {
         });
     };
 
+    /**
+     * カーソル位置を通過/経由なしに設定し、1段下へ進めます。
+     *
+     * @param stopType 2:通過 3:経由なし（それ以外は無視）
+     */
     const changeStopType = (stopType: number) => {
         if (!(stopType === 2 || stopType === 3)) {
             return;
@@ -142,6 +157,11 @@ export default function RouteTimetablePage() {
         nav.moveVertical(1);
     };
 
+    /**
+     * 時刻表グリッドのキー操作をまとめて処理します。
+     *
+     * @param e キーイベント（キューで直列実行される）
+     */
     const keyEvent = async (e: KeyLike) => {
         if (e.altKey && e.key === "l") {
             const cursor = nav.cursor;

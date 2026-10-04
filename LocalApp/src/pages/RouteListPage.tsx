@@ -14,6 +14,12 @@ import {
 import { createSampleRoute } from "../sampleData.ts";
 import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
 
+/**
+ * テキストをファイルとしてダウンロードさせます。
+ *
+ * @param filename 保存するファイル名
+ * @param text ファイルの内容（JSON）
+ */
 function downloadText(filename: string, text: string) {
     const blob = new Blob([text], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -24,6 +30,11 @@ function downloadText(filename: string, text: string) {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * ミリ秒のタイムスタンプを日本語表記の日時にします。
+ *
+ * @param ms UNIX時間(ミリ秒)
+ */
 function formatDate(ms: number) {
     return new Date(ms).toLocaleString("ja-JP");
 }
@@ -38,6 +49,11 @@ export default function RouteListPage() {
     const allFileRef = useRef<HTMLInputElement | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
 
+    /**
+     * 路線を新規作成して編集画面へ移動します。
+     *
+     * @param e フォームのsubmitイベント
+     */
     function onCreate(e: React.FormEvent) {
         e.preventDefault();
         const name = newName.trim();
@@ -47,11 +63,22 @@ export default function RouteListPage() {
         nav(`/route/${created.id}`);
     }
 
+    /**
+     * 確認のうえ路線を削除します。
+     *
+     * @param id 削除する路線ID
+     * @param name 確認ダイアログに表示する路線名
+     */
     function onDelete(id: number, name: string) {
         if (!confirm(`「${name}」を削除しますか？この操作は取り消せません。`)) return;
         deleteRoute(id);
     }
 
+    /**
+     * 路線を複製します。
+     *
+     * @param id 複製元の路線ID
+     */
     function onDuplicate(id: number) {
         duplicateRoute(id);
     }
@@ -61,6 +88,12 @@ export default function RouteListPage() {
         nav(`/route/${created.id}`);
     }
 
+    /**
+     * 路線をJSONファイルとして書き出します。
+     *
+     * @param id 書き出す路線ID
+     * @param name ファイル名に使う路線名
+     */
     function onExportRoute(id: number, name: string) {
         const json = exportRouteAsJson(id);
         if (!json) return;
@@ -71,6 +104,11 @@ export default function RouteListPage() {
         downloadText(`weboud-backup-${new Date().toISOString().slice(0, 10)}.json`, exportAllAsJson());
     }
 
+    /**
+     * JSONファイルから路線を追加します。
+     *
+     * @param file 選択されたJSONファイル
+     */
     async function onImportRoute(file: File) {
         setError(null);
         try {
@@ -83,6 +121,11 @@ export default function RouteListPage() {
         }
     }
 
+    /**
+     * 確認のうえ、JSONファイルで全データを置き換えます。
+     *
+     * @param file 選択されたJSONファイル
+     */
     async function onImportAll(file: File) {
         if (!confirm("既存の全データを置き換えます。よろしいですか？")) {
             if (allFileRef.current) allFileRef.current.value = "";

@@ -12,6 +12,12 @@ export const ARR_BORDER_BOTTOM_WIDTH = 1;
 /** ======================
  * utils
  * ====================== */
+/**
+ * aからbまで（両端含む）の整数集合を返します。
+ *
+ * @param a 範囲の一端（大小どちらでも可）
+ * @param b 範囲のもう一端
+ */
 export function makeRangeSet(a: number, b: number) {
     const s = new Set<number>();
     const lo = Math.min(a, b);
@@ -20,6 +26,11 @@ export function makeRangeSet(a: number, b: number) {
     return s;
 }
 
+/**
+ * 表示スタイルのビット値を着/番線/発の真偽値に展開します。
+ *
+ * @param showStyle 駅のshowStyle。下り用は下位3bit（1:着 2:番線 4:発）のみ参照する
+ */
 export function decodeShowStyle(showStyle: number): { showArr: boolean; showTrack: boolean; showDep: boolean } {
     const bits = showStyle & 0b111; // 下り（低位3bit）
     return {
@@ -29,6 +40,11 @@ export function decodeShowStyle(showStyle: number): { showArr: boolean; showTrac
     };
 }
 
+/**
+ * 表示スタイルから、表示するパート（着/番線/発）を上から順に返します。
+ *
+ * @param stationShowStyle 駅のshowStyle（下位3bitのみ参照）
+ */
 export function decodeDownParts(stationShowStyle: number): Part[] {
     const bits = stationShowStyle & 0b111;
     const showArr = (bits & 0b001) !== 0;
@@ -42,6 +58,11 @@ export function decodeDownParts(stationShowStyle: number): Part[] {
     return parts;
 }
 
+/**
+ * 1駅分のセルの高さ(px)を返します。
+ *
+ * @param style 着/番線/発のビット値（3bit）
+ */
 export function cellHeight(style: number) {
     const showStyle = decodeShowStyle(style);
     let result = 0;
@@ -60,6 +81,12 @@ export function cellHeight(style: number) {
     return result;
 }
 
+/**
+ * 末尾の入力用プレースホルダ列車（id=-1）を作ります。
+ *
+ * @param routeID 所属する路線ID
+ * @param direct 0:下り 1:上り
+ */
 export function createPlaceholderTrip(routeID: number, direct: number): TripWithStopTimesDto {
     return {
         id: -1,
@@ -72,6 +99,13 @@ export function createPlaceholderTrip(routeID: number, direct: number): TripWith
     };
 }
 
+/**
+ * 列車一覧の末尾にプレースホルダ列車が必ず1つだけ付くように整えます。
+ *
+ * @param trips 対象方向の列車一覧
+ * @param routeID プレースホルダ作成時に使う路線ID
+ * @param direct プレースホルダ作成時に使う方向
+ */
 export function ensureTailPlaceholder(trips: TripWithStopTimesDto[], routeID: number, direct: number): TripWithStopTimesDto[] {
     const nonPlaceholder = trips.filter((t) => t.id !== -1);
     const placeholders = trips.filter((t) => t.id === -1);
@@ -84,6 +118,12 @@ export function ensureTailPlaceholder(trips: TripWithStopTimesDto[], routeID: nu
     return result;
 }
 
+/**
+ * 0:00からの秒を「hmm」(秒表示時は「hmmss」)形式の文字列にします。
+ *
+ * @param time 0:00からの経過秒（24時間で折り返す）
+ * @param showSecond trueなら秒も付ける
+ */
 export function timeInt2Str(time: number, showSecond: boolean) {
     let t = time;
     const ss = time % 60;
@@ -99,6 +139,11 @@ export function timeInt2Str(time: number, showSecond: boolean) {
     return `${hh}${mm.toString(10).padStart(2, "0")}`;
 }
 
+/**
+ * 「hmm」「hhmm」形式の文字列を0:00からの秒に変換します。3時より前は翌日扱い(+24h)。
+ *
+ * @param timeStr 時刻文字列。空文字なら未入力として-1を返し、3/4桁以外は例外を投げる
+ */
 export function timeStr2Int(timeStr: string): number {
     let hh = 0;
     let mm = 0;
@@ -125,11 +170,18 @@ export function timeStr2Int(timeStr: string): number {
 }
 
 //入力したキーが数値か？
+/**
+ * @param e キーイベント
+ */
 export function isDigitKey(e: KeyLike) {
     return e.key.length === 1 && e.key >= "0" && e.key <= "9";
 }
 
 //与えられたstoptimeの配列の中でstationIndexより前にある駅のうち、時刻があるものを返します。
+/**
+ * @param stopTimes 駅順に並べた停車時刻の配列
+ * @param stationIndex 探索を始める駅のインデックス（この駅から先頭方向へ遡る）
+ */
 export function getLastTimeFormStopTimes(stopTimes: StopTimeDto[], stationIndex: number): number {
     for (let i = stationIndex; i >= 0; i--) {
         if (stopTimes[i]?.depTime >= 0) {
@@ -142,6 +194,12 @@ export function getLastTimeFormStopTimes(stopTimes: StopTimeDto[], stationIndex:
     return -1;
 }
 
+/**
+ * 駅の並び順に合わせて、列車の停車時刻を配列にします（未登録の駅はundefined）。
+ *
+ * @param trip 対象の列車
+ * @param stations 表示順に並べた駅
+ */
 export function makeStopTimeList(trip: TripWithStopTimesDto, stations: StationDto[]) {
     return stations.map((st) => {
         return trip.stopTimesByStationId[st.id];

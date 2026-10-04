@@ -3,6 +3,11 @@ import type { StopTimeDto } from "../domain/dto.ts";
 import { timeInt2Str, timeStr2Int } from "../domain/utils.ts";
 import type { Part } from "../domain/types.ts";
 
+/**
+ * 駅の着・発時刻と停車種別を編集するダイアログです。
+ *
+ * @param props state:開閉状態と最初の入力文字 / stationName,trainNo:見出し表示 / cursorPart:最初にフォーカスするパート / initial:編集前の時刻 / onCancel:閉じる / onSave:保存
+ */
 export function StopTimeEditDialog(props: {
     state: { open: boolean; initialInput: string };
     stationName: string;

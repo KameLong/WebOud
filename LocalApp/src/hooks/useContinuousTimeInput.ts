@@ -34,6 +34,8 @@ type State = {
  *   - lastTime !== -1 の場合：bufをmm扱いして時補完→ StopTime更新 → moveVertical(1)
  * - Escape：bufクリアして enabled=false
  * - Backspace：buf末尾削除
+ *
+ * @param opts stations:駅一覧 / trips:列車一覧 / nav:カーソル操作 / changeStopTime:確定した時刻の保存関数
  */
 export function useContinuousTimeInput(opts: Options) {
     const { stations, trips, nav, changeStopTime } = opts;
@@ -56,6 +58,11 @@ export function useContinuousTimeInput(opts: Options) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nav.cursor, trips, stations]);
 
+    /**
+     * 入力途中のバッファを消します。
+     *
+     * @param disableAlso trueなら連続入力モード自体も終了する
+     */
     const reset = useCallback((disableAlso: boolean) => {
         setBuf("");
         if (disableAlso) setEnabled(false);
@@ -86,6 +93,11 @@ export function useContinuousTimeInput(opts: Options) {
     }, [nav, trips, stations]);
 
     const commitIfReady = useCallback(
+        /**
+         * 2桁入力されていれば時刻として確定します。
+         *
+         * @param nextBuf 入力済みの数字文字列。2桁のときだけ処理する
+         */
         async (nextBuf: string) => {
             if (nextBuf.length !== 2) return false;
 
@@ -154,6 +166,11 @@ export function useContinuousTimeInput(opts: Options) {
     );
 
     const onKeyDown = useCallback(
+        /**
+         * 連続入力用のキー処理。処理した場合はtrueを返します。
+         *
+         * @param e キーイベント（Alt+Tで切替、数字/Backspace/Escapeを処理）
+         */
         async (e: KeyLike) => {
             if (e.altKey && (e.key === "t" || e.key === "T") && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
                 e.preventDefault?.();

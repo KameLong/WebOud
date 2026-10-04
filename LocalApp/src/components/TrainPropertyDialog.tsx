@@ -6,6 +6,11 @@ export type TrainTypeOption = {
     name: string;
 };
 
+/**
+ * 列車番号・種別・列車名を編集するダイアログです。
+ *
+ * @param props open:表示中か / title:見出し(省略可) / trainTypes:選択肢の種別 / initial:編集対象 / onCancel:閉じる / onSave:保存
+ */
 export function TrainPropertyDialog(props: {
     open: boolean;
     title?: string;

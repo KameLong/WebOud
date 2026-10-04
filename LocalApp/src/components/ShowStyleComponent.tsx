@@ -13,13 +13,33 @@ const ARR = 1;
 const TRACK = 2;
 const DEP = 4;
 
+/**
+ * 指定ビットが立っているかを返します。
+ *
+ * @param bits ビット値
+ * @param flag 調べるビット
+ */
 function has(bits: number, flag: number) {
     return (bits & flag) === flag;
 }
+/**
+ * 指定ビットを立てる/下ろした値を返します。
+ *
+ * @param bits 元のビット値
+ * @param flag 操作するビット
+ * @param on trueで立てる、falseで下ろす
+ */
 function set(bits: number, flag: number, on: boolean) {
     return on ? bits | flag : bits & ~flag;
 }
 
+/**
+ * 着/番線/発の表示有無をチェックボックスで切り替えます。
+ *
+ * @param bits 現在の3bit値（1:着 2:番線 4:発）
+ * @param disabled trueなら操作不可
+ * @param onChangeBits 変更後のビット値を受け取るコールバック
+ */
 export function ShowStyleComponent({ bits, disabled, onChangeBits }: Props) {
     return (
         <div style={{ display: "grid", gap: 4, padding: 6, borderRight: "1px solid #eee" }}>

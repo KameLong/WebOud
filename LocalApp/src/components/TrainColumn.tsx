@@ -6,6 +6,11 @@ import { StopCell } from "./StopCell.tsx";
 import type { StationDto, TripWithStopTimesDto, TrainTypeDto } from "../domain/dto.ts";
 
 export const TrainColumn = React.memo(
+    /**
+     * 1列車分の縦の列（見出し＋各駅のセル）を描画します。
+     *
+     * @param props trip:列車 / stations:表示順の駅 / trainType:種別 / cursor:カーソル / c:列番号 / isSelected,invert:選択表示 / HEADER_H,zHeader:見出しの高さとz-index / onOpenTripProperty:見出しダブルクリック時 / cont:連続入力の状態
+     */
     function TrainColumn(props: {
         trip: TripWithStopTimesDto;
         stations: StationDto[];

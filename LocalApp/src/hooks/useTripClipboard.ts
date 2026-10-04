@@ -7,12 +7,22 @@ type ClipboardPayload = {
     trips: TripWithStopTimesDto[];
 };
 
+/**
+ * 停車時刻マップを複製します。
+ *
+ * @param src 複製元（駅ID→停車時刻）
+ */
 function cloneStopTimesMap(src: Record<number, StopTimeDto>) {
     const out: Record<number, StopTimeDto> = {};
     for (const [k, v] of Object.entries(src ?? {})) out[Number(k)] = { ...v };
     return out;
 }
 
+/**
+ * 列車を時刻ごと複製します。
+ *
+ * @param src 複製元の列車
+ */
 function cloneTrip(src: TripWithStopTimesDto): TripWithStopTimesDto {
     return {
         ...src,
@@ -20,11 +30,22 @@ function cloneTrip(src: TripWithStopTimesDto): TripWithStopTimesDto {
     };
 }
 
+/**
+ * コピー・削除の対象にできる列車IDかを返します。
+ *
+ * @param id 列車ID
+ */
 function isEditableTripId(id: number) {
     // placeholder(-1)は対象外
     return id !== -1;
 }
 
+/**
+ * 着・発の時刻をずらした複製を返します（未設定の-1はそのまま）。
+ *
+ * @param st 元の停車時刻
+ * @param offsetSeconds ずらす秒数
+ */
 function addOffsetToStopTime(st: StopTimeDto, offsetSeconds: number): StopTimeDto {
     const next = { ...st };
     if (next.ariTime >= 0) next.ariTime += offsetSeconds;
@@ -32,6 +53,11 @@ function addOffsetToStopTime(st: StopTimeDto, offsetSeconds: number): StopTimeDt
     return next;
 }
 
+/**
+ * 列車（列）のコピー/切り取り/貼り付けを提供します。
+ *
+ * @param params routeId:路線ID / direct:方向 / trips:表示中の列車 / getSelectedCols:選択中の列番号 / getCursorCol:カーソル列 / getPasteIndex:貼り付け位置（省略時はカーソル列） / onAfterMutate:変更後にカーソル列を更新する通知
+ */
 export function useTripClipboard(params: {
     routeId: number;
     direct: number;
