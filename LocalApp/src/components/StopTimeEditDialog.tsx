@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { StopTimeDto } from "../domain/dto.ts";
-import { timeInt2Str, timeStr2Int } from "../domain/utils.ts";
+import { isValidTimeStr, timeInt2Str, timeStr2Int } from "../domain/utils.ts";
 import type { Part } from "../domain/types.ts";
 
 /**
@@ -22,6 +22,7 @@ export function StopTimeEditDialog(props: {
     const [ariStr, setAriStr] = useState("");
     const [depStr, setDepStr] = useState("");
     const [stopType, setStopType] = useState<number>(0);
+    const [warning, setWarning] = useState("");
 
     const depRef = useRef<HTMLInputElement | null>(null);
     const ariRef = useRef<HTMLInputElement | null>(null);
@@ -30,6 +31,7 @@ export function StopTimeEditDialog(props: {
             setAriStr("");
             setDepStr("");
             setStopType(0);
+            setWarning("");
             return;
         }
         requestAnimationFrame(() => {
@@ -67,6 +69,11 @@ export function StopTimeEditDialog(props: {
         if (!initial) {
             return;
         }
+        if (!isValidTimeStr(ariStr) || !isValidTimeStr(depStr)) {
+            setWarning("時刻は hmm / hhmm / hh:mm 形式（時0〜23・分0〜59）で入力してください");
+            return;
+        }
+        setWarning("");
         const resultStopTime: StopTimeDto = { ...initial };
         resultStopTime.ariTime = timeStr2Int(ariStr);
         resultStopTime.depTime = timeStr2Int(depStr);
@@ -124,7 +131,10 @@ export function StopTimeEditDialog(props: {
                     <input
                         ref={ariRef}
                         value={ariStr}
-                        onChange={(e) => setAriStr(e.target.value)}
+                        onChange={(e) => {
+                            setAriStr(e.target.value);
+                            setWarning("");
+                        }}
                         placeholder="hhmm または hh:mm"
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
                     />
@@ -133,7 +143,10 @@ export function StopTimeEditDialog(props: {
                     <input
                         ref={depRef}
                         value={depStr}
-                        onChange={(e) => setDepStr(e.target.value)}
+                        onChange={(e) => {
+                            setDepStr(e.target.value);
+                            setWarning("");
+                        }}
                         placeholder=""
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
                     />
@@ -164,6 +177,12 @@ export function StopTimeEditDialog(props: {
                         </div>
                     </div>
                 </div>
+
+                {warning && (
+                    <div role="alert" style={{ color: "crimson", fontSize: 12, marginTop: 10 }}>
+                        {warning}
+                    </div>
+                )}
 
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
                     <button onClick={onCancel} style={{ padding: "8px 12px" }}>

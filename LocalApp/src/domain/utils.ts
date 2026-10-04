@@ -176,30 +176,35 @@ export function timeInt2Str(time: number, showSecond: boolean) {
     return `${hh}${mm.toString(10).padStart(2, "0")}`;
 }
 
+/** 時刻文字列（hmm / hhmm / h:mm / hh:mm）の時・分を取り出す。形式や範囲が不正ならnull */
+function parseTimeStr(timeStr: string): { hh: number; mm: number } | null {
+    const m = /^(\d{1,2}):?(\d{2})$/.exec(timeStr);
+    if (!m) return null;
+    const hh = Number(m[1]);
+    const mm = Number(m[2]);
+    if (hh > 23 || mm > 59) return null;
+    return { hh, mm };
+}
+
 /**
- * 「hmm」「hhmm」形式の文字列を0:00からの秒に変換します。3時より前は翌日扱い(+24h)。
+ * 時刻文字列として入力できる形式かを返します。空文字は「未入力」として有効扱いです。
  *
- * @param timeStr 時刻文字列。空文字なら未入力として-1を返し、3/4桁以外は例外を投げる
+ * @param timeStr 検証する文字列（hmm / hhmm / h:mm / hh:mm。時は0〜23、分は0〜59）
+ */
+export function isValidTimeStr(timeStr: string): boolean {
+    return timeStr === "" || parseTimeStr(timeStr) !== null;
+}
+
+/**
+ * 時刻文字列を0:00からの秒に変換します。3時より前は翌日扱い(+24h)。
+ *
+ * @param timeStr 時刻文字列（hmm / hhmm / h:mm / hh:mm）。空文字なら未入力として-1、形式が不正なら0(0:00)を返す
  */
 export function timeStr2Int(timeStr: string): number {
-    let hh = 0;
-    let mm = 0;
-    const ss = 0;
-    switch (timeStr.length) {
-        case 0:
-            return -1;
-        case 4:
-            hh = parseInt(timeStr.substring(0, 2));
-            mm = parseInt(timeStr.substring(2, 4));
-            break;
-        case 3:
-            hh = parseInt(timeStr.substring(0, 1));
-            mm = parseInt(timeStr.substring(1, 3));
-            break;
-        default:
-            throw new Error("invalid time");
-    }
-    const res = hh * 3600 + mm * 60 + ss;
+    if (timeStr === "") return -1;
+    const t = parseTimeStr(timeStr);
+    if (!t) return 0;
+    const res = t.hh * 3600 + t.mm * 60;
     if (res < 3 * 3600) {
         return res + 24 * 3600;
     }
