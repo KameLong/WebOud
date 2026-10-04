@@ -28,7 +28,14 @@ const STATION_NAMES = [
 // 快速が通過する駅（0始まりのインデックス）：鈴蘭台西口・丸山・木幡・栄・下石野・広野ゴルフ場前・押部谷
 const RAPID_PASS_INDICES = new Set([1, 2, 6, 7, 10, 11, 12]);
 
-const ARR_DEP = makeShowStyle(SHOW_ARR | SHOW_DEP, SHOW_ARR | SHOW_DEP); // 下り・上りとも着+発（番線なし）
+/** 駅の表示スタイル：基本は発時刻のみ。各方向の終着駅だけ着時刻のみ（下りの終着=最後の駅、上りの終着=最初の駅） */
+function stationShowStyle(i: number): number {
+    const isFirst = i === 0;
+    const isLast = i === STATION_NAMES.length - 1;
+    const down = isLast ? SHOW_ARR : SHOW_DEP;
+    const up = isFirst ? SHOW_ARR : SHOW_DEP;
+    return makeShowStyle(down, up);
+}
 
 /**
  * 時・分を0:00からの経過秒に変換します。
@@ -55,11 +62,12 @@ function buildStopTimes(stationsInTravelOrder: StationDto[], passIndices: Set<nu
         if (passing) {
             result[st.id] = { id: 0, tripID: 0, stationID: st.id, ariTime: -1, depTime: t, stopType: 2, stop: 0 };
         } else {
+            // 発時刻のみ。終着駅だけ着時刻
             result[st.id] = {
                 id: 0,
                 tripID: 0,
                 stationID: st.id,
-                ariTime: isFirst ? -1 : t,
+                ariTime: isLast ? t : -1,
                 depTime: isLast ? -1 : t,
                 stopType: 1,
                 stop: 0,
@@ -78,7 +86,7 @@ export function createSampleRoute(): RouteRecord {
     const route = createRoute("神戸電鉄粟生線（サンプル）");
     const routeId = route.id;
 
-    const stations = STATION_NAMES.map((name, i) => addStation(routeId, { name, routeID: routeId, index: i, showStyle: ARR_DEP }));
+    const stations = STATION_NAMES.map((name, i) => addStation(routeId, { name, routeID: routeId, index: i, showStyle: stationShowStyle(i) }));
     const stationsUp = [...stations].reverse();
 
     const local = addTrainType(routeId, {
