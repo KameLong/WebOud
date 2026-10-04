@@ -3,3 +3,10 @@
     box-sizing: border-box;
     height: 100%;
 }
+
+/* 狭い画面(モバイル想定)では左の路線ツリーを隠し、各ページ内のナビゲーションボタンに任せる */
+@media (max-width: 900px) {
+    .route-tree-sidebar {
+        display: none;
+    }
+}
