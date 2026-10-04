@@ -2,7 +2,7 @@ import React from "react";
 
 type Props = {
     title?: string;
-    bits: number; // 0..7（3bit）
+    bits: number; // 1方向分（4bit。使用するのは下位3bit）
     disabled?: boolean;
     onChangeBits?: (nextBits: number) => void;
     labels?: [string, string, string];
@@ -36,7 +36,7 @@ function set(bits: number, flag: number, on: boolean) {
 /**
  * 着/番線/発の表示有無をチェックボックスで切り替えます。
  *
- * @param bits 現在の3bit値（1:着 2:番線 4:発）
+ * @param bits 現在の1方向分のビット値（1:着 2:番線 4:発）
  * @param disabled trueなら操作不可
  * @param onChangeBits 変更後のビット値を受け取るコールバック
  */

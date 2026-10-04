@@ -3,7 +3,7 @@ export type StationDto = {
     name: string;
     routeID: number;
     index: number;
-    showStyle: number; // int (bit flags)
+    showStyle: number; // bit flags。方向ごとに4bit（下位4bitが下り、次の4bitが上り）。各4bit: 1=着 2=番線 4=発
 };
 
 export type TrainTypeDto = {

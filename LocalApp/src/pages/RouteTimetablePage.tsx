@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { decodeShowStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { decodeShowStyle, getDirectStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
 import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
 import { StationSidebar } from "../components/StationSidebar.tsx";
@@ -43,6 +43,7 @@ export default function RouteTimetablePage() {
         stationsLen: stations.length,
         trainsLen: trips.length,
         stations,
+        direct,
     });
     const cont = useContinuousTimeInput({
         stations,
@@ -222,7 +223,7 @@ export default function RouteTimetablePage() {
             const trip = trips[c];
             const newStopTime = { ...getOrCreateStopTime(trip, station.id) };
 
-            const showStyle = decodeShowStyle(station.showStyle);
+            const showStyle = decodeShowStyle(getDirectStyle(station.showStyle, direct));
             if (!showStyle.showDep) {
                 newStopTime.depTime = -1;
             }
@@ -334,6 +335,7 @@ export default function RouteTimetablePage() {
                             return (
                                 <TrainColumn
                                     cont={cont.state}
+                                    direct={direct}
                                     key={t.id}
                                     trip={t}
                                     c={c}

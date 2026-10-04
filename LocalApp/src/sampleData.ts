@@ -1,5 +1,6 @@
 import { createRoute } from "./store/localStore.ts";
 import { addStation, addTrainType, addTripBlock } from "./store/timetableApi.ts";
+import { makeShowStyle, SHOW_ARR, SHOW_DEP } from "./domain/utils.ts";
 import type { RouteRecord } from "./store/types.ts";
 import type { StationDto, StopTimeDto, TripWithStopTimesDto } from "./domain/dto.ts";
 
@@ -27,7 +28,7 @@ const STATION_NAMES = [
 // 快速が通過する駅（0始まりのインデックス）：鈴蘭台西口・丸山・木幡・栄・下石野・広野ゴルフ場前・押部谷
 const RAPID_PASS_INDICES = new Set([1, 2, 6, 7, 10, 11, 12]);
 
-const ARR_DEP = 0b101; // 着+発（番線なし）
+const ARR_DEP = makeShowStyle(SHOW_ARR | SHOW_DEP, SHOW_ARR | SHOW_DEP); // 下り・上りとも着+発（番線なし）
 
 /**
  * 時・分を0:00からの経過秒に変換します。

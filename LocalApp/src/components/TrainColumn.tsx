@@ -9,7 +9,7 @@ export const TrainColumn = React.memo(
     /**
      * 1列車分の縦の列（見出し＋各駅のセル）を描画します。
      *
-     * @param props trip:列車 / stations:表示順の駅 / trainType:種別 / cursor:カーソル / c:列番号 / isSelected,invert:選択表示 / HEADER_H,zHeader:見出しの高さとz-index / onOpenTripProperty:見出しダブルクリック時 / cont:連続入力の状態
+     * @param props trip:列車 / stations:表示順の駅 / trainType:種別 / cursor:カーソル / c:列番号 / isSelected,invert:選択表示 / HEADER_H,zHeader:見出しの高さとz-index / onOpenTripProperty:見出しダブルクリック時 / cont:連続入力の状態 / direct:0:下り 1:上り
      */
     function TrainColumn(props: {
         trip: TripWithStopTimesDto;
@@ -23,8 +23,9 @@ export const TrainColumn = React.memo(
         zHeader: number;
         onOpenTripProperty: (tripId: number) => void;
         cont: { buf: string; lastTime: number; enabled: boolean };
+        direct: number;
     }) {
-        const { trip, c, stations, cursor, isSelected, invert, HEADER_H, zHeader, trainType, cont } = props;
+        const { trip, c, stations, cursor, isSelected, invert, HEADER_H, zHeader, trainType, cont, direct } = props;
 
         return (
             <div
@@ -52,7 +53,7 @@ export const TrainColumn = React.memo(
                 {stations.map((st, r) => {
                     void isSelected;
 
-                    return <StopCell cont={cont} key={st.id} r={r} c={c} cursor={cursor} stopTime={trip.stopTimesByStationId[st.id]} station={st} />;
+                    return <StopCell cont={cont} direct={direct} key={st.id} r={r} c={c} cursor={cursor} stopTime={trip.stopTimesByStationId[st.id]} station={st} />;
                 })}
             </div>
         );

@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { StationDto, TripWithStopTimesDto } from "../domain/dto.ts";
-import { cellHeight, decodeShowStyle, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { cellHeight, decodeShowStyle, getDirectStyle, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { FitTextX } from "./FitText.tsx";
 import { reorderTrips } from "../store/timetableApi.ts";
 
@@ -68,7 +68,7 @@ export function StationSidebar(props: {
     /**
      * 表示するパート（着/番線/発）と見出しラベルを返します。
      *
-     * @param showStyle 方向別に取り出した3bitの表示スタイル
+     * @param showStyle 方向別に取り出した4bitの表示スタイル
      */
     function buildPartsForStation(showStyle:number): Array<{ key: Part; label: string }> {
         const s = decodeShowStyle(showStyle);
@@ -85,7 +85,7 @@ export function StationSidebar(props: {
     /**
      * パート間に区切り線を入れるか（番線を表示するか）を返します。
      *
-     * @param showStyle 方向別に取り出した3bitの表示スタイル
+     * @param showStyle 方向別に取り出した4bitの表示スタイル
      */
     function withSeparatorsForStation(showStyle:number): boolean {
         const s = decodeShowStyle(showStyle);
@@ -147,7 +147,7 @@ export function StationSidebar(props: {
 
             <div style={{ display: "flex", flexDirection: "column" }}>
                 {stations.map((st) => {
-                    const showStyle=direct==0 ? st.showStyle&0b111 : (st.showStyle>>3)&0b111;
+                    const showStyle = getDirectStyle(st.showStyle, direct);
                     const parts = buildPartsForStation(showStyle);
                     const withSep = withSeparatorsForStation(showStyle);
                     const sepH = 1;

@@ -1,19 +1,20 @@
 import type { Cursor, KeyLike, Part } from "../domain/types.ts";
 import { useCallback, useMemo, useState } from "react";
-import { decodeDownParts, makeRangeSet } from "../domain/utils.ts";
+import { decodeParts, makeRangeSet } from "../domain/utils.ts";
 import type { StationDto } from "../domain/dto.ts";
 
 /**
  * 選択とキー操作をまとめる
  *
- * @param params stationsLen:駅数 / trainsLen:列車数 / stations:カーソル移動の経路を作るための駅一覧
+ * @param params stationsLen:駅数 / trainsLen:列車数 / stations:カーソル移動の経路を作るための駅一覧 / direct:0:下り 1:上り（表示パートの判定に使う）
  */
 export function useSelectionNavigation(params: {
     stationsLen: number;
     trainsLen: number;
     stations: StationDto[];
+    direct: number;
 }) {
-    const { trainsLen, stations } = params;
+    const { trainsLen, stations, direct } = params;
 
     const [cursor, setCursor] = useState<Cursor>(() => ({
         r: 0,
@@ -29,11 +30,11 @@ export function useSelectionNavigation(params: {
     const verticalRoute = useMemo<Cursor[]>(() => {
         const list: Cursor[] = [];
         for (let r = 0; r < stations.length; r++) {
-            const parts = decodeDownParts(stations[r].showStyle);
+            const parts = decodeParts(stations[r].showStyle, direct);
             for (const part of parts) list.push({ r, c: 0, part });
         }
         return list;
-    }, [stations]);
+    }, [stations, direct]);
 
     const moveVertical = useCallback(
         /**

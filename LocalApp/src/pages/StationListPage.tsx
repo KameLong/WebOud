@@ -4,6 +4,10 @@ import { IndexedListComponent, type RowRenderProps } from "../components/Indexed
 import type { StationDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute } from "../store/localStore.ts";
+import { getDirectStyle, makeShowStyle, setDirectStyle, SHOW_DEP } from "../domain/utils.ts";
+
+/** 新規駅の初期表示：下り・上りとも「発」のみ */
+const DEFAULT_SHOW_STYLE = makeShowStyle(SHOW_DEP, SHOW_DEP);
 
 // ShowStyleComponent(駅一覧の着/番線/発チェックボックス群)の実寸に合わせた値。
 // 変更する場合はShowStyleComponent.tsx側のchkCell/padding/gapも揃えること。
@@ -86,7 +90,7 @@ function AppendComponent({ routeId, stations, setStations }: { routeId: number; 
             name,
             routeID: routeId,
             index: nextIndexForNewStation(),
-            showStyle: 0x00040004, // 下り発・上り発
+            showStyle: DEFAULT_SHOW_STYLE,
         });
 
         setStations((prev) => [...prev, created].sort((a, b) => a.index - b.index));
@@ -167,10 +171,10 @@ function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: Row
                 <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
             </div>
 
-            <ShowStyleComponent bits={item.showStyle & 0b111} onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: (x.showStyle & ~0b111) | (bits & 0b111) }))} />
+            <ShowStyleComponent bits={getDirectStyle(item.showStyle, 0)} onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))} />
             <ShowStyleComponent
-                bits={(item.showStyle >> 3) & 0b111}
-                onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: (x.showStyle & ~(0b111 << 3)) | ((bits & 0b111) << 3) }))}
+                bits={getDirectStyle(item.showStyle, 1)}
+                onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))}
             />
         </div>
     );
@@ -235,7 +239,7 @@ export default function StationListPage({ routeId }: { routeId: number }) {
             deleteRemote={deleteRemote}
             setDirty={setDirty}
             saveAll={saveAll}
-            createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: 0x00040004 })}
+            createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: DEFAULT_SHOW_STYLE })}
             toClip={(s) => s}
             fromClip={(c, routeId, index) => ({ id: 0, name: c.name, routeID: routeId, index, showStyle: c.showStyle })}
             HeaderComponent={StationHeaderComponent}

@@ -1,6 +1,6 @@
 import type { Cursor, Part } from "../domain/types.ts";
 import type { StationDto, StopTimeDto } from "../domain/dto.ts";
-import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, decodeShowStyle, LINE_HEIGHT, timeInt2Str } from "../domain/utils.ts";
+import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, decodeShowStyle, getDirectStyle, LINE_HEIGHT, timeInt2Str } from "../domain/utils.ts";
 
 /**
  * 発時刻欄に表示する文字列を返します。
@@ -83,7 +83,7 @@ function contStr(buf: string, lastTime: number): string {
 /**
  * 1駅×1列車分のセル（着/番線/発）を描画します。
  *
- * @param props r:駅の行 / c:列車の列 / cursor:現在のカーソル / station:駅 / stopTime:停車時刻 / cont:連続入力の状態
+ * @param props r:駅の行 / c:列車の列 / cursor:現在のカーソル / station:駅 / stopTime:停車時刻 / cont:連続入力の状態 / direct:0:下り 1:上り
  */
 export function StopCell(props: {
     r: number;
@@ -92,9 +92,11 @@ export function StopCell(props: {
     station: StationDto;
     stopTime: StopTimeDto;
     cont: { buf: string; lastTime: number; enabled: boolean };
+    direct: number;
 }) {
-    const { r, c, cursor, station, stopTime, cont } = props;
-    const ROW_H = cellHeight(station.showStyle);
+    const { r, c, cursor, station, stopTime, cont, direct } = props;
+    const style = getDirectStyle(station.showStyle, direct);
+    const ROW_H = cellHeight(style);
     const inThisCell = cursor.r === r && cursor.c === c;
     /**
      * このセルの指定パートにカーソルがあるかを返します。
@@ -121,7 +123,7 @@ export function StopCell(props: {
         backgroundColor: selected && cont.enabled ? "#eef8ff" : "white",
         outlineOffset: -1,
     });
-    const s = decodeShowStyle(station.showStyle);
+    const s = decodeShowStyle(style);
     const showArrBottomBorder = s.showArr && s.showDep;
     return (
         <div
