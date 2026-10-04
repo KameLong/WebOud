@@ -74,10 +74,6 @@ export function subscribe(listener: () => void) {
     return () => listeners.delete(listener);
 }
 
-export function getState() {
-    return state;
-}
-
 // useSyncExternalStore requires getSnapshot to return a stable reference when
 // nothing changed, so the derived summary list is cached per state instance.
 let summaryCacheState: StoreState | null = null;
