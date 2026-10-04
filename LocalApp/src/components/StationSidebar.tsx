@@ -1,14 +1,48 @@
 import { Fragment } from "react";
-import type { StationDto } from "../domain/dto.ts";
+import type { StationDto, TripWithStopTimesDto } from "../domain/dto.ts";
 import { cellHeight, decodeShowStyleDown, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
 import { FitTextX } from "./FitText.tsx";
+import { reorderTrips } from "../store/timetableApi.ts";
 
 type Part = "arr" | "track" | "dep";
 
 const LABEL_WIDTH = LINE_HEIGHT;
 
-export function StationSidebar(props: { stations: StationDto[]; HEADER_H: number; zLeft: number; zCorner: number; onStationClick?: (station: StationDto) => void }) {
-    const { stations, HEADER_H, zLeft, zCorner, onStationClick } = props;
+// 3:00 を日の始まりとして扱う(ダイヤグラムと同じ基準)
+const DIAGRAM_START = 3 * 3600;
+
+export function StationSidebar(props: {
+    stations: StationDto[];
+    trips: TripWithStopTimesDto[];
+    routeId: number;
+    direct: number;
+    HEADER_H: number;
+    zLeft: number;
+    zCorner: number;
+}) {
+    const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner } = props;
+
+    /** 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。 */
+    function sortByStation(station: StationDto) {
+        const normalize = (time: number) => (time < DIAGRAM_START ? time + 24 * 3600 : time);
+        const sortKey = (t: TripWithStopTimesDto) => {
+            const st = t.stopTimesByStationId[station.id];
+            if (!st) return Number.MAX_SAFE_INTEGER;
+            const raw = st.depTime >= 0 ? st.depTime : st.ariTime;
+            if (raw < 0) return Number.MAX_SAFE_INTEGER;
+            return normalize(raw);
+        };
+
+        const real = trips.filter((t) => t.id !== -1);
+        const sorted = [...real].sort((a, b) => sortKey(a) - sortKey(b));
+
+        // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
+        reorderTrips(
+            routeId,
+            direct,
+            sorted.map((t) => t.id)
+        );
+    }
 
     function buildPartsForStation(st: StationDto): Array<{ key: Part; label: string }> {
         const s = decodeShowStyleDown(st.showStyle);
@@ -104,15 +138,15 @@ export function StationSidebar(props: { stations: StationDto[]; HEADER_H: number
                             }}
                         >
                             <div
-                                onClick={onStationClick ? () => onStationClick(st) : undefined}
-                                title={onStationClick ? `${st.name}の時刻順に列車を並び替え` : undefined}
+                                onClick={() => sortByStation(st)}
+                                title={`${st.name}の時刻順に列車を並び替え`}
                                 style={{
                                     flex: "1 1 auto",
                                     minWidth: 0,
-                                    cursor: onStationClick ? "pointer" : undefined,
+                                    cursor: "pointer",
                                 }}
                                 onMouseEnter={(e) => {
-                                    if (onStationClick) e.currentTarget.style.background = "#eef6ff";
+                                    e.currentTarget.style.background = "#eef6ff";
                                 }}
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.background = "";

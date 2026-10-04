@@ -6,12 +6,12 @@ import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
 import { StationSidebar } from "../components/StationSidebar.tsx";
 import { TrainColumn } from "../components/TrainColumn.tsx";
 import { StopTimeEditDialog } from "../components/StopTimeEditDialog.tsx";
-import type { StationDto, StopTimeDto, TrainTypeDto } from "../domain/dto.ts";
+import type { StopTimeDto, TrainTypeDto } from "../domain/dto.ts";
 import { useStopTimeEditor, useTimetableData } from "../hooks/useTimetableData.ts";
 import { useTripClipboard } from "../hooks/useTripClipboard.ts";
 import { PasteMoveDialog } from "../components/PasteMoveDialog.tsx";
 import { TrainPropertyDialog } from "../components/TrainPropertyDialog.tsx";
-import { putTrip, reorderTrips, shiftStopTime } from "../store/timetableApi.ts";
+import { putTrip, shiftStopTime } from "../store/timetableApi.ts";
 import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
@@ -121,29 +121,6 @@ export default function RouteTimetablePage() {
             open: true,
             initialInput: initialChar ?? "",
         });
-    };
-
-    /** 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。 */
-    const sortByStation = (station: StationDto) => {
-        const DIAGRAM_START = 3 * 3600; // 3:00 を日の始まりとして扱う(ダイヤグラムと同じ基準)
-        const normalize = (time: number) => (time < DIAGRAM_START ? time + 24 * 3600 : time);
-        const sortKey = (t: (typeof trips)[number]) => {
-            const st = t.stopTimesByStationId[station.id];
-            if (!st) return Number.MAX_SAFE_INTEGER;
-            const raw = st.depTime >= 0 ? st.depTime : st.ariTime;
-            if (raw < 0) return Number.MAX_SAFE_INTEGER;
-            return normalize(raw);
-        };
-
-        const real = trips.filter((t) => t.id !== -1);
-        const sorted = [...real].sort((a, b) => sortKey(a) - sortKey(b));
-
-        // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
-        reorderTrips(
-            routeId,
-            direct,
-            sorted.map((t) => t.id)
-        );
     };
 
     const changeStopType = (stopType: number) => {
@@ -335,7 +312,7 @@ export default function RouteTimetablePage() {
                 }}
             >
                 <div style={{ display: "flex", width: "fit-content", flexWrap: "nowrap", paddingRight: "100px" }}>
-                    <StationSidebar stations={stations} HEADER_H={HEADER_H} zLeft={z.left} zCorner={z.corner} onStationClick={sortByStation} />
+                    <StationSidebar stations={stations} trips={trips} routeId={routeId} direct={direct} HEADER_H={HEADER_H} zLeft={z.left} zCorner={z.corner} />
 
                     <div style={{ flexShrink: 0, display: "flex", alignItems: "flex-start" }} onMouseDown={(e) => nav.onMouseDownDelegated(e, focusGrid)}>
                         {trips.map((t, c) => {
