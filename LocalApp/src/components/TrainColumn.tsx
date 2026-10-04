@@ -58,10 +58,25 @@ export const TrainColumn = React.memo(
             </div>
         );
     },
+    // 戻り値がtrueなら再描画をスキップする。
+    // カーソルがこの列に出入りするとき（連続入力の途中表示もこの列だけ）は必ず再描画し、
+    // それ以外は、列の見た目に影響するpropsが変わったときだけ再描画する。
+    // onOpenTripPropertyは呼び出し側で毎回作り直されるが、中身は変わらないので比較しない。
     (prev, next) => {
-        const c = prev.c;
+        const c = next.c;
         const cursorAffects = prev.cursor.c === c || next.cursor.c === c;
-        const selectionAffects = prev.isSelected !== next.isSelected || prev.invert !== next.invert;
-        return !(cursorAffects || selectionAffects);
-    }
+        if (cursorAffects) return false;
+
+        return (
+            prev.c === next.c &&
+            prev.trip === next.trip &&
+            prev.stations === next.stations &&
+            prev.trainType === next.trainType &&
+            prev.isSelected === next.isSelected &&
+            prev.invert === next.invert &&
+            prev.HEADER_H === next.HEADER_H &&
+            prev.zHeader === next.zHeader &&
+            prev.direct === next.direct
+        );
+    },
 );

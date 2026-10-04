@@ -17,6 +17,9 @@ import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
 import { HelpDialog, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
 
+/** 列車の種別が見つからないとき（プレースホルダ列など）に使う既定の種別。毎回同じ参照にして再描画を避ける */
+const FALLBACK_TRAIN_TYPE: TrainTypeDto = { color: "#000", shortName: "", routeID: 0, name: "", fontBold: false, lineStyle: 0, index: 0, lineBold: false, id: 0 };
+
 const keyEventQueue = new AsyncQueue<unknown>();
 
 export default function RouteTimetablePage() {
@@ -307,9 +310,7 @@ export default function RouteTimetablePage() {
                     };
 
                     // デバッグ用：押されたキーの組み合わせをコンソールに表示
-                    const combo = [ev.ctrlKey && "Ctrl", ev.altKey && "Alt", ev.shiftKey && "Shift", ev.metaKey && "Meta", ev.key]
-                        .filter(Boolean)
-                        .join("+");
+                    const combo = [ev.ctrlKey && "Ctrl", ev.altKey && "Alt", ev.shiftKey && "Shift", ev.metaKey && "Meta", ev.key].filter(Boolean).join("+");
                     console.log("[keydown]", combo, `(code: ${ev.code})`);
 
                     keyEventQueue.push(() => keyEvent(ev));
@@ -346,19 +347,7 @@ export default function RouteTimetablePage() {
                                     HEADER_H={HEADER_H}
                                     zHeader={z.header}
                                     onOpenTripProperty={openTripProperty}
-                                    trainType={
-                                        trainTypeById.get(t.trainTypeID) ?? {
-                                            color: "#000",
-                                            shortName: "",
-                                            routeID: 0,
-                                            name: "",
-                                            fontBold: false,
-                                            lineStyle: 0,
-                                            index: 0,
-                                            lineBold: false,
-                                            id: 0,
-                                        }
-                                    }
+                                    trainType={trainTypeById.get(t.trainTypeID) ?? FALLBACK_TRAIN_TYPE}
                                 />
                             );
                         })}
