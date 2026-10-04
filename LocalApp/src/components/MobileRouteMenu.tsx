@@ -52,14 +52,18 @@ export function MobileRouteMenu() {
                 ☰ メニュー
             </button>
 
-            {open && (
-                <div className="mobile-menu-scrim" onClick={() => setOpen(false)}>
-                    <div className="mobile-menu-sheet" onClick={(e) => e.stopPropagation()} onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd}>
-                        <div className="mobile-menu-grabber" />
-                        <RouteTreeList onNavigate={() => setOpen(false)} />
-                    </div>
+            <div className={`mobile-menu-scrim ${open ? "open" : ""}`} onClick={() => setOpen(false)} aria-hidden={!open}>
+                <div
+                    className={`mobile-menu-sheet ${open ? "open" : ""}`}
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchStart={onSheetTouchStart}
+                    onTouchMove={onSheetTouchMove}
+                    onTouchEnd={onSheetTouchEnd}
+                >
+                    <div className="mobile-menu-grabber" />
+                    <RouteTreeList onNavigate={() => setOpen(false)} />
                 </div>
-            )}
+            </div>
         </>
     );
 }
