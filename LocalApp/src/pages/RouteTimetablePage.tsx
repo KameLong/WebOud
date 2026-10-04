@@ -202,8 +202,9 @@ export default function RouteTimetablePage() {
             e.preventDefault();
             return;
         }
+        // Ctrl+-はChromeの画面縮小に割り当てられているためAltを使う
         if (e.key === "-") {
-            if (e.ctrlKey) {
+            if (e.altKey) {
                 changeStopType(2);
                 e.preventDefault();
                 return;
@@ -424,7 +425,7 @@ export default function RouteTimetablePage() {
                             ["Alt+J", "カーソル位置の時刻を1分戻す"],
                             ["Ctrl+Delete", "カーソル位置の時刻・番線を消去"],
                             ["Ctrl+^", "カーソル位置を「経由なし」に設定"],
-                            ["Ctrl+-", "カーソル位置を「通過」に設定"],
+                            ["Alt+-", "カーソル位置を「通過」に設定"],
                             ["Delete", "選択中の列車（列）を削除"],
                             ["Ctrl+Insert", "カーソル位置の手前に空の列車を挿入"],
                             ["Ctrl+C / Ctrl+X", "選択中の列車をコピー／切り取り"],
