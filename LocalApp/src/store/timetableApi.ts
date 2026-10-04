@@ -12,6 +12,24 @@ export function getTimetable(routeId: number): TimeTableDto {
     return { stations: route.stations, trainTypes: route.trainTypes, trips: route.trips };
 }
 
+/** indexを配列の並びどおり0,1,2…に振り直す（変更が無い要素は同じ参照のまま） */
+function renumber<T extends { index: number }>(list: T[]): T[] {
+    return list.map((x, i) => (x.index === i ? x : { ...x, index: i }));
+}
+
+/**
+ * 並び順(index)で並んだ配列の指定位置に新しい要素を挿入し、indexを振り直します。
+ *
+ * @param list 現在の配列
+ * @param position 挿入位置（範囲外は端に丸める）
+ * @param added 挿入する要素（idは採番済み）
+ */
+function insertAtPosition<T extends { index: number }>(list: T[], position: number, added: T[]): T[] {
+    const sorted = [...list].sort((a, b) => a.index - b.index);
+    sorted.splice(Math.max(0, Math.min(position, sorted.length)), 0, ...added);
+    return renumber(sorted);
+}
+
 /* ---------------- Stations ---------------- */
 
 /**
@@ -36,18 +54,43 @@ export function addStation(routeId: number, dto: Omit<StationDto, "id">): Statio
  * @param routeId 路線ID
  * @param item 更新後の駅（idで対象を特定）
  */
-export function updateStation(routeId: number, item: StationDto) {
-    updateRoute(routeId, (r) => ({ ...r, stations: r.stations.map((s) => (s.id === item.id ? item : s)) }));
+/**
+ * 駅を指定位置にまとめて挿入します（1回の更新。以降の駅のindexは振り直される）。
+ *
+ * @param routeId 路線ID
+ * @param position 挿入位置（0始まり。範囲外は端に丸める）
+ * @param dtos idを除いた駅データ（indexは無視され、並び順で振り直される）
+ */
+export function insertStations(routeId: number, position: number, dtos: Omit<StationDto, "id">[]): StationDto[] {
+    let created: StationDto[] = [];
+    updateRoute(routeId, (r) => {
+        let id = r.counters.station;
+        created = dtos.map((dto) => ({ ...dto, id: id++ }));
+        return { ...r, counters: { ...r.counters, station: id }, stations: insertAtPosition(r.stations, position, created) };
+    });
+    return created;
 }
 
 /**
- * 駅を削除します。
+ * 駅をまとめて削除し、index振り直しと、削除した駅の時刻データの掃除も行います。
  *
  * @param routeId 路線ID
- * @param id 削除する駅ID
+ * @param ids 削除する駅IDの配列
  */
-export function deleteStation(routeId: number, id: number) {
-    updateRoute(routeId, (r) => ({ ...r, stations: r.stations.filter((s) => s.id !== id) }));
+export function deleteStations(routeId: number, ids: number[]) {
+    const idSet = new Set(ids);
+    updateRoute(routeId, (r) => ({
+        ...r,
+        stations: renumber(r.stations.filter((s) => !idSet.has(s.id))),
+        trips: r.trips.map((t) => {
+            if (!Object.keys(t.stopTimesByStationId).some((k) => idSet.has(Number(k)))) return t;
+            return { ...t, stopTimesByStationId: Object.fromEntries(Object.entries(t.stopTimesByStationId).filter(([k]) => !idSet.has(Number(k)))) };
+        }),
+    }));
+}
+
+export function updateStation(routeId: number, item: StationDto) {
+    updateRoute(routeId, (r) => ({ ...r, stations: r.stations.map((s) => (s.id === item.id ? item : s)) }));
 }
 
 /* ---------------- TrainTypes ---------------- */
@@ -74,18 +117,36 @@ export function addTrainType(routeId: number, dto: Omit<TrainTypeDto, "id">): Tr
  * @param routeId 路線ID
  * @param item 更新後の種別（idで対象を特定）
  */
-export function updateTrainType(routeId: number, item: TrainTypeDto) {
-    updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.map((t) => (t.id === item.id ? item : t)) }));
+/**
+ * 列車種別を指定位置にまとめて挿入します（1回の更新。以降の種別のindexは振り直される）。
+ *
+ * @param routeId 路線ID
+ * @param position 挿入位置（0始まり。範囲外は端に丸める）
+ * @param dtos idを除いた種別データ（indexは無視され、並び順で振り直される）
+ */
+export function insertTrainTypes(routeId: number, position: number, dtos: Omit<TrainTypeDto, "id">[]): TrainTypeDto[] {
+    let created: TrainTypeDto[] = [];
+    updateRoute(routeId, (r) => {
+        let id = r.counters.trainType;
+        created = dtos.map((dto) => ({ ...dto, id: id++ }));
+        return { ...r, counters: { ...r.counters, trainType: id }, trainTypes: insertAtPosition(r.trainTypes, position, created) };
+    });
+    return created;
 }
 
 /**
- * 列車種別を削除します。
+ * 列車種別をまとめて削除し、indexを振り直します。使用中の列車の処理は呼び出し側で先に行うこと。
  *
  * @param routeId 路線ID
- * @param id 削除する種別ID
+ * @param ids 削除する種別IDの配列
  */
-export function deleteTrainType(routeId: number, id: number) {
-    updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.filter((t) => t.id !== id) }));
+export function deleteTrainTypes(routeId: number, ids: number[]) {
+    const idSet = new Set(ids);
+    updateRoute(routeId, (r) => ({ ...r, trainTypes: renumber(r.trainTypes.filter((t) => !idSet.has(t.id))) }));
+}
+
+export function updateTrainType(routeId: number, item: TrainTypeDto) {
+    updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.map((t) => (t.id === item.id ? item : t)) }));
 }
 
 /**
@@ -167,9 +228,7 @@ export function insertTripAt(routeId: number, index: number, direct: number): Tr
 export function putTrip(routeId: number, trip: TripDto) {
     updateRoute(routeId, (r) => ({
         ...r,
-        trips: r.trips.map((t) =>
-            t.id === trip.id ? { ...t, no: trip.no, name: trip.name, trainTypeID: trip.trainTypeID, direct: trip.direct } : t
-        ),
+        trips: r.trips.map((t) => (t.id === trip.id ? { ...t, no: trip.no, name: trip.name, trainTypeID: trip.trainTypeID, direct: trip.direct } : t)),
     }));
 }
 

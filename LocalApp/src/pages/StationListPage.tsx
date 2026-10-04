@@ -1,10 +1,12 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useSyncExternalStore } from "react";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
 import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { StationDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
-import { getRoute } from "../store/localStore.ts";
+import { getRoute, subscribe } from "../store/localStore.ts";
 import { getDirectStyle, makeShowStyle, setDirectStyle, SHOW_DEP } from "../domain/utils.ts";
+
+const EMPTY_STATIONS: StationDto[] = [];
 
 /** 新規駅の初期表示：下り・上りとも「発」のみ */
 const DEFAULT_SHOW_STYLE = makeShowStyle(SHOW_DEP, SHOW_DEP);
@@ -63,20 +65,12 @@ const styles: Record<string, React.CSSProperties> = {
  * 駅名を入力してEnterで駅を追加する最下行です。
  *
  * @param routeId 路線ID
- * @param stations 現在の駅一覧（次のindex算出に使う）
- * @param setStations 駅一覧のstate更新関数
+ * @param stationCount 現在の駅数（末尾に追加するときの挿入位置）
  */
-function AppendComponent({ routeId, stations, setStations }: { routeId: number; stations: StationDto[]; setStations: React.Dispatch<React.SetStateAction<StationDto[]>> }) {
+function AppendComponent({ routeId, stationCount }: { routeId: number; stationCount: number }) {
     const [newName, setNewName] = useState("");
     const newInputRef = useRef<HTMLInputElement | null>(null);
 
-    function nextIndexForNewStation() {
-        let max = -1;
-        for (const s of stations) {
-            if (s.routeID === routeId && s.index > max) max = s.index;
-        }
-        return max + 1;
-    }
     /**
      * 名前から駅を作成し、一覧へ反映します。
      *
@@ -86,14 +80,7 @@ function AppendComponent({ routeId, stations, setStations }: { routeId: number; 
         const name = nameRaw.trim();
         if (!name) return;
 
-        const created = timetableApi.addStation(routeId, {
-            name,
-            routeID: routeId,
-            index: nextIndexForNewStation(),
-            showStyle: DEFAULT_SHOW_STYLE,
-        });
-
-        setStations((prev) => [...prev, created].sort((a, b) => a.index - b.index));
+        timetableApi.insertStations(routeId, stationCount, [{ name, routeID: routeId, index: stationCount, showStyle: DEFAULT_SHOW_STYLE }]);
 
         setNewName("");
         requestAnimationFrame(() => newInputRef.current?.focus());
@@ -155,9 +142,9 @@ function StationHeaderComponent() {
  * @param item 表示する駅
  * @param isSelected 選択中か
  * @param onMouseDown 行のmousedownハンドラ（選択処理）
- * @param updateLocal 行の値を更新する関数（未保存変更として記録される）
+ * @param update 行の値を更新する関数（未保存変更として記録される）
  */
-function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: RowRenderProps<StationDto>) {
+function StationRowComponent({ item, isSelected, onMouseDown, update }: RowRenderProps<StationDto>) {
     return (
         <div
             onMouseDown={onMouseDown}
@@ -171,11 +158,8 @@ function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: Row
                 <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
             </div>
 
-            <ShowStyleComponent bits={getDirectStyle(item.showStyle, 0)} onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))} />
-            <ShowStyleComponent
-                bits={getDirectStyle(item.showStyle, 1)}
-                onChangeBits={(bits) => updateLocal((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))}
-            />
+            <ShowStyleComponent bits={getDirectStyle(item.showStyle, 0)} onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))} />
+            <ShowStyleComponent bits={getDirectStyle(item.showStyle, 1)} onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))} />
         </div>
     );
 }
@@ -186,65 +170,21 @@ function StationRowComponent({ item, isSelected, onMouseDown, updateLocal }: Row
  * @param routeId 編集する路線ID
  */
 export default function StationListPage({ routeId }: { routeId: number }) {
-    const [stations, setStations] = useState<StationDto[]>([]);
-    const [dirty, setDirty] = useState<Record<number, StationDto>>({});
-
-    function load() {
-        const route = getRoute(routeId);
-        setStations([...(route?.stations ?? [])].sort((a, b) => a.index - b.index));
-        setDirty({});
-    }
-
-    /**
-     * 駅の変更を保存します。
-     *
-     * @param item 更新後の駅
-     */
-    function updateRemote(item: StationDto) {
-        timetableApi.updateStation(routeId, item);
-    }
-
-    /**
-     * 駅を作成します。
-     *
-     * @param dto idを除いた駅データ
-     */
-    function createRemote(dto: Omit<StationDto, "id">) {
-        return timetableApi.addStation(routeId, dto);
-    }
-
-    /**
-     * 駅を削除します。
-     *
-     * @param id 駅ID
-     */
-    function deleteRemote(id: number) {
-        timetableApi.deleteStation(routeId, id);
-    }
-
-    function saveAll() {
-        const items = Object.values(dirty);
-        for (const s of items) updateRemote(s);
-        setDirty({});
-    }
+    const stations = useSyncExternalStore(subscribe, () => getRoute(routeId)?.stations ?? EMPTY_STATIONS);
 
     return (
         <IndexedListComponent<StationDto>
             routeId={routeId}
             items={stations}
-            setItems={setStations}
-            load={load}
-            updateRemote={updateRemote}
-            createRemote={createRemote}
-            deleteRemote={deleteRemote}
-            setDirty={setDirty}
-            saveAll={saveAll}
+            onUpdate={(item) => timetableApi.updateStation(routeId, item)}
+            onInsert={(position, dtos) => timetableApi.insertStations(routeId, position, dtos)}
+            onRemove={(ids) => timetableApi.deleteStations(routeId, ids)}
             createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: DEFAULT_SHOW_STYLE })}
             toClip={(s) => s}
             fromClip={(c, routeId, index) => ({ id: 0, name: c.name, routeID: routeId, index, showStyle: c.showStyle })}
             HeaderComponent={StationHeaderComponent}
             RowComponent={StationRowComponent}
-            AppendRowComponent={<AppendComponent stations={stations} setStations={setStations} routeId={routeId} />}
+            AppendRowComponent={<AppendComponent routeId={routeId} stationCount={stations.length} />}
         />
     );
 }

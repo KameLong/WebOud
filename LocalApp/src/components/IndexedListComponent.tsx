@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 
 /** index(並び順)で管理される一覧アイテムが最低限持つべきフィールド */
 export type IndexedItemBase = {
@@ -18,26 +18,25 @@ export type RowRenderProps<TItem> = {
     item: TItem;
     isSelected: boolean;
     onMouseDown: (e: React.MouseEvent) => void;
-    /** 行内の値を更新する(ローカルstateとdirtyの両方を更新する) */
-    updateLocal: (updater: (x: TItem) => TItem) => void;
+    /** 行内の値を更新して即座にストアへ保存する */
+    update: (updater: (x: TItem) => TItem) => void;
 };
 
 /** IndexedListComponentのprops。データの読み書きと行/ヘッダーの描画を呼び出し側に委譲する */
 type Props<TItem extends IndexedItemBase> = {
     routeId: number;
 
+    /** 表示する全アイテム（ストアの値をそのまま渡す。更新はonUpdate/onInsert/onRemove経由で行い、変更は即時に保存される） */
     items: TItem[];
-    setItems: React.Dispatch<React.SetStateAction<TItem[]>>;
 
-    load: () => void;
-    updateRemote: (item: TItem) => void; // 更新
-    createRemote: (item: Omit<TItem, "id">) => TItem; // 作成（idを振って返す）
-    deleteRemote: (id: number) => void; // 削除
+    /** 1件の更新を保存する */
+    onUpdate: (item: TItem) => void;
+    /** 指定位置にアイテムをまとめて挿入する（indexは並び順で振り直される）。idを採番した新規アイテムを返す */
+    onInsert: (position: number, items: Omit<TItem, "id">[]) => TItem[];
+    /** 指定idのアイテムをまとめて削除する */
+    onRemove: (ids: number[]) => void;
     /** 削除前の確認。指定すると標準の確認ダイアログの代わりに使われる（falseを返すと削除を中止。削除に伴う関連データの後始末もここで行う） */
     confirmDelete?: (ids: number[]) => Promise<boolean> | boolean;
-
-    setDirty: React.Dispatch<React.SetStateAction<Record<number, TItem>>>;
-    saveAll: () => void;
 
     toClip: (item: TItem) => TItem;
     fromClip: (clip: TItem, routeId: number, index: number) => Omit<TItem, "id">;
@@ -72,24 +71,7 @@ function clamp(n: number, min: number, max: number) {
  * (フォーカス喪失やスクロール位置のずれの原因になる)。
  */
 export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props<TItem>) {
-    const {
-        routeId,
-        items,
-        setItems,
-        load,
-        updateRemote,
-        createRemote,
-        deleteRemote,
-        confirmDelete,
-        setDirty,
-        saveAll,
-        toClip,
-        fromClip,
-        createEmpty,
-        RowComponent,
-        HeaderComponent,
-        AppendRowComponent,
-    } = props;
+    const { routeId, items, onUpdate, onInsert, onRemove, confirmDelete, toClip, fromClip, createEmpty, RowComponent, HeaderComponent, AppendRowComponent } = props;
 
     /** 一覧ルートのdiv。キーボードショートカットを受け取るためtabIndexを持つ */
     const listRef = useRef<HTMLDivElement | null>(null);
@@ -150,27 +132,15 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return new Set(orderedIds.slice(lo, hi + 1));
     };
 
-    /** setDirtyの更新関数の中から最新のitemsを参照するためのref(クロージャの古い値を避ける) */
-    const itemsRef = useRef<TItem[]>([]);
-    useEffect(() => {
-        itemsRef.current = items;
-    }, [items]);
-
     /**
-     * 指定idのアイテムをupdaterで更新し、itemsとdirty(未保存変更)の両方へ反映する
+     * 指定idのアイテムをupdaterで更新して保存する
      *
      * @param id 更新する行のID
      * @param updater 現在の行を受け取り、更新後の行を返す関数
      */
-    const updateLocalById = (id: number, updater: (x: TItem) => TItem) => {
-        setItems((prev) => prev.map((x) => (x.id === id ? updater(x) : x)));
-        setDirty((prev) => {
-            const base = itemsRef.current.find((x) => x.id === id);
-            const cur = prev[id] ?? base;
-            if (!cur) return prev;
-            const updated = updater(cur);
-            return { ...prev, [id]: updated };
-        });
+    const updateById = (id: number, updater: (x: TItem) => TItem) => {
+        const cur = items.find((x) => x.id === id);
+        if (cur) onUpdate(updater(cur));
     };
 
     /**
@@ -198,47 +168,16 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         return clipRef.current;
     }
 
-    /** 現在のカーソル位置を基準に、新規挿入すべきindex値を返す(カーソルが無ければ末尾) */
-    const getInsertIndex = () => {
+    /** 現在のカーソル位置を基準に、新規挿入すべき位置（orderedの配列位置）を返す(カーソルが無ければ末尾) */
+    const getInsertPosition = () => {
         const curIdx = indexOfId(cursorId);
-        const insertPos = curIdx >= 0 ? curIdx : ordered.length;
-        if (insertPos < ordered.length) return ordered[insertPos].index;
-        return ordered.length ? ordered[ordered.length - 1].index + 1 : 0;
+        return curIdx >= 0 ? curIdx : ordered.length;
     };
-
-    /**
-     * fromIndex以降のアイテムのindexをdelta分ずらす(挿入/ペーストで隙間を作るため)。サーバー側にも反映する
-     *
-     * @param fromIndex この値以上のindexを持つ行をずらす
-     * @param delta ずらす量（挿入件数）
-     */
-    function shiftIndices(fromIndex: number, delta: number) {
-        const toShift = ordered.filter((x) => x.index >= fromIndex).sort((a, b) => b.index - a.index);
-        for (const x of toShift) {
-            const moved = { ...x, index: x.index + delta };
-            updateRemote(moved);
-        }
-        setItems((prev) =>
-            prev.map((x) => {
-                if (x.routeID !== routeId) return x;
-                if (x.index >= fromIndex) return { ...x, index: x.index + delta };
-                return x;
-            })
-        );
-        setDirty((prev) => {
-            const next = { ...prev };
-            for (const x of toShift) delete next[x.id];
-            return next;
-        });
-    }
 
     /** カーソル位置の手前に空のアイテムを1件挿入し、新規アイテムを選択状態にする(Ctrl+Insert) */
     function insertOne() {
-        const insertIndex = getInsertIndex();
-        shiftIndices(insertIndex, 1);
-
-        const created = createRemote(createEmpty(routeId, insertIndex));
-        setItems((prev) => [...prev, created].sort((a, b) => a.index - b.index));
+        const position = getInsertPosition();
+        const [created] = onInsert(position, [createEmpty(routeId, position)]);
 
         setSelectedIds(new Set([created.id]));
         setCursorId(created.id);
@@ -254,14 +193,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         const ok = confirmDelete ? await confirmDelete(ids) : confirm(`${ids.length}件削除しますか？`);
         if (!ok) return;
 
-        for (const id of ids) deleteRemote(id);
-
-        setItems((prev) => prev.filter((x) => !selectedIds.has(x.id)));
-        setDirty((prev) => {
-            const next = { ...prev };
-            for (const id of ids) delete next[id];
-            return next;
-        });
+        onRemove(ids);
 
         const remaining = orderedIds.filter((id) => !selectedIds.has(id));
         const curIdx = cursorId != null ? orderedIds.indexOf(cursorId) : -1;
@@ -298,19 +230,11 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         const clip = await readClipboard();
         if (!clip || clip.items.length === 0) return;
 
-        const insertIndex = selectedIds.size === 0 ? (ordered.length ? ordered[ordered.length - 1].index + 1 : 0) : getInsertIndex();
-
-        const n = clip.items.length;
-        shiftIndices(insertIndex, n);
-
-        const createdList: TItem[] = [];
-        for (let k = 0; k < n; k++) {
-            const dto = fromClip(clip.items[k], routeId, insertIndex + k);
-            const created = createRemote(dto);
-            createdList.push(created);
-        }
-
-        setItems((prev) => [...prev, ...createdList].sort((a, b) => a.index - b.index));
+        const position = selectedIds.size === 0 ? ordered.length : getInsertPosition();
+        const createdList = onInsert(
+            position,
+            clip.items.map((c, k) => fromClip(c, routeId, position + k)),
+        );
 
         const newSel = new Set(createdList.map((x) => x.id));
         const newCursor = createdList.length ? createdList[createdList.length - 1].id : cursorId;
@@ -414,19 +338,8 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         }
     };
 
-    // マウント時に一覧データを読み込む
-    useEffect(() => {
-        load();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
     return (
         <div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <button onClick={load}>再読み込み</button>
-                <button onClick={saveAll}>変更を保存</button>
-            </div>
-
             <div ref={listRef} tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none", width: "fit-content" }}>
                 <HeaderComponent />
                 {ordered.map((item) => (
@@ -435,7 +348,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
                         item={item}
                         isSelected={selectedIds.has(item.id)}
                         onMouseDown={makeRowMouseDown(item.id)}
-                        updateLocal={(updater) => updateLocalById(item.id, updater)}
+                        update={(updater) => updateById(item.id, updater)}
                     />
                 ))}
 

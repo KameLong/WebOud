@@ -1,8 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useSyncExternalStore } from "react";
 import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
-import { getRoute } from "../store/localStore.ts";
+import { getRoute, subscribe } from "../store/localStore.ts";
+
+const EMPTY_TYPES: TrainTypeDto[] = [];
 
 /** 使用中の種別を削除するときの選択結果 */
 type DeleteChoice = { kind: "cancel" } | { kind: "deleteTrips" } | { kind: "reassign"; toId: number };
@@ -154,23 +156,14 @@ const styles: Record<string, React.CSSProperties> = {
  * 種別名を入力してEnterで種別を追加する最下行です。
  *
  * @param routeId 路線ID
- * @param items 現在の種別一覧（次のindex算出に使う）
- * @param setItems 種別一覧のstate更新関数
+ * @param itemCount 現在の種別数（末尾に追加するときの挿入位置）
  */
-function AppendTrainTypeRow({ routeId, items, setItems }: { routeId: number; items: TrainTypeDto[]; setItems: React.Dispatch<React.SetStateAction<TrainTypeDto[]>> }) {
+function AppendTrainTypeRow({ routeId, itemCount }: { routeId: number; itemCount: number }) {
     const [newName, setNewName] = useState("");
     const inputRef = useRef<HTMLInputElement | null>(null);
 
-    function nextIndex() {
-        let max = -1;
-        for (const t of items) {
-            if (t.routeID === routeId && t.index > max) max = t.index;
-        }
-        return max + 1;
-    }
-
     /**
-     * 名前から列車種別を作成し、一覧へ反映します。
+     * 名前から列車種別を末尾に作成します。
      *
      * @param nameRaw 入力された種別名（前後の空白は除去、空なら何もしない）
      */
@@ -178,17 +171,9 @@ function AppendTrainTypeRow({ routeId, items, setItems }: { routeId: number; ite
         const name = nameRaw.trim();
         if (!name) return;
 
-        const created = timetableApi.addTrainType(routeId, {
-            name,
-            routeID: routeId,
-            index: nextIndex(),
-            shortName: "",
-            color: "#000000",
-            fontBold: false,
-            lineBold: false,
-            lineStyle: 0,
-        });
-        setItems((prev) => [...prev, created].sort((a, b) => a.index - b.index));
+        timetableApi.insertTrainTypes(routeId, itemCount, [
+            { name, routeID: routeId, index: itemCount, shortName: "", color: "#000000", fontBold: false, lineBold: false, lineStyle: 0 },
+        ]);
 
         setNewName("");
         requestAnimationFrame(() => inputRef.current?.focus());
@@ -242,9 +227,9 @@ function TrainTypeHeaderComponent() {
  * @param item 表示する種別
  * @param isSelected 選択中か
  * @param onMouseDown 行のmousedownハンドラ（選択処理）
- * @param updateLocal 行の値を更新する関数（未保存変更として記録される）
+ * @param update 行の値を更新する関数（未保存変更として記録される）
  */
-function TrainTypeRowComponent({ item, isSelected, onMouseDown, updateLocal }: RowRenderProps<TrainTypeDto>) {
+function TrainTypeRowComponent({ item, isSelected, onMouseDown, update }: RowRenderProps<TrainTypeDto>) {
     return (
         <div
             onMouseDown={onMouseDown}
@@ -254,27 +239,27 @@ function TrainTypeRowComponent({ item, isSelected, onMouseDown, updateLocal }: R
             }}
         >
             <div style={{ ...styles.cell, ...styles.nameCell }}>
-                <input value={item.name} onChange={(e) => updateLocal((x) => ({ ...x, name: e.target.value }))} style={{ width: "100%" }} />
+                <input value={item.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} style={{ width: "100%" }} />
             </div>
 
             <div style={{ ...styles.cell, ...styles.shortCell }}>
-                <input value={item.shortName} onChange={(e) => updateLocal((x) => ({ ...x, shortName: e.target.value }))} style={{ width: "100%" }} />
+                <input value={item.shortName} onChange={(e) => update((x) => ({ ...x, shortName: e.target.value }))} style={{ width: "100%" }} />
             </div>
 
             <div style={{ ...styles.cell, ...styles.colorCell }}>
-                <input type="color" value={item.color || "#000000"} onChange={(e) => updateLocal((x) => ({ ...x, color: e.target.value }))} />
+                <input type="color" value={item.color || "#000000"} onChange={(e) => update((x) => ({ ...x, color: e.target.value }))} />
             </div>
 
             <div style={{ ...styles.cell, ...styles.chkCell }}>
-                <input type="checkbox" checked={item.fontBold} onChange={(e) => updateLocal((x) => ({ ...x, fontBold: e.target.checked }))} />
+                <input type="checkbox" checked={item.fontBold} onChange={(e) => update((x) => ({ ...x, fontBold: e.target.checked }))} />
             </div>
 
             <div style={{ ...styles.cell, ...styles.chkCell }}>
-                <input type="checkbox" checked={item.lineBold} onChange={(e) => updateLocal((x) => ({ ...x, lineBold: e.target.checked }))} />
+                <input type="checkbox" checked={item.lineBold} onChange={(e) => update((x) => ({ ...x, lineBold: e.target.checked }))} />
             </div>
 
             <div style={{ ...styles.cell, ...styles.styleCell }}>
-                <select value={item.lineStyle ?? 0} onChange={(e) => updateLocal((x) => ({ ...x, lineStyle: Number(e.target.value) }))} style={{ width: "100%" }}>
+                <select value={item.lineStyle ?? 0} onChange={(e) => update((x) => ({ ...x, lineStyle: Number(e.target.value) }))} style={{ width: "100%" }}>
                     <option value={0}>実線</option>
                     <option value={1}>破線</option>
                     <option value={2}>点線</option>
@@ -289,41 +274,7 @@ function TrainTypeRowComponent({ item, isSelected, onMouseDown, updateLocal }: R
  * @param routeId 編集する路線ID
  */
 export default function TrainTypeListPage({ routeId }: { routeId: number }) {
-    const [items, setItems] = useState<TrainTypeDto[]>([]);
-    const [dirty, setDirty] = useState<Record<number, TrainTypeDto>>({});
-
-    function load() {
-        const route = getRoute(routeId);
-        setItems([...(route?.trainTypes ?? [])].sort((a, b) => a.index - b.index));
-        setDirty({});
-    }
-
-    /**
-     * 種別の変更を保存します。
-     *
-     * @param item 更新後の種別
-     */
-    function updateRemote(item: TrainTypeDto) {
-        timetableApi.updateTrainType(routeId, item);
-    }
-
-    /**
-     * 種別を作成します。
-     *
-     * @param dto idを除いた種別データ
-     */
-    function createRemote(dto: Omit<TrainTypeDto, "id">) {
-        return timetableApi.addTrainType(routeId, dto);
-    }
-
-    /**
-     * 種別を削除します。
-     *
-     * @param id 種別ID
-     */
-    function deleteRemote(id: number) {
-        timetableApi.deleteTrainType(routeId, id);
-    }
+    const items = useSyncExternalStore(subscribe, () => getRoute(routeId)?.trainTypes ?? EMPTY_TYPES);
 
     const [deleteAsk, setDeleteAsk] = useState<{
         tripCount: number;
@@ -356,25 +307,15 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
         return true;
     }
 
-    function saveAll() {
-        const list = Object.values(dirty);
-        for (const x of list) updateRemote(x);
-        setDirty({});
-    }
-
     return (
         <>
             <IndexedListComponent<TrainTypeDto>
                 routeId={routeId}
                 items={items}
-                setItems={setItems}
-                load={load}
-                updateRemote={updateRemote}
-                createRemote={createRemote}
-                deleteRemote={deleteRemote}
+                onUpdate={(item) => timetableApi.updateTrainType(routeId, item)}
+                onInsert={(position, dtos) => timetableApi.insertTrainTypes(routeId, position, dtos)}
+                onRemove={(ids) => timetableApi.deleteTrainTypes(routeId, ids)}
                 confirmDelete={confirmDelete}
-                setDirty={setDirty}
-                saveAll={saveAll}
                 createEmpty={(routeId, index) => ({
                     id: 0,
                     name: "",
@@ -400,7 +341,7 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
                 })}
                 HeaderComponent={TrainTypeHeaderComponent}
                 RowComponent={TrainTypeRowComponent}
-                AppendRowComponent={<AppendTrainTypeRow routeId={routeId} items={items} setItems={setItems} />}
+                AppendRowComponent={<AppendTrainTypeRow routeId={routeId} itemCount={items.length} />}
             />
             {deleteAsk && <DeleteTrainTypeDialog tripCount={deleteAsk.tripCount} candidates={deleteAsk.candidates} onChoose={deleteAsk.resolve} />}
         </>
