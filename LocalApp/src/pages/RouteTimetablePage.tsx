@@ -304,6 +304,12 @@ export default function RouteTimetablePage() {
                         nativeEvent: e.nativeEvent,
                     };
 
+                    // デバッグ用：押されたキーの組み合わせをコンソールに表示
+                    const combo = [ev.ctrlKey && "Ctrl", ev.altKey && "Alt", ev.shiftKey && "Shift", ev.metaKey && "Meta", ev.key]
+                        .filter(Boolean)
+                        .join("+");
+                    console.log("[keydown]", combo);
+
                     keyEventQueue.push(() => keyEvent(ev));
                 }}
                 style={{
