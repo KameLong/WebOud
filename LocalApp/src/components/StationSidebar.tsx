@@ -22,8 +22,10 @@ export function StationSidebar(props: {
 }) {
     const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner } = props;
 
-    /** 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。 */
+    /** 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。確認ダイアログでキャンセルした場合は何もしない。 */
     function sortByStation(station: StationDto) {
+        if (!confirm(`${station.name}の時刻順に列車を並び替えますか？`)) return;
+
         const normalize = (time: number) => (time < DIAGRAM_START ? time + 24 * 3600 : time);
         const sortKey = (t: TripWithStopTimesDto) => {
             const st = t.stopTimesByStationId[station.id];
