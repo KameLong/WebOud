@@ -382,7 +382,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
                 <button onClick={saveAll}>変更を保存</button>
             </div>
 
-            <div ref={listRef} tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none" }}>
+            <div ref={listRef} tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none", width: "fit-content" }}>
                 <HeaderComponent />
                 {ordered.map((item) => (
                     <RowComponent
