@@ -33,6 +33,8 @@ type Props<TItem extends IndexedItemBase> = {
     updateRemote: (item: TItem) => void; // 更新
     createRemote: (item: Omit<TItem, "id">) => TItem; // 作成（idを振って返す）
     deleteRemote: (id: number) => void; // 削除
+    /** 削除前の確認。指定すると標準の確認ダイアログの代わりに使われる（falseを返すと削除を中止。削除に伴う関連データの後始末もここで行う） */
+    confirmDelete?: (ids: number[]) => Promise<boolean> | boolean;
 
     setDirty: React.Dispatch<React.SetStateAction<Record<number, TItem>>>;
     saveAll: () => void;
@@ -78,6 +80,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         updateRemote,
         createRemote,
         deleteRemote,
+        confirmDelete,
         setDirty,
         saveAll,
         toClip,
@@ -244,11 +247,12 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
     }
 
     /** 選択中のアイテムを確認ダイアログ付きで削除し、カーソルを近傍の残存アイテムへ移動する(Delete/Backspace) */
-    function deleteSelected() {
+    async function deleteSelected() {
         const ids = Array.from(selectedIds);
         if (ids.length === 0) return;
 
-        if (!confirm(`${ids.length}件削除しますか？`)) return;
+        const ok = confirmDelete ? await confirmDelete(ids) : confirm(`${ids.length}件削除しますか？`);
+        if (!ok) return;
 
         for (const id of ids) deleteRemote(id);
 
@@ -365,7 +369,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         }
         if (e.key === "Delete" || e.key === "Backspace") {
             e.preventDefault();
-            deleteSelected();
+            await deleteSelected();
             return;
         }
     }

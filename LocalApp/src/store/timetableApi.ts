@@ -88,6 +88,21 @@ export function deleteTrainType(routeId: number, id: number) {
     updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.filter((t) => t.id !== id) }));
 }
 
+/**
+ * 指定した種別の列車を、別の種別へ一括変更します。
+ *
+ * @param routeId 路線ID
+ * @param fromIds 変更前の種別ID（複数可）
+ * @param toId 変更後の種別ID
+ */
+export function reassignTrainType(routeId: number, fromIds: number[], toId: number) {
+    const from = new Set(fromIds);
+    updateRoute(routeId, (r) => ({
+        ...r,
+        trips: r.trips.map((t) => (from.has(t.trainTypeID) ? { ...t, trainTypeID: toId } : t)),
+    }));
+}
+
 /* ---------------- Trips / StopTimes ---------------- */
 
 /**
