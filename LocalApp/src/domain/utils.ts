@@ -6,6 +6,8 @@ import type { StationDto } from "./dto.ts";
 export const FONT_SIZE = 14;
 export const LINE_HEIGHT = FONT_SIZE * 1.25;
 export const TRAIN_WIDTH = FONT_SIZE * 3;
+/** 時刻表の1列の幅(px)。列の右枠線(1px)を含む。列の仮想化で位置計算に使うため、全列で同一の固定幅にすること */
+export const COLUMN_WIDTH = TRAIN_WIDTH + 1;
 export const STATION_NAME_WIDTH = FONT_SIZE * 6;
 export const ARR_BORDER_BOTTOM_WIDTH = 1;
 

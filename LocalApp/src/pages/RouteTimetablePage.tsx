@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { decodeShowStyle, getDirectStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { decodeShowStyle, getDirectStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
+import { useColumnWindow } from "../hooks/useColumnWindow.ts";
 import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
 import { StationSidebar } from "../components/StationSidebar.tsx";
 import { TrainColumn } from "../components/TrainColumn.tsx";
@@ -56,7 +57,11 @@ export default function RouteTimetablePage() {
     });
 
     const [pasteMoveOpen, setPasteMoveOpen] = useState(false);
-    useAutoScrollCursor(scrollRef, nav.cursor);
+    const colsRef = useRef<HTMLDivElement | null>(null);
+    const columnsActive = !loading && !error && stations.length > 0;
+    // 列の仮想化：表示範囲付近の列だけ描画する
+    const colWindow = useColumnWindow(scrollRef, colsRef, trips.length, COLUMN_WIDTH, columnsActive);
+    useAutoScrollCursor(scrollRef, nav.cursor, { colsRef, width: COLUMN_WIDTH, stickyLeft: STATION_NAME_WIDTH + LINE_HEIGHT });
 
     const focusGrid = useCallback(() => {
         scrollRef.current?.focus();
@@ -328,8 +333,20 @@ export default function RouteTimetablePage() {
                 <div style={{ display: "flex", width: "fit-content", flexWrap: "nowrap", paddingRight: "100px" }}>
                     <StationSidebar stations={stations} trips={trips} routeId={routeId} direct={direct} HEADER_H={HEADER_H} zLeft={z.left} zCorner={z.corner} />
 
-                    <div style={{ flexShrink: 0, display: "flex", alignItems: "flex-start" }} onMouseDown={(e) => nav.onMouseDownDelegated(e, focusGrid)}>
-                        {trips.map((t, c) => {
+                    <div
+                        ref={colsRef}
+                        style={{
+                            flexShrink: 0,
+                            display: "flex",
+                            alignItems: "flex-start",
+                            boxSizing: "border-box",
+                            width: trips.length * COLUMN_WIDTH,
+                            paddingLeft: colWindow.first * COLUMN_WIDTH,
+                        }}
+                        onMouseDown={(e) => nav.onMouseDownDelegated(e, focusGrid)}
+                    >
+                        {trips.slice(colWindow.first, colWindow.last).map((t, i) => {
+                            const c = colWindow.first + i;
                             const isSelected = nav.selectedCols.has(c);
                             const invert = isSelected && nav.isMultiColSelected;
 

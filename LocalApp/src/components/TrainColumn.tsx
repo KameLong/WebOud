@@ -1,7 +1,7 @@
 import React from "react";
 import type { Cursor } from "../domain/types.ts";
 import { TrainHeader } from "./TrainHeader.tsx";
-import { TRAIN_WIDTH } from "../domain/utils.ts";
+import { COLUMN_WIDTH } from "../domain/utils.ts";
 import { StopCell } from "./StopCell.tsx";
 import type { StationDto, TripWithStopTimesDto, TrainTypeDto } from "../domain/dto.ts";
 
@@ -30,7 +30,9 @@ export const TrainColumn = React.memo(
         return (
             <div
                 style={{
-                    width: TRAIN_WIDTH,
+                    width: COLUMN_WIDTH,
+                    flexShrink: 0,
+                    boxSizing: "border-box",
                     borderRight: "1px solid #333",
                     borderBottom: "2px solid #333",
                     borderTop: "2px solid #333",
