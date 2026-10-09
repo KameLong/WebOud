@@ -18,6 +18,7 @@ import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
 import { HelpDialog, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
 import { MobileTimetableKeypad } from "../components/MobileTimetableKeypad.tsx";
+import { useIsMobile } from "../hooks/useIsMobile.ts";
 
 /** 列車の種別が見つからないとき（プレースホルダ列など）に使う既定の種別。毎回同じ参照にして再描画を避ける */
 const FALLBACK_TRAIN_TYPE: TrainTypeDto = { color: "#000", shortName: "", routeID: 0, name: "", fontBold: false, lineStyle: 0, index: 0, lineBold: false, id: 0 };
@@ -64,11 +65,27 @@ export default function RouteTimetablePage() {
     const colWindow = useColumnWindow(scrollRef, colsRef, trips.length, COLUMN_WIDTH, columnsActive);
     useAutoScrollCursor(scrollRef, nav.cursor, { colsRef, width: COLUMN_WIDTH, stickyLeft: STATION_NAME_WIDTH + LINE_HEIGHT });
 
+    const isMobile = useIsMobile();
+
     // スマホ用キーパッド表示中は、下部メニューのFAB/スワイプ検知帯をキーパッドの上にずらす(App.css側で参照)
     useEffect(() => {
         document.body.classList.add("rt-keypad-active");
         return () => document.body.classList.remove("rt-keypad-active");
     }, []);
+
+    // スマホではシステムキーボード(ダイアログでの自由入力)を使わず、連続入力モードでグリッド上に直接入力させる。
+    // PC幅に戻った際は、このために強制していた分だけ元に戻す(ユーザーがAlt+Tで有効にした分は変更しない)。
+    const forcedContinuousRef = useRef(false);
+    useEffect(() => {
+        if (isMobile) {
+            cont.setEnabled(true);
+            forcedContinuousRef.current = true;
+        } else if (forcedContinuousRef.current) {
+            cont.setEnabled(false);
+            forcedContinuousRef.current = false;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMobile]);
 
     const focusGrid = useCallback(() => {
         scrollRef.current?.focus();
@@ -203,14 +220,18 @@ export default function RouteTimetablePage() {
             return;
         }
 
-        // 編集開始
+        // 編集開始（スマホではダイアログを出さず、カーソルを1段下へ進めるだけにする）
         if (e.key === "Enter") {
             e.preventDefault();
-            openEdit();
+            if (isMobile) {
+                nav.moveVertical(1);
+            } else {
+                openEdit();
+            }
             return;
         }
-        // 数値入力
-        if (isDigitKey(e)) {
+        // 数値入力（スマホでは連続入力モードが常時有効なため、ここには到達しない）
+        if (isDigitKey(e) && !isMobile) {
             e.preventDefault();
             openEdit(e.key);
             return;
@@ -378,7 +399,7 @@ export default function RouteTimetablePage() {
                     </div>
                 </div>
             </div>
-            <MobileTimetableKeypad gridRef={scrollRef} continuousEnabled={cont.state.enabled} />
+            <MobileTimetableKeypad gridRef={scrollRef} />
             <StopTimeEditDialog
                 state={editState}
                 stationName={editTarget.stationName}

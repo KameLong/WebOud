@@ -51,13 +51,9 @@ function DigitButton(props: { label: string; onPress: (label: string) => void })
 }
 
 /** ショートカット1つ分のボタン(モジュールスコープの安定した関数) */
-function ShortcutButton(props: { label: string; active?: boolean; init: KeyInit; onPress: (init: KeyInit) => void }) {
+function ShortcutButton(props: { label: string; init: KeyInit; onPress: (init: KeyInit) => void }) {
     return (
-        <button
-            onMouseDown={keepFocus}
-            onClick={() => props.onPress(props.init)}
-            style={{ ...shortcutStyle, background: props.active ? "#0f5b8a" : undefined, color: props.active ? "#fff" : undefined }}
-        >
+        <button onMouseDown={keepFocus} onClick={() => props.onPress(props.init)} style={shortcutStyle}>
             {props.label}
         </button>
     );
@@ -68,14 +64,14 @@ function ShortcutButton(props: { label: string; active?: boolean; init: KeyInit;
  * Alt/Ctrl併用のショートカットを操作できるようにする。画面下端に固定表示し、
  * PC幅(780px以上)では非表示になる。
  *
- * ボタン操作は、フォーカス中の要素へ合成KeyboardEventを送ることで実現しており、
- * 時刻表グリッドの既存のキー操作ロジック(keyEvent/useContinuousTimeInput)を
- * そのまま再利用する。時刻編集ダイアログが開いている間は、ダイアログの
- * テキスト入力欄にフォーカスが移りOS標準のソフトキーボードが出るため、
- * 本キーパッドの役割はグリッド操作（連続入力モードを含む）に限られる。
+ * スマホでは連続入力モードを常時有効にし(RouteTimetablePage側で強制)、
+ * 時刻編集ダイアログ(システムキーボードが必要になる)を開かずグリッド上で
+ * 直接編集できるようにしている。ボタン操作は、フォーカス中の要素へ合成
+ * KeyboardEventを送ることで実現しており、既存のキー操作ロジック
+ * (keyEvent/useContinuousTimeInput)をそのまま再利用する。
  */
-export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | null>; continuousEnabled: boolean }) {
-    const { gridRef, continuousEnabled } = props;
+export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | null> }) {
+    const { gridRef } = props;
 
     function focusedOrGrid(): HTMLElement | null {
         return (document.activeElement as HTMLElement | null) ?? gridRef.current;
@@ -112,7 +108,7 @@ export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | 
             <DigitButton label="4" onPress={pressDigit} />
             <DigitButton label="5" onPress={pressDigit} />
             <DigitButton label="6" onPress={pressDigit} />
-            <ShortcutButton label="連続入力" active={continuousEnabled} init={{ key: "t", code: "KeyT", altKey: true }} onPress={pressShortcut} />
+            <div />
             <ShortcutButton label="通過" init={{ key: "-", code: "Minus", altKey: true }} onPress={pressShortcut} />
 
             <DigitButton label="7" onPress={pressDigit} />
@@ -125,7 +121,7 @@ export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | 
                 ⌫
             </button>
             <DigitButton label="0" onPress={pressDigit} />
-            <button onMouseDown={keepFocus} onClick={pressEnter} style={keyStyle} title="Enter">
+            <button onMouseDown={keepFocus} onClick={pressEnter} style={keyStyle} title="1段下へ">
                 ↵
             </button>
             <div />
