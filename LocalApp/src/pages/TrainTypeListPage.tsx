@@ -1,3 +1,4 @@
+import { Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
 import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
@@ -16,10 +17,10 @@ type DeleteChoice = { kind: "cancel" } | { kind: "deleteTrips" } | { kind: "reas
  */
 function DeleteTrainTypeDialog(props: { tripCount: number; candidates: TrainTypeDto[]; onChoose: (c: DeleteChoice) => void }) {
     const { tripCount, candidates, onChoose } = props;
-    const [mode, setMode] = useState<"deleteType" | "deleteTrips" | "reassign">("deleteTrips");
+    const [mode, setMode] = useState<"deleteTrips" | "reassign">("deleteTrips");
     const [toId, setToId] = useState<number>(candidates[0]?.id ?? 0);
 
-    // 種別だけを削除する場合は該当列車が残ってしまうため、選択肢は「列車も削除」「別種別に変更」の2つ
+    // 該当列車が残らないよう、選択肢は「列車も削除」「別種別に変更」の2つ
     const canReassign = candidates.length > 0;
 
     function submit() {
@@ -28,81 +29,67 @@ function DeleteTrainTypeDialog(props: { tripCount: number; candidates: TrainType
     }
 
     return (
-        <div
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget) onChoose({ kind: "cancel" });
-            }}
-            style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.35)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-            }}
-        >
-            <div
-                onMouseDown={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                        e.preventDefault();
-                        onChoose({ kind: "cancel" });
-                    }
-                }}
-                style={{
-                    width: 420,
-                    background: "#fff",
-                    borderRadius: 10,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-                    padding: 14,
-                }}
-            >
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>使用中の種別を削除します</div>
-                <div style={{ fontSize: 13, color: "crimson", marginBottom: 10 }}>この種別を使っている列車が {tripCount} 本あります。どう処理しますか？</div>
-
-                <label style={{ display: "block", marginBottom: 8 }}>
-                    <input type="radio" name="delType" checked={mode === "deleteTrips"} onChange={() => setMode("deleteTrips")} />
-                    種別を削除し、該当列車もすべて削除する
-                </label>
-                <label
-                    style={{
-                        display: "block",
-                        marginBottom: 8,
-                        opacity: canReassign ? 1 : 0.5,
-                    }}
-                >
-                    <input type="radio" name="delType" disabled={!canReassign} checked={mode === "reassign"} onChange={() => setMode("reassign")} />
-                    種別を削除し、該当列車を別の種別に変更する
-                </label>
+        <Modal opened onClose={() => onChoose({ kind: "cancel" })} title="使用中の種別を削除します" centered size="sm" styles={{ title: { fontWeight: 700 } }}>
+            <Stack gap="sm">
+                <Text size="sm" c="red">
+                    この種別を使っている列車が {tripCount} 本あります。どう処理しますか？
+                </Text>
+                <Radio.Group value={mode} onChange={(v) => setMode(v as "deleteTrips" | "reassign")}>
+                    <Stack gap="xs">
+                        <Radio value="deleteTrips" label="種別を削除し、該当列車もすべて削除する" />
+                        <Radio value="reassign" disabled={!canReassign} label="種別を削除し、該当列車を別の種別に変更する" />
+                    </Stack>
+                </Radio.Group>
                 {mode === "reassign" && canReassign && (
-                    <select value={toId} onChange={(e) => setToId(Number(e.target.value))} style={{ marginLeft: 22, marginBottom: 8 }}>
-                        {candidates.map((t) => (
-                            <option key={t.id} value={t.id}>
-                                {t.name}
-                            </option>
-                        ))}
-                    </select>
+                    <NativeSelect
+                        value={String(toId)}
+                        onChange={(e) => setToId(Number(e.currentTarget.value))}
+                        data={candidates.map((t) => ({ value: String(t.id), label: t.name }))}
+                        aria-label="変更先の種別"
+                    />
                 )}
-                {!canReassign && <div style={{ fontSize: 12, color: "#666", marginLeft: 22 }}>変更先の種別がありません</div>}
-
-                <div
-                    style={{
-                        display: "flex",
-                        gap: 8,
-                        justifyContent: "flex-end",
-                        marginTop: 14,
-                    }}
-                >
-                    <button onClick={() => onChoose({ kind: "cancel" })} style={{ padding: "8px 12px" }}>
+                {!canReassign && (
+                    <Text size="xs" c="dimmed">
+                        変更先の種別がありません
+                    </Text>
+                )}
+                <Group justify="flex-end" gap="xs">
+                    <Button variant="default" onClick={() => onChoose({ kind: "cancel" })}>
                         キャンセル
-                    </button>
-                    <button onClick={submit} style={{ padding: "8px 12px" }}>
+                    </Button>
+                    <Button color="red" onClick={submit}>
                         削除する
-                    </button>
-                </div>
-            </div>
-        </div>
+                    </Button>
+                </Group>
+            </Stack>
+        </Modal>
+    );
+}
+
+/**
+ * 色の選択。丸い見本をクリックするとカラーピッカーが開き、選択を終えたとき(マウスを離したとき)に確定する。
+ *
+ * @param props color:現在の色(#RRGGBB) / onCommit:確定した色を受け取るコールバック
+ */
+function ColorCell(props: { color: string; onCommit: (color: string) => void }) {
+    const color = props.color || "#000000";
+    return (
+        <Popover withArrow shadow="md" position="bottom" withinPortal>
+            <Popover.Target>
+                <ColorSwatch component="button" type="button" color={color} size={22} style={{ cursor: "pointer" }} aria-label="色を選択" />
+            </Popover.Target>
+            <Popover.Dropdown p="xs">
+                <ColorPicker
+                    key={color}
+                    format="hex"
+                    size="sm"
+                    defaultValue={color}
+                    onChangeEnd={props.onCommit}
+                    swatches={["#000000", "#1a5fb4", "#26a269", "#c01c28", "#e66100", "#813d9c", "#5e5c64"]}
+                    swatchesPerRow={7}
+                />
+            </Popover.Dropdown>
+        </Popover>
     );
 }
 
@@ -180,42 +167,49 @@ function AppendTrainTypeRow({ routeId, itemCount }: { routeId: number; itemCount
     }
 
     return (
-        <div style={{ ...styles.row, background: "#f0fff4" }}>
-            <div style={{ ...styles.cell, ...styles.nameCell }}>
-                <input
+        <div className="tt-row" style={{ ...styles.row, background: "#f0fff4" }}>
+            <div className="tt-name" style={{ ...styles.cell, ...styles.nameCell }}>
+                <TextInput
                     ref={inputRef}
+                    style={{ width: "100%" }}
                     value={newName}
                     placeholder="種別名を入力して Enter"
-                    onChange={(e) => setNewName(e.target.value)}
+                    aria-label="種別名"
+                    onChange={(e) => setNewName(e.currentTarget.value)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
                             e.preventDefault();
                             createByName(newName);
                         }
                     }}
-                    style={{ padding: 10, fontSize: 16, width: "calc(100% - 20px)" }}
                 />
             </div>
 
-            <div style={{ ...styles.cell, ...styles.shortCell, color: "#666" }}>-</div>
-            <div style={{ ...styles.cell, ...styles.colorCell, color: "#666" }}>-</div>
-            <div style={{ ...styles.cell, ...styles.chkCell, color: "#666" }}>-</div>
-            <div style={{ ...styles.cell, ...styles.chkCell, color: "#666" }}>-</div>
-            <div style={{ ...styles.cell, ...styles.styleCell, color: "#666" }}>-</div>
+            <div className="tt-fields tt-append-fields">
+                <div style={{ ...styles.cell, ...styles.shortCell, color: "#666" }}>-</div>
+                <div style={{ ...styles.cell, ...styles.colorCell, color: "#666" }}>-</div>
+                <div style={{ ...styles.cell, ...styles.chkCell, color: "#666" }}>-</div>
+                <div style={{ ...styles.cell, ...styles.chkCell, color: "#666" }}>-</div>
+                <div style={{ ...styles.cell, ...styles.styleCell, color: "#666" }}>-</div>
+            </div>
         </div>
     );
 }
 
 function TrainTypeHeaderComponent() {
     return (
-        <div style={{ display: "flex", border: "1px solid #ddd" }}>
+        <div className="tt-header" style={{ display: "flex", border: "1px solid #ddd" }}>
             <div style={{ ...styles.row, ...styles.headRow }}>
-                <div style={{ ...styles.cell, ...styles.nameCell }}>種別名</div>
-                <div style={{ ...styles.cell, ...styles.shortCell }}>略称</div>
-                <div style={{ ...styles.cell, ...styles.colorCell }}>色</div>
-                <div style={{ ...styles.cell, ...styles.chkCell }}>太字</div>
-                <div style={{ ...styles.cell, ...styles.chkCell }}>線太</div>
-                <div style={{ ...styles.cell, ...styles.styleCell }}>線種</div>
+                <div className="tt-name" style={{ ...styles.cell, ...styles.nameCell }}>
+                    種別名
+                </div>
+                <div className="tt-fields">
+                    <div style={{ ...styles.cell, ...styles.shortCell }}>略称</div>
+                    <div style={{ ...styles.cell, ...styles.colorCell }}>色</div>
+                    <div style={{ ...styles.cell, ...styles.chkCell }}>太字</div>
+                    <div style={{ ...styles.cell, ...styles.chkCell }}>線太</div>
+                    <div style={{ ...styles.cell, ...styles.styleCell }}>線種</div>
+                </div>
             </div>
         </div>
     );
@@ -232,38 +226,52 @@ function TrainTypeHeaderComponent() {
 function TrainTypeRowComponent({ item, isSelected, onMouseDown, update }: RowRenderProps<TrainTypeDto>) {
     return (
         <div
+            className="tt-row"
             onMouseDown={onMouseDown}
             style={{
                 ...styles.row,
                 background: isSelected ? "#e6f2ff" : undefined,
             }}
         >
-            <div style={{ ...styles.cell, ...styles.nameCell }}>
-                <input value={item.name} onChange={(e) => update((x) => ({ ...x, name: e.target.value }))} style={{ width: "100%" }} />
+            <div className="tt-name" style={{ ...styles.cell, ...styles.nameCell }}>
+                <TextInput size="xs" style={{ width: "100%" }} value={item.name} aria-label="種別名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
             </div>
 
-            <div style={{ ...styles.cell, ...styles.shortCell }}>
-                <input value={item.shortName} onChange={(e) => update((x) => ({ ...x, shortName: e.target.value }))} style={{ width: "100%" }} />
-            </div>
+            <div className="tt-fields">
+                <div className="tt-field tt-field-short" style={{ ...styles.cell, ...styles.shortCell }}>
+                    <span className="tt-label">略称</span>
+                    <TextInput size="xs" value={item.shortName} aria-label="略称" onChange={(e) => update((x) => ({ ...x, shortName: e.currentTarget.value }))} />
+                </div>
 
-            <div style={{ ...styles.cell, ...styles.colorCell }}>
-                <input type="color" value={item.color || "#000000"} onChange={(e) => update((x) => ({ ...x, color: e.target.value }))} />
-            </div>
+                <div className="tt-field tt-field-color" style={{ ...styles.cell, ...styles.colorCell }}>
+                    <span className="tt-label">色</span>
+                    <ColorCell color={item.color} onCommit={(color) => update((x) => ({ ...x, color }))} />
+                </div>
 
-            <div style={{ ...styles.cell, ...styles.chkCell }}>
-                <input type="checkbox" checked={item.fontBold} onChange={(e) => update((x) => ({ ...x, fontBold: e.target.checked }))} />
-            </div>
+                <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
+                    <span className="tt-label">太字</span>
+                    <Checkbox size="sm" checked={item.fontBold} aria-label="太字" onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
+                </label>
 
-            <div style={{ ...styles.cell, ...styles.chkCell }}>
-                <input type="checkbox" checked={item.lineBold} onChange={(e) => update((x) => ({ ...x, lineBold: e.target.checked }))} />
-            </div>
+                <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
+                    <span className="tt-label">線太</span>
+                    <Checkbox size="sm" checked={item.lineBold} aria-label="線太" onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
+                </label>
 
-            <div style={{ ...styles.cell, ...styles.styleCell }}>
-                <select value={item.lineStyle ?? 0} onChange={(e) => update((x) => ({ ...x, lineStyle: Number(e.target.value) }))} style={{ width: "100%" }}>
-                    <option value={0}>実線</option>
-                    <option value={1}>破線</option>
-                    <option value={2}>点線</option>
-                </select>
+                <div className="tt-field" style={{ ...styles.cell, ...styles.styleCell }}>
+                    <span className="tt-label">線種</span>
+                    <NativeSelect
+                        size="xs"
+                        value={String(item.lineStyle ?? 0)}
+                        aria-label="線種"
+                        onChange={(e) => update((x) => ({ ...x, lineStyle: Number(e.currentTarget.value) }))}
+                        data={[
+                            { value: "0", label: "実線" },
+                            { value: "1", label: "破線" },
+                            { value: "2", label: "点線" },
+                        ]}
+                    />
+                </div>
             </div>
         </div>
     );
@@ -308,7 +316,7 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
     }
 
     return (
-        <>
+        <div className="train-type-list">
             <IndexedListComponent<TrainTypeDto>
                 routeId={routeId}
                 items={items}
@@ -344,6 +352,6 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
                 AppendRowComponent={<AppendTrainTypeRow routeId={routeId} itemCount={items.length} />}
             />
             {deleteAsk && <DeleteTrainTypeDialog tripCount={deleteAsk.tripCount} candidates={deleteAsk.candidates} onChoose={deleteAsk.resolve} />}
-        </>
+        </div>
     );
 }

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useSyncExternalStore } from "react";
+import { ActionIcon, Alert, Button, FileButton, Group, Menu, Table, Text, TextInput, Title, Container } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import {
     createRoute,
@@ -12,7 +13,7 @@ import {
     subscribe,
 } from "../store/localStore.ts";
 import { createSampleRoute } from "../sampleData.ts";
-import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
+import { HelpDialog, HelpList, HelpSection } from "../components/HelpDialog.tsx";
 
 /**
  * テキストをファイルとしてダウンロードさせます。
@@ -45,8 +46,8 @@ export default function RouteListPage() {
     const [newName, setNewName] = useState("");
     const [error, setError] = useState<string | null>(null);
 
-    const routeFileRef = useRef<HTMLInputElement | null>(null);
-    const allFileRef = useRef<HTMLInputElement | null>(null);
+    const routeFileReset = useRef<() => void>(null);
+    const allFileReset = useRef<() => void>(null);
     const [helpOpen, setHelpOpen] = useState(false);
 
     /**
@@ -117,7 +118,7 @@ export default function RouteListPage() {
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
-            if (routeFileRef.current) routeFileRef.current.value = "";
+            routeFileReset.current?.();
         }
     }
 
@@ -128,7 +129,7 @@ export default function RouteListPage() {
      */
     async function onImportAll(file: File) {
         if (!confirm("既存の全データを置き換えます。よろしいですか？")) {
-            if (allFileRef.current) allFileRef.current.value = "";
+            allFileReset.current?.();
             return;
         }
         setError(null);
@@ -138,98 +139,121 @@ export default function RouteListPage() {
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
-            if (allFileRef.current) allFileRef.current.value = "";
+            allFileReset.current?.();
         }
     }
 
     return (
-        <div style={{ maxWidth: 860, margin: "24px auto", padding: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h1>路線一覧</h1>
-                <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
+        <Container size="md" py="md" px="sm" style={{ overflow: "auto", height: "100%" }}>
+            <Group justify="space-between" wrap="nowrap" mb="xs">
+                <Title order={2}>路線一覧</Title>
+                <ActionIcon variant="light" radius="xl" onClick={() => setHelpOpen(true)} aria-label="ヘルプ" title="ヘルプ">
                     ？
-                </button>
-            </div>
-            <p style={{ color: "#666", fontSize: 13 }}>
+                </ActionIcon>
+            </Group>
+            <Text size="xs" c="dimmed" mb="sm">
                 データはこの端末のブラウザ内（ローカルストレージ）にのみ保存されます。他の端末に移す場合は「エクスポート」でファイルを書き出し、その端末で「インポート」してください。
-            </p>
+            </Text>
 
-            <form onSubmit={onCreate} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <input
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="新しい路線名（例：山手線）"
-                    style={{ padding: 10, fontSize: 16, flex: 1 }}
-                />
-                <button type="submit">＋ 新規作成</button>
-                <button type="button" onClick={onLoadSample}>
-                    サンプルダイヤを読み込む（神戸電鉄粟生線）
-                </button>
+            <form onSubmit={onCreate}>
+                <Group gap="xs" wrap="nowrap" mb="xs">
+                    <TextInput
+                        value={newName}
+                        onChange={(e) => setNewName(e.currentTarget.value)}
+                        placeholder="新しい路線名（例：山手線）"
+                        style={{ flex: 1 }}
+                        aria-label="新しい路線名"
+                    />
+                    <Button type="submit">＋ 新規作成</Button>
+                </Group>
             </form>
 
-            <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-                <button onClick={onExportAll}>全データをエクスポート</button>
-                <button onClick={() => allFileRef.current?.click()}>全データを復元（置換）</button>
-                <input
-                    ref={allFileRef}
-                    type="file"
-                    accept="application/json"
-                    style={{ display: "none" }}
-                    onChange={(e) => e.target.files?.[0] && onImportAll(e.target.files[0])}
-                />
-                <button onClick={() => routeFileRef.current?.click()}>路線をインポート</button>
-                <input
-                    ref={routeFileRef}
-                    type="file"
-                    accept="application/json"
-                    style={{ display: "none" }}
-                    onChange={(e) => e.target.files?.[0] && onImportRoute(e.target.files[0])}
-                />
-            </div>
+            <Group gap="xs" mb="md">
+                <Button variant="light" size="compact-sm" onClick={onLoadSample}>
+                    サンプルダイヤを読み込む（神戸電鉄粟生線）
+                </Button>
+                <Button variant="default" size="compact-sm" onClick={onExportAll}>
+                    全データをエクスポート
+                </Button>
+                <FileButton resetRef={allFileReset} accept="application/json" onChange={(file) => file && onImportAll(file)}>
+                    {(props) => (
+                        <Button variant="default" size="compact-sm" {...props}>
+                            全データを復元（置換）
+                        </Button>
+                    )}
+                </FileButton>
+                <FileButton resetRef={routeFileReset} accept="application/json" onChange={(file) => file && onImportRoute(file)}>
+                    {(props) => (
+                        <Button variant="default" size="compact-sm" {...props}>
+                            路線をインポート
+                        </Button>
+                    )}
+                </FileButton>
+            </Group>
 
-            {error && <div style={{ color: "crimson", marginBottom: 12, whiteSpace: "pre-wrap" }}>{error}</div>}
+            {error && (
+                <Alert color="red" mb="sm" style={{ whiteSpace: "pre-wrap" }}>
+                    {error}
+                </Alert>
+            )}
 
             {routes.length === 0 ? (
-                <div style={{ padding: 24, color: "#666", textAlign: "center", border: "1px dashed #ddd", borderRadius: 8 }}>
+                <Text c="dimmed" ta="center" p="xl" style={{ border: "1px dashed var(--mantine-color-gray-4)", borderRadius: 8 }}>
                     路線がありません。上のフォームから新規作成してください。
-                </div>
+                </Text>
             ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                        <tr>
-                            <th style={th}>路線名</th>
-                            <th style={th}>駅数</th>
-                            <th style={th}>種別数</th>
-                            <th style={th}>列車数</th>
-                            <th style={th}>最終更新</th>
-                            <th style={th}></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                <Table verticalSpacing={6} horizontalSpacing="xs" highlightOnHover fz="sm">
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>路線名</Table.Th>
+                            <Table.Th>駅数</Table.Th>
+                            <Table.Th visibleFrom="sm">種別数</Table.Th>
+                            <Table.Th>列車数</Table.Th>
+                            <Table.Th visibleFrom="sm">最終更新</Table.Th>
+                            <Table.Th />
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
                         {routes.map((r) => (
-                            <tr key={r.id}>
-                                <td style={{ ...td, cursor: "pointer", fontWeight: 600 }} onClick={() => nav(`/route/${r.id}`)}>
+                            <Table.Tr key={r.id}>
+                                <Table.Td fw={600} style={{ cursor: "pointer" }} onClick={() => nav(`/route/${r.id}`)}>
                                     {r.name}
-                                </td>
-                                <td style={td}>{r.stationCount}</td>
-                                <td style={td}>{r.trainTypeCount}</td>
-                                <td style={td}>{r.tripCount}</td>
-                                <td style={td}>{formatDate(r.updatedAt)}</td>
-                                <td style={{ ...td, whiteSpace: "nowrap" }}>
-                                    <button onClick={() => onExportRoute(r.id, r.name)} style={btnSmall}>
-                                        書き出し
-                                    </button>
-                                    <button onClick={() => onDuplicate(r.id)} style={btnSmall}>
-                                        複製
-                                    </button>
-                                    <button onClick={() => onDelete(r.id, r.name)} style={{ ...btnSmall, color: "crimson" }}>
-                                        削除
-                                    </button>
-                                </td>
-                            </tr>
+                                </Table.Td>
+                                <Table.Td>{r.stationCount}</Table.Td>
+                                <Table.Td visibleFrom="sm">{r.trainTypeCount}</Table.Td>
+                                <Table.Td>{r.tripCount}</Table.Td>
+                                <Table.Td visibleFrom="sm">{formatDate(r.updatedAt)}</Table.Td>
+                                <Table.Td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                                    <Group gap={4} justify="flex-end" wrap="nowrap" visibleFrom="sm">
+                                        <Button variant="default" size="compact-xs" onClick={() => onExportRoute(r.id, r.name)}>
+                                            書き出し
+                                        </Button>
+                                        <Button variant="default" size="compact-xs" onClick={() => onDuplicate(r.id)}>
+                                            複製
+                                        </Button>
+                                        <Button variant="default" color="red" c="red" size="compact-xs" onClick={() => onDelete(r.id, r.name)}>
+                                            削除
+                                        </Button>
+                                    </Group>
+                                    <Menu position="bottom-end" withinPortal>
+                                        <Menu.Target>
+                                            <ActionIcon variant="subtle" color="gray" hiddenFrom="sm" aria-label="操作">
+                                                ⋮
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Item onClick={() => onExportRoute(r.id, r.name)}>書き出し</Menu.Item>
+                                            <Menu.Item onClick={() => onDuplicate(r.id)}>複製</Menu.Item>
+                                            <Menu.Item color="red" onClick={() => onDelete(r.id, r.name)}>
+                                                削除
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Table.Td>
+                            </Table.Tr>
                         ))}
-                    </tbody>
-                </table>
+                    </Table.Tbody>
+                </Table>
             )}
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="路線一覧 - ヘルプ">
@@ -246,28 +270,11 @@ export default function RouteListPage() {
                     />
                 </HelpSection>
                 <HelpSection title="データの保存について">
-                    <p style={{ fontSize: 13, color: "#666", margin: 0 }}>
+                    <Text size="sm" c="dimmed">
                         データはこの端末のブラウザ内（localStorage）にのみ保存されます。サーバーには送信されません。端末やブラウザを変える場合は「全データをエクスポート」でファイルに書き出し、新しい環境で「全データを復元」してください。
-                    </p>
+                    </Text>
                 </HelpSection>
             </HelpDialog>
-        </div>
+        </Container>
     );
 }
-
-const th: React.CSSProperties = {
-    textAlign: "left",
-    borderBottom: "1px solid #ccc",
-    padding: "8px 6px",
-};
-
-const td: React.CSSProperties = {
-    borderBottom: "1px solid #eee",
-    padding: "8px 6px",
-};
-
-const btnSmall: React.CSSProperties = {
-    padding: "4px 8px",
-    fontSize: 12,
-    marginLeft: 6,
-};

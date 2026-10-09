@@ -1,3 +1,4 @@
+import { TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
 import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
@@ -87,48 +88,54 @@ function AppendComponent({ routeId, stationCount }: { routeId: number; stationCo
     }
 
     return (
-        <div style={{ ...styles.row, background: "#f0fff4" }}>
-            <div style={{ ...styles.cell, ...styles.nameCell }}>
-                <input
+        <div className="station-row" style={{ ...styles.row, background: "#f0fff4" }}>
+            <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
+                <TextInput
                     ref={newInputRef}
                     value={newName}
                     placeholder="駅名を入力して Enter"
-                    onChange={(e) => setNewName(e.target.value)}
+                    aria-label="駅名"
+                    onChange={(e) => setNewName(e.currentTarget.value)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter") {
                             e.preventDefault();
                             createStationByName(newName);
                         }
                     }}
-                    style={{ padding: 10, fontSize: 16, width: "calc(100% - 20px)" }}
                 />
             </div>
 
-            <ShowStyleComponent bits={4} disabled={true} />
-            <ShowStyleComponent bits={4} disabled={true} />
+            <div className="station-blocks station-append-blocks">
+                <ShowStyleComponent bits={4} disabled={true} />
+                <ShowStyleComponent bits={4} disabled={true} />
+            </div>
         </div>
     );
 }
 
 function StationHeaderComponent() {
     return (
-        <div style={{ display: "flex", border: "1px solid #ddd" }}>
-            <div style={{ ...styles.row, ...styles.headRow }}>
-                <div style={{ ...styles.cell, ...styles.nameCell }}>駅名</div>
-                <div style={{ ...styles.cell, ...styles.blockCell }}>
-                    <div style={styles.blockTitle}>下り</div>
-                    <div style={styles.checkGridHead}>
-                        <span>着</span>
-                        <span>番線</span>
-                        <span>発</span>
-                    </div>
+        <div className="station-header" style={{ display: "flex", border: "1px solid #ddd" }}>
+            <div className="station-row" style={{ ...styles.row, ...styles.headRow }}>
+                <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
+                    駅名
                 </div>
-                <div style={{ ...styles.cell, ...styles.blockCell }}>
-                    <div style={styles.blockTitle}>上り</div>
-                    <div style={styles.checkGridHead}>
-                        <span>着</span>
-                        <span>番線</span>
-                        <span>発</span>
+                <div className="station-blocks">
+                    <div style={{ ...styles.cell, ...styles.blockCell }}>
+                        <div style={styles.blockTitle}>下り</div>
+                        <div className="station-check-head" style={styles.checkGridHead}>
+                            <span>着</span>
+                            <span>番線</span>
+                            <span>発</span>
+                        </div>
+                    </div>
+                    <div style={{ ...styles.cell, ...styles.blockCell }}>
+                        <div style={styles.blockTitle}>上り</div>
+                        <div className="station-check-head" style={styles.checkGridHead}>
+                            <span>着</span>
+                            <span>番線</span>
+                            <span>発</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -147,19 +154,30 @@ function StationHeaderComponent() {
 function StationRowComponent({ item, isSelected, onMouseDown, update }: RowRenderProps<StationDto>) {
     return (
         <div
+            className="station-row"
             onMouseDown={onMouseDown}
             style={{
                 ...styles.row,
                 background: isSelected ? "#e6f2ff" : undefined,
             }}
         >
-            <div style={{ ...styles.cell, ...styles.nameCell }}>
+            <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
                 <div>{item.name}</div>
                 <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
             </div>
 
-            <ShowStyleComponent bits={getDirectStyle(item.showStyle, 0)} onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))} />
-            <ShowStyleComponent bits={getDirectStyle(item.showStyle, 1)} onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))} />
+            <div className="station-blocks">
+                <ShowStyleComponent
+                    title="下り"
+                    bits={getDirectStyle(item.showStyle, 0)}
+                    onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))}
+                />
+                <ShowStyleComponent
+                    title="上り"
+                    bits={getDirectStyle(item.showStyle, 1)}
+                    onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))}
+                />
+            </div>
         </div>
     );
 }
@@ -173,18 +191,20 @@ export default function StationListPage({ routeId }: { routeId: number }) {
     const stations = useSyncExternalStore(subscribe, () => getRoute(routeId)?.stations ?? EMPTY_STATIONS);
 
     return (
-        <IndexedListComponent<StationDto>
-            routeId={routeId}
-            items={stations}
-            onUpdate={(item) => timetableApi.updateStation(routeId, item)}
-            onInsert={(position, dtos) => timetableApi.insertStations(routeId, position, dtos)}
-            onRemove={(ids) => timetableApi.deleteStations(routeId, ids)}
-            createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: DEFAULT_SHOW_STYLE })}
-            toClip={(s) => s}
-            fromClip={(c, routeId, index) => ({ id: 0, name: c.name, routeID: routeId, index, showStyle: c.showStyle })}
-            HeaderComponent={StationHeaderComponent}
-            RowComponent={StationRowComponent}
-            AppendRowComponent={<AppendComponent routeId={routeId} stationCount={stations.length} />}
-        />
+        <div className="station-list">
+            <IndexedListComponent<StationDto>
+                routeId={routeId}
+                items={stations}
+                onUpdate={(item) => timetableApi.updateStation(routeId, item)}
+                onInsert={(position, dtos) => timetableApi.insertStations(routeId, position, dtos)}
+                onRemove={(ids) => timetableApi.deleteStations(routeId, ids)}
+                createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: DEFAULT_SHOW_STYLE })}
+                toClip={(s) => s}
+                fromClip={(c, routeId, index) => ({ id: 0, name: c.name, routeID: routeId, index, showStyle: c.showStyle })}
+                HeaderComponent={StationHeaderComponent}
+                RowComponent={StationRowComponent}
+                AppendRowComponent={<AppendComponent routeId={routeId} stationCount={stations.length} />}
+            />
+        </div>
     );
 }

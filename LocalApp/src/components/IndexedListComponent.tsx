@@ -340,7 +340,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
 
     return (
         <div>
-            <div ref={listRef} tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none", width: "fit-content" }}>
+            <div className="indexed-list" ref={listRef} tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none", width: "fit-content" }}>
                 <HeaderComponent />
                 {ordered.map((item) => (
                     <RowComponent

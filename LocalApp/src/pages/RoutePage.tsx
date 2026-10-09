@@ -3,7 +3,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import TrainTypeListPage from "./TrainTypeListPage.tsx";
 import { useState, useSyncExternalStore } from "react";
 import { getRoute, renameRoute, subscribe } from "../store/localStore.ts";
-import { HelpDialog, HelpList, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
+import { ActionIcon, Box, Button, Container, Group, Stack, Text, TextInput, Title } from "@mantine/core";
+import { HelpDialog, HelpList, HelpSection, HelpShortcutTable } from "../components/HelpDialog.tsx";
+
+/** 画面遷移ボタンの文字を、狭い画面では折り返して全文を表示する */
+const navButtonStyles = { root: { height: "auto", minHeight: 36, padding: "6px 8px" }, label: { whiteSpace: "normal", textAlign: "center" } } as const;
 
 export function RoutePage() {
     const urlParams = useParams<{ routeId: string }>();
@@ -15,46 +19,64 @@ export function RoutePage() {
 
     if (!route) {
         return (
-            <div style={{ maxWidth: 1000, margin: "24px auto", padding: 16 }}>
+            <Container size="md" py="md">
                 路線が見つかりません。
-                <button onClick={() => nav("/")} style={{ marginLeft: 8 }}>
+                <Button variant="default" size="compact-sm" ml="xs" onClick={() => nav("/")}>
                     路線一覧へ戻る
-                </button>
-            </div>
+                </Button>
+            </Container>
         );
     }
 
     return (
-        <div style={{ overflow: "auto", height: "100%" }}>
-            <div style={{ maxWidth: 1000, margin: "24px auto", padding: "16px 16px 0" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <button onClick={() => nav("/")}>← 路線一覧へ</button>
-                    <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
-                        ？
-                    </button>
-                </div>
-                <h1 style={{ marginBottom: 4 }}>
-                    <input
-                        value={route.name}
-                        onChange={(e) => renameRoute(routeId, e.target.value)}
-                        style={{ fontSize: "1.5rem", fontWeight: 700, border: "1px solid transparent", padding: 4, width: "100%", boxSizing: "border-box" }}
-                    />
-                </h1>
-            </div>
+        <Box style={{ overflow: "auto", height: "100%" }}>
+            <Container size="md" pt="md" pb={72} px="sm">
+                <Stack gap="lg">
+                    <div>
+                        <Group justify="space-between" wrap="nowrap" mb="xs">
+                            <Button variant="default" size="compact-sm" onClick={() => nav("/")}>
+                                ← 路線一覧へ
+                            </Button>
+                            <ActionIcon variant="light" radius="xl" onClick={() => setHelpOpen(true)} aria-label="ヘルプ" title="ヘルプ">
+                                ？
+                            </ActionIcon>
+                        </Group>
+                        <TextInput
+                            value={route.name}
+                            onChange={(e) => renameRoute(routeId, e.currentTarget.value)}
+                            aria-label="路線名"
+                            variant="unstyled"
+                            styles={{ input: { fontSize: "1.5rem", fontWeight: 700, height: "auto", paddingInline: 4 } }}
+                        />
+                    </div>
 
-            <div style={{ maxWidth: 1000, margin: "24px auto", padding: 16 }}>
-                <h2>駅編集</h2>
-                <StationListPage routeId={routeId} />
-            </div>
-            <div style={{ maxWidth: 1000, margin: "24px auto", padding: 16 }}>
-                <h2>種別編集</h2>
-                <TrainTypeListPage routeId={routeId} />
-            </div>
-            <div style={{ maxWidth: 1000, margin: "24px auto", padding: 16, display: "flex", gap: 12 }}>
-                <button onClick={() => nav(`/route/${routeId}/timetable/0`)}>下り時刻表</button>
-                <button onClick={() => nav(`/route/${routeId}/timetable/1`)}>上り時刻表</button>
-                <button onClick={() => nav(`/route/${routeId}/diagram`)}>ダイヤグラム</button>
-            </div>
+                    <section>
+                        <Title order={3} mb="xs">
+                            駅編集
+                        </Title>
+                        <StationListPage routeId={routeId} />
+                    </section>
+
+                    <section>
+                        <Title order={3} mb="xs">
+                            種別編集
+                        </Title>
+                        <TrainTypeListPage routeId={routeId} />
+                    </section>
+
+                    <Group gap="xs" grow wrap="nowrap">
+                        <Button variant="light" styles={navButtonStyles} onClick={() => nav(`/route/${routeId}/timetable/0`)}>
+                            下り時刻表
+                        </Button>
+                        <Button variant="light" styles={navButtonStyles} onClick={() => nav(`/route/${routeId}/timetable/1`)}>
+                            上り時刻表
+                        </Button>
+                        <Button variant="light" styles={navButtonStyles} onClick={() => nav(`/route/${routeId}/diagram`)}>
+                            ダイヤグラム
+                        </Button>
+                    </Group>
+                </Stack>
+            </Container>
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="路線編集 - ヘルプ">
                 <HelpSection title="このページでできること">
@@ -68,9 +90,9 @@ export function RoutePage() {
                     />
                 </HelpSection>
                 <HelpSection title="駅一覧・列車種別一覧の操作">
-                    <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
+                    <Text size="sm" c="dimmed" mb="xs">
                         一番下の緑色の行に名前を入力してEnterを押すと新しい行が追加されます。行をクリックすると選択され、入力欄や色・チェックボックスはクリックでそのまま編集できます。
-                    </p>
+                    </Text>
                     <HelpShortcutTable
                         rows={[
                             ["クリック", "その行を選択（選択中の行を再クリックで選択解除）"],
@@ -84,11 +106,11 @@ export function RoutePage() {
                     />
                 </HelpSection>
                 <HelpSection title="保存について">
-                    <p style={{ fontSize: 13, color: "#666", margin: 0 }}>
-                        駅名・入力欄などへの変更は「変更を保存」ボタンを押すまで確定しません。「再読み込み」で未保存の変更を取り消せます。追加・削除・並び替えは即時に反映されます。
-                    </p>
+                    <Text size="sm" c="dimmed">
+                        駅名・種別名・チェックボックスなど、すべての変更は入力と同時に自動で保存されます（保存ボタンはありません）。
+                    </Text>
                 </HelpSection>
             </HelpDialog>
-        </div>
+        </Box>
     );
 }

@@ -100,3 +100,173 @@
     background: #ccc;
     margin: 10px auto 4px;
 }
+
+/* 駅編集：PC幅では1駅を1行(駅名＋下り/上りの着・番線・発)で表示し、狭い画面では駅名の行とチェックボックスの行に分ける */
+.station-blocks {
+    display: contents;
+}
+
+/* 方向名・チェックボックスのラベルはPC幅では見出し行があるので隠し、狭い画面でだけ各駅に表示する */
+.show-style-title,
+.show-style-label {
+    display: none;
+}
+
+@media (max-width: 780px) {
+    .station-list .indexed-list {
+        width: 100% !important;
+    }
+
+    .station-row {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .station-row .station-name {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid #eee;
+    }
+
+    .station-row .station-blocks {
+        display: flex;
+        width: 100%;
+    }
+
+    .station-row .station-blocks > * {
+        flex: 1 1 0;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        justify-content: center;
+    }
+
+    /* 各駅にラベルが付くので、狭い画面では列見出しの行は不要 */
+    .station-list .station-header {
+        display: none !important;
+    }
+
+    .show-style {
+        padding: 6px 8px !important;
+    }
+
+    .show-style-title {
+        display: block;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+    }
+
+    /* ラベルごとタップできるよう、セルを縦並び(チェックボックス＋ラベル)にして大きくする */
+    .show-style-cell {
+        flex-direction: column;
+        gap: 4px;
+        width: auto !important;
+        height: auto !important;
+        padding: 6px 0;
+        cursor: pointer;
+    }
+
+    .show-style-label {
+        display: block;
+        font-size: 12px;
+        color: #444;
+        white-space: nowrap;
+    }
+
+    /* 追加行の無効なチェックボックスは、狭い画面では省略して駅名入力欄だけにする */
+    .station-row .station-append-blocks {
+        display: none;
+    }
+}
+
+/* 列車種別編集：PC幅では1種別を1行で表示し、狭い画面では種別名の行と、ラベル付きの設定項目の行に分ける */
+.tt-fields {
+    display: contents;
+}
+
+.tt-label {
+    display: none;
+}
+
+@media (max-width: 780px) {
+    .train-type-list .indexed-list {
+        width: 100% !important;
+    }
+
+    /* 各項目にラベルが付くので、列見出しの行は不要 */
+    .train-type-list .tt-header {
+        display: none !important;
+    }
+
+    .tt-row {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .tt-row .tt-name {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        border-right: none !important;
+        border-bottom: 1px solid #eee;
+    }
+
+    /* 略称(2列分)・色 / 太字・線太・線種 の2段のグリッドにする */
+    .tt-row .tt-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        width: 100%;
+    }
+
+    .tt-row .tt-name,
+    .tt-row .tt-field {
+        padding: 4px 8px !important;
+    }
+
+    .tt-row .tt-field {
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        flex-direction: column;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        gap: 4px;
+    }
+
+    .tt-row .tt-field-short {
+        grid-column: span 2;
+    }
+
+    .tt-row .tt-field-short input {
+        box-sizing: border-box;
+    }
+
+    .tt-row .tt-field input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        margin: 0;
+    }
+
+    .tt-row .tt-field input[type="color"] {
+        width: 44px;
+        height: 30px;
+        padding: 0;
+    }
+
+    .tt-label {
+        display: block;
+        font-size: 12px;
+        color: #444;
+        white-space: nowrap;
+    }
+
+    /* 追加行の「-」は、狭い画面では省略して種別名の入力欄だけにする */
+    .tt-row .tt-append-fields {
+        display: none;
+    }
+}

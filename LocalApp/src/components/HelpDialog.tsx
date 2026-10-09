@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
+import { Box, List, Modal, Table, Text } from "@mantine/core";
 
 /**
  * 各ページ共通のヘルプダイアログ。そのページでできる操作とショートカットキーを表示する。
@@ -9,60 +10,10 @@ import React, { useEffect } from "react";
 export function HelpDialog(props: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
     const { open, onClose, title, children } = props;
 
-    // ヘルプを開くボタン自体にフォーカスが残っている場合でもEscapeで閉じられるよう、
-    // キー監視はダイアログ内のdivではなくdocumentレベルで行う。
-    useEffect(() => {
-        if (!open) return;
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                e.preventDefault();
-                onClose();
-            }
-        };
-        document.addEventListener("keydown", onKeyDown);
-        return () => document.removeEventListener("keydown", onKeyDown);
-    }, [open, onClose]);
-
-    if (!open) return null;
-
     return (
-        <div
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget) onClose();
-            }}
-            style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.35)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 9999,
-            }}
-        >
-            <div
-                onMouseDown={(e) => e.stopPropagation()}
-                style={{
-                    width: 480,
-                    maxWidth: "calc(100vw - 32px)",
-                    maxHeight: "calc(100vh - 64px)",
-                    background: "#fff",
-                    borderRadius: 10,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-                    padding: 16,
-                    display: "flex",
-                    flexDirection: "column",
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <div style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
-                    <button onClick={onClose} style={{ padding: "4px 10px" }}>
-                        閉じる
-                    </button>
-                </div>
-                <div style={{ overflow: "auto" }}>{children}</div>
-            </div>
-        </div>
+        <Modal opened={open} onClose={onClose} title={title} centered size="md" styles={{ title: { fontWeight: 700 } }}>
+            {children}
+        </Modal>
     );
 }
 
@@ -73,10 +24,12 @@ export function HelpDialog(props: { open: boolean; onClose: () => void; title: s
  */
 export function HelpSection(props: { title: string; children: React.ReactNode }) {
     return (
-        <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#444", marginBottom: 6 }}>{props.title}</div>
+        <Box mb="md">
+            <Text fw={700} size="sm" c="dimmed" mb={4}>
+                {props.title}
+            </Text>
             {props.children}
-        </div>
+        </Box>
     );
 }
 
@@ -87,11 +40,11 @@ export function HelpSection(props: { title: string; children: React.ReactNode })
  */
 export function HelpList(props: { items: React.ReactNode[] }) {
     return (
-        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.7 }}>
+        <List size="sm" spacing={4}>
             {props.items.map((item, i) => (
-                <li key={i}>{item}</li>
+                <List.Item key={i}>{item}</List.Item>
             ))}
-        </ul>
+        </List>
     );
 }
 
@@ -102,28 +55,18 @@ export function HelpList(props: { items: React.ReactNode[] }) {
  */
 export function HelpShortcutTable(props: { rows: [string, string][] }) {
     return (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <tbody>
+        <Table verticalSpacing={4} horizontalSpacing="xs" fz="sm" withRowBorders>
+            <Table.Tbody>
                 {props.rows.map(([key, desc]) => (
-                    <tr key={key}>
-                        <td
-                            style={{
-                                padding: "4px 10px 4px 0",
-                                fontFamily: "ui-monospace, Consolas, monospace",
-                                whiteSpace: "nowrap",
-                                verticalAlign: "top",
-                                color: "#0f5b8a",
-                                fontWeight: 600,
-                                borderBottom: "1px solid #f0f0f0",
-                            }}
-                        >
+                    <Table.Tr key={key}>
+                        <Table.Td ff="monospace" fw={600} c="brand" style={{ whiteSpace: "nowrap", verticalAlign: "top" }}>
                             {key}
-                        </td>
-                        <td style={{ padding: "4px 0", borderBottom: "1px solid #f0f0f0" }}>{desc}</td>
-                    </tr>
+                        </Table.Td>
+                        <Table.Td>{desc}</Table.Td>
+                    </Table.Tr>
                 ))}
-            </tbody>
-        </table>
+            </Table.Tbody>
+        </Table>
     );
 }
 
