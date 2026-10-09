@@ -4,6 +4,11 @@
     height: 100%;
 }
 
+:root {
+    /* スマホ用時刻表キーパッドの高さ(キーパッド本体/グリッドの高さ確保/下部メニューの位置調整の3箇所で共有) */
+    --rt-keypad-h: 208px;
+}
+
 /* 狭い画面(モバイル想定)では左の路線ツリーを隠し、各ページ内のナビゲーションボタンに任せる */
 @media (max-width: 780px) {
     .route-tree-sidebar {
@@ -44,6 +49,49 @@
         border: none;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
         font-weight: 600;
+    }
+
+    /* 時刻表画面のスマホ用キーパッド表示中は、下部メニューのボタン/スワイプ検知帯をキーパッドの上にずらす */
+    body.rt-keypad-active .mobile-menu-edge {
+        bottom: var(--rt-keypad-h);
+    }
+    body.rt-keypad-active .mobile-menu-fab {
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px) + var(--rt-keypad-h));
+    }
+}
+
+/* スマホ用時刻表キーパッド：PC幅(780px以上)では非表示 */
+.rt-keypad {
+    display: none;
+}
+
+@media (max-width: 780px) {
+    .rt-keypad {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 4px;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: var(--rt-keypad-h);
+        padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+        background: #f0f0f0;
+        border-top: 1px solid #ccc;
+        box-sizing: border-box;
+        z-index: 900;
+    }
+}
+
+/* グリッドの描画領域からスマホ用キーパッド分の高さを確保する(時刻表画面側でこのクラスを付与) */
+.rt-grid-scroll {
+    height: calc(100% - 46px);
+}
+
+@media (max-width: 780px) {
+    .rt-grid-scroll {
+        height: calc(100% - 46px - var(--rt-keypad-h));
     }
 }
 
