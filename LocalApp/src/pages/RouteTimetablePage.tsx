@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { decodeShowStyle, getDirectStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
@@ -17,6 +17,7 @@ import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
 import { HelpDialog, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
+import { MobileTimetableKeypad } from "../components/MobileTimetableKeypad.tsx";
 
 /** 列車の種別が見つからないとき（プレースホルダ列など）に使う既定の種別。毎回同じ参照にして再描画を避ける */
 const FALLBACK_TRAIN_TYPE: TrainTypeDto = { color: "#000", shortName: "", routeID: 0, name: "", fontBold: false, lineStyle: 0, index: 0, lineBold: false, id: 0 };
@@ -62,6 +63,12 @@ export default function RouteTimetablePage() {
     // 列の仮想化：表示範囲付近の列だけ描画する
     const colWindow = useColumnWindow(scrollRef, colsRef, trips.length, COLUMN_WIDTH, columnsActive);
     useAutoScrollCursor(scrollRef, nav.cursor, { colsRef, width: COLUMN_WIDTH, stickyLeft: STATION_NAME_WIDTH + LINE_HEIGHT });
+
+    // スマホ用キーパッド表示中は、下部メニューのFAB/スワイプ検知帯をキーパッドの上にずらす(App.css側で参照)
+    useEffect(() => {
+        document.body.classList.add("rt-keypad-active");
+        return () => document.body.classList.remove("rt-keypad-active");
+    }, []);
 
     const focusGrid = useCallback(() => {
         scrollRef.current?.focus();
@@ -301,6 +308,7 @@ export default function RouteTimetablePage() {
             </div>
             <div
                 ref={scrollRef}
+                className="rt-grid-scroll"
                 tabIndex={0}
                 onKeyDown={(e) => {
                     const ev: KeyLike = {
@@ -321,7 +329,6 @@ export default function RouteTimetablePage() {
                     keyEventQueue.push(() => keyEvent(ev));
                 }}
                 style={{
-                    height: "calc(100% - 46px)",
                     outline: "none",
                     overflow: "auto",
                     background: "#fff",
@@ -371,6 +378,7 @@ export default function RouteTimetablePage() {
                     </div>
                 </div>
             </div>
+            <MobileTimetableKeypad gridRef={scrollRef} continuousEnabled={cont.state.enabled} />
             <StopTimeEditDialog
                 state={editState}
                 stationName={editTarget.stationName}
@@ -425,7 +433,7 @@ export default function RouteTimetablePage() {
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
                     <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
-                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。
+                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。スマホでは物理キーボードが無いため、画面下部に数字入力とショートカット操作用のキーパッドを表示します。
                     </p>
                 </HelpSection>
                 <HelpSection title="キーボードショートカット">
