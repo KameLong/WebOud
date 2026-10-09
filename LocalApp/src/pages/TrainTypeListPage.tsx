@@ -97,7 +97,7 @@ const COL = {
     name: 140,
     short: 70,
     color: 50,
-    chk: 40,
+    chk: 56,
     style: 100,
 };
 
@@ -250,12 +250,12 @@ function TrainTypeRowComponent({ item, isSelected, onMouseDown, update }: RowRen
 
                 <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
                     <span className="tt-label">太字</span>
-                    <Checkbox size="sm" checked={item.fontBold} aria-label="太字" onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
+                    <Checkbox size="md" checked={item.fontBold} aria-label="太字" onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
                 </label>
 
                 <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
                     <span className="tt-label">線太</span>
-                    <Checkbox size="sm" checked={item.lineBold} aria-label="線太" onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
+                    <Checkbox size="md" checked={item.lineBold} aria-label="線太" onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
                 </label>
 
                 <div className="tt-field" style={{ ...styles.cell, ...styles.styleCell }}>

@@ -106,9 +106,41 @@
     display: contents;
 }
 
+/* 駅編集：グレーの背景の上に、各駅を白いカードとして浮かせて並べる */
+.station-list .indexed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    background: #f1f3f5;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.station-list .station-row {
+    background: #fff;
+    border: none !important;
+    border-radius: 8px;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.station-list .station-header {
+    border: none !important;
+}
+
+.station-list .station-header .station-row {
+    background: transparent !important;
+    box-shadow: none;
+}
+
 /* 方向名・チェックボックスのラベルはPC幅では見出し行があるので隠し、狭い画面でだけ各駅に表示する */
 .show-style-title,
-.show-style-label {
+.show-style-label,
+.station-insert,
+.station-delete {
     display: none;
 }
 
@@ -143,22 +175,60 @@
         justify-content: center;
     }
 
+    /* 駅名の右側に削除ボタン */
+    .station-name-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .station-list .station-delete {
+        display: inline-flex;
+    }
+
+    /* 駅と駅の間の「駅を挿入」ボタン */
+    .station-list .station-insert {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 22px;
+    }
+
+    /* 挿入ボタンの帯が間隔を兼ねるので、カード間の隙間は詰める */
+    .station-list .indexed-list {
+        gap: 0;
+    }
+
+    .station-list .station-append-row {
+        margin-top: 8px;
+    }
+
     /* 各駅にラベルが付くので、狭い画面では列見出しの行は不要 */
     .station-list .station-header {
         display: none !important;
     }
 
+    /* 方向名（下り/上り）はチェックボックスの左に置いて、縦方向を詰める */
     .show-style {
-        padding: 6px 8px !important;
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px !important;
+    }
+
+    .show-style > :last-child {
+        flex: 1 1 0;
+        min-width: 0;
     }
 
     .show-style-title {
         display: block;
-        text-align: center;
+        flex: 0 0 auto;
         font-size: 13px;
         font-weight: 600;
         color: #333;
-        margin-bottom: 2px;
+        white-space: nowrap;
     }
 
     /* ラベルごとタップできるよう、セルを縦並び(チェックボックス＋ラベル)にして大きくする */

@@ -20,6 +20,10 @@ export type RowRenderProps<TItem> = {
     onMouseDown: (e: React.MouseEvent) => void;
     /** 行内の値を更新して即座にストアへ保存する */
     update: (updater: (x: TItem) => TItem) => void;
+    /** この行を（確認のうえ）削除する */
+    remove: () => void;
+    /** この行の手前に空の行を1件挿入する */
+    insertBefore: () => void;
 };
 
 /** IndexedListComponentのprops。データの読み書きと行/ヘッダーの描画を呼び出し側に委譲する */
@@ -185,9 +189,12 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
-    /** 選択中のアイテムを確認ダイアログ付きで削除し、カーソルを近傍の残存アイテムへ移動する(Delete/Backspace) */
-    async function deleteSelected() {
-        const ids = Array.from(selectedIds);
+    /**
+     * 指定した行を確認ダイアログ付きで削除し、カーソルを近傍の残存アイテムへ移動する
+     *
+     * @param ids 削除する行ID
+     */
+    async function deleteIds(ids: number[]) {
         if (ids.length === 0) return;
 
         const ok = confirmDelete ? await confirmDelete(ids) : confirm(`${ids.length}件削除しますか？`);
@@ -195,7 +202,8 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
 
         onRemove(ids);
 
-        const remaining = orderedIds.filter((id) => !selectedIds.has(id));
+        const idSet = new Set(ids);
+        const remaining = orderedIds.filter((id) => !idSet.has(id));
         const curIdx = cursorId != null ? orderedIds.indexOf(cursorId) : -1;
         const nextIdx = clamp(curIdx, 0, remaining.length - 1);
         const nextId = remaining.length ? remaining[nextIdx] : null;
@@ -203,6 +211,25 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         setSelectedIds(nextId ? new Set([nextId]) : new Set());
         setCursorId(nextId);
         setAnchorId(nextId);
+    }
+
+    /** 選択中のアイテムを削除する(Delete/Backspace) */
+    function deleteSelected() {
+        return deleteIds(Array.from(selectedIds));
+    }
+
+    /**
+     * 指定した行の手前に空のアイテムを1件挿入し、新規アイテムを選択状態にする
+     *
+     * @param id この行の手前に挿入する
+     */
+    function insertBeforeId(id: number) {
+        const position = Math.max(0, indexOfId(id));
+        const [created] = onInsert(position, [createEmpty(routeId, position)]);
+
+        setSelectedIds(new Set([created.id]));
+        setCursorId(created.id);
+        setAnchorId(created.id);
     }
 
     /** 選択中のアイテムをクリップボードへコピーし、カーソルを選択範囲の次の行へ進める(Ctrl+C) */
@@ -349,6 +376,8 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
                         isSelected={selectedIds.has(item.id)}
                         onMouseDown={makeRowMouseDown(item.id)}
                         update={(updater) => updateById(item.id, updater)}
+                        remove={() => void deleteIds([item.id])}
+                        insertBefore={() => insertBeforeId(item.id)}
                     />
                 ))}
 

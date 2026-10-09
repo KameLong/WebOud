@@ -53,7 +53,7 @@ export function ShowStyleComponent({ title, bits, disabled, onChangeBits, labels
                 {flags.map((flag, i) => (
                     <label key={flag} className="show-style-cell" style={chkCell}>
                         <Checkbox
-                            size="sm"
+                            size="md"
                             disabled={disabled}
                             checked={has(bits, flag)}
                             onChange={(e) => onChangeBits?.(set(bits, flag, e.currentTarget.checked))}

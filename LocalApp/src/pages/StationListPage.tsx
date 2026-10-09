@@ -1,4 +1,4 @@
-import { TextInput } from "@mantine/core";
+import { ActionIcon, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
 import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
@@ -88,7 +88,7 @@ function AppendComponent({ routeId, stationCount }: { routeId: number; stationCo
     }
 
     return (
-        <div className="station-row" style={{ ...styles.row, background: "#f0fff4" }}>
+        <div className="station-row station-append-row" style={{ ...styles.row, background: "#f0fff4" }}>
             <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
                 <TextInput
                     ref={newInputRef}
@@ -151,34 +151,59 @@ function StationHeaderComponent() {
  * @param onMouseDown 行のmousedownハンドラ（選択処理）
  * @param update 行の値を更新する関数（未保存変更として記録される）
  */
-function StationRowComponent({ item, isSelected, onMouseDown, update }: RowRenderProps<StationDto>) {
+function StationRowComponent({ item, isSelected, onMouseDown, update, remove, insertBefore }: RowRenderProps<StationDto>) {
     return (
-        <div
-            className="station-row"
-            onMouseDown={onMouseDown}
-            style={{
-                ...styles.row,
-                background: isSelected ? "#e6f2ff" : undefined,
-            }}
-        >
-            <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
-                <div>{item.name}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>#{item.index}</div>
-            </div>
+        <>
+            {/* スマホ幅のみ：駅と駅の間に「駅を挿入」ボタン */}
+            {item.index > 0 && (
+                <div className="station-insert">
+                    <ActionIcon variant="light" size="sm" radius="xl" onClick={insertBefore} aria-label={`${item.name}の手前に駅を挿入`} title="ここに駅を挿入">
+                        ＋
+                    </ActionIcon>
+                </div>
+            )}
+            <div
+                className="station-row"
+                onMouseDown={onMouseDown}
+                style={{
+                    ...styles.row,
+                    background: isSelected ? "#e6f2ff" : undefined,
+                }}
+            >
+                <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
+                    <div className="station-name-inner">
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <TextInput size="xs" value={item.name} placeholder="駅名" aria-label="駅名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
+                        </div>
+                        {/* スマホ幅のみ：駅名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
+                        <ActionIcon
+                            className="station-delete"
+                            variant="subtle"
+                            color="red"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={remove}
+                            aria-label={`${item.name}を削除`}
+                            title="この駅を削除"
+                        >
+                            ✕
+                        </ActionIcon>
+                    </div>
+                </div>
 
-            <div className="station-blocks">
-                <ShowStyleComponent
-                    title="下り"
-                    bits={getDirectStyle(item.showStyle, 0)}
-                    onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))}
-                />
-                <ShowStyleComponent
-                    title="上り"
-                    bits={getDirectStyle(item.showStyle, 1)}
-                    onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))}
-                />
+                <div className="station-blocks">
+                    <ShowStyleComponent
+                        title="下り"
+                        bits={getDirectStyle(item.showStyle, 0)}
+                        onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))}
+                    />
+                    <ShowStyleComponent
+                        title="上り"
+                        bits={getDirectStyle(item.showStyle, 1)}
+                        onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))}
+                    />
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
