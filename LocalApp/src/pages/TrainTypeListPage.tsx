@@ -1,4 +1,4 @@
-import { Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
 import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
@@ -223,7 +223,7 @@ function TrainTypeHeaderComponent() {
  * @param onMouseDown 行のmousedownハンドラ（選択処理）
  * @param update 行の値を更新する関数（未保存変更として記録される）
  */
-function TrainTypeRowComponent({ item, isSelected, onMouseDown, update }: RowRenderProps<TrainTypeDto>) {
+function TrainTypeRowComponent({ item, isSelected, onMouseDown, update, remove }: RowRenderProps<TrainTypeDto>) {
     return (
         <div
             className="tt-row"
@@ -234,7 +234,27 @@ function TrainTypeRowComponent({ item, isSelected, onMouseDown, update }: RowRen
             }}
         >
             <div className="tt-name" style={{ ...styles.cell, ...styles.nameCell }}>
-                <TextInput size="xs" style={{ width: "100%" }} value={item.name} aria-label="種別名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
+                <div className="tt-name-inner">
+                    <TextInput
+                        size="xs"
+                        style={{ flex: 1, minWidth: 0 }}
+                        value={item.name}
+                        aria-label="種別名"
+                        onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))}
+                    />
+                    {/* スマホ幅のみ：種別名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
+                    <ActionIcon
+                        className="tt-delete"
+                        variant="subtle"
+                        color="red"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={remove}
+                        aria-label={`${item.name}を削除`}
+                        title="この種別を削除"
+                    >
+                        ✕
+                    </ActionIcon>
+                </div>
             </div>
 
             <div className="tt-fields">
