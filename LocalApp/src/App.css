@@ -161,11 +161,12 @@
     gap: 8px;
 }
 
-/* 駅編集：グレーの背景の上に、各駅を白いカードとして浮かせて並べる */
+/* 駅編集：グレーの背景の上に、各駅を白いカードとして浮かせて並べる。
+   カード間は「駅を挿入」ボタンの帯が間隔を兼ねる（PC・スマホ共通） */
 .station-list .indexed-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
     padding: 8px;
     background: #f1f3f5;
     border-radius: 8px;
@@ -184,6 +185,19 @@
 
 .station-list .station-header {
     border: none !important;
+    margin-bottom: 8px;
+}
+
+/* 駅と駅の間の「駅を挿入」ボタンの帯 */
+.station-list .station-insert {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 22px;
+}
+
+.station-list .station-append-row {
+    margin-top: 8px;
 }
 
 .station-list .station-header .station-row {
@@ -193,9 +207,7 @@
 
 /* 方向名・チェックボックスのラベルはPC幅では見出し行があるので隠し、狭い画面でだけ各駅に表示する */
 .show-style-title,
-.show-style-label,
-.station-insert,
-.station-delete {
+.show-style-label {
     display: none;
 }
 
@@ -228,28 +240,6 @@
         min-width: 0 !important;
         max-width: none !important;
         justify-content: center;
-    }
-
-    /* 駅名の右側に削除ボタン */
-    .station-list .station-delete {
-        display: inline-flex;
-    }
-
-    /* 駅と駅の間の「駅を挿入」ボタン */
-    .station-list .station-insert {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 22px;
-    }
-
-    /* 挿入ボタンの帯が間隔を兼ねるので、カード間の隙間は詰める */
-    .station-list .indexed-list {
-        gap: 0;
-    }
-
-    .station-list .station-append-row {
-        margin-top: 8px;
     }
 
     /* 各駅にラベルが付くので、狭い画面では列見出しの行は不要 */
@@ -307,8 +297,7 @@
     display: contents;
 }
 
-.tt-label,
-.tt-delete {
+.tt-label {
     display: none;
 }
 
@@ -377,10 +366,6 @@
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
         width: 100%;
-    }
-
-    .train-type-list .tt-delete {
-        display: inline-flex;
     }
 
     .tt-row .tt-name,

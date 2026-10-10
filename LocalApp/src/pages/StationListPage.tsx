@@ -1,5 +1,6 @@
 import { ActionIcon, TextInput } from "@mantine/core";
 import React, { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { TrashIcon } from "../components/TrashIcon.tsx";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
 import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { StationDto } from "../domain/dto.ts";
@@ -15,7 +16,7 @@ const DEFAULT_SHOW_STYLE = makeShowStyle(SHOW_DEP, SHOW_DEP);
 // ShowStyleComponent(駅一覧の着/番線/発チェックボックス群)の実寸に合わせた値。
 // 変更する場合はShowStyleComponent.tsx側のchkCell/padding/gapも揃えること。
 const COL = {
-    name: 200,
+    name: 240,
     block: 42 * 3 + 4 * 2 + 6 * 2,
     chk: 42,
 };
@@ -152,7 +153,7 @@ function StationHeaderComponent() {
  * @param update 行の値を更新する関数（未保存変更として記録される）
  */
 /**
- * 駅と駅の間の「駅を挿入」ボタン（スマホ幅のみ表示）。行の選択状態が変わっても再描画されないよう分離している。
+ * 駅と駅の間の「駅を挿入」ボタン。行の選択状態が変わっても再描画されないよう分離している。
  *
  * @param props name:駅名（ボタンのラベル用） / insertBefore:この駅の手前に挿入する処理
  */
@@ -167,7 +168,7 @@ const InsertStrip = React.memo(function InsertStrip({ name, insertBefore }: { na
 });
 
 /**
- * 駅名の入力欄と、削除ボタン（スマホ幅のみ表示）。行の選択状態が変わっても再描画されないよう分離している。
+ * 駅名の入力欄と、削除ボタン（ゴミ箱アイコン）。行の選択状態が変わっても再描画されないよう分離している。
  *
  * @param props item:駅 / update:駅の値を更新する関数 / remove:この駅を削除する関数
  */
@@ -177,7 +178,7 @@ const StationNameField = React.memo(function StationNameField({ item, update, re
             <div style={{ flex: 1, minWidth: 0 }}>
                 <TextInput size="xs" value={item.name} placeholder="駅名" aria-label="駅名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
             </div>
-            {/* スマホ幅のみ：駅名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
+            {/* 駅名の右側に削除ボタン（キーボードのDeleteや操作バーからも削除できる） */}
             <ActionIcon
                 className="station-delete"
                 variant="subtle"
@@ -187,7 +188,7 @@ const StationNameField = React.memo(function StationNameField({ item, update, re
                 aria-label={`${item.name}を削除`}
                 title="この駅を削除"
             >
-                ✕
+                <TrashIcon size={16} />
             </ActionIcon>
         </>
     );

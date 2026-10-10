@@ -1,5 +1,6 @@
 import { ActionIcon, Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
+import { TrashIcon } from "../components/TrashIcon.tsx";
 import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
@@ -94,7 +95,7 @@ function ColorCell(props: { color: string; onCommit: (color: string) => void }) 
 }
 
 const COL = {
-    name: 176,
+    name: 216,
     short: 70,
     color: 50,
     chk: 56,
@@ -224,7 +225,7 @@ function TrainTypeHeaderComponent() {
  * @param update 行の値を更新する関数（未保存変更として記録される）
  */
 /**
- * 種別名の入力欄と、削除ボタン（スマホ幅のみ表示）。行の選択状態が変わっても再描画されないよう分離している。
+ * 種別名の入力欄と、削除ボタン（ゴミ箱アイコン）。行の選択状態が変わっても再描画されないよう分離している。
  *
  * @param props item:種別 / update:種別の値を更新する関数 / remove:この種別を削除する関数
  */
@@ -232,7 +233,7 @@ const TrainTypeNameField = React.memo(function TrainTypeNameField({ item, update
     return (
         <>
             <TextInput size="xs" style={{ flex: 1, minWidth: 0 }} value={item.name} aria-label="種別名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
-            {/* スマホ幅のみ：種別名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
+            {/* 種別名の右側に削除ボタン（キーボードのDeleteや操作バーからも削除できる） */}
             <ActionIcon
                 className="tt-delete"
                 variant="subtle"
@@ -242,7 +243,7 @@ const TrainTypeNameField = React.memo(function TrainTypeNameField({ item, update
                 aria-label={`${item.name}を削除`}
                 title="この種別を削除"
             >
-                ✕
+                <TrashIcon size={16} />
             </ActionIcon>
         </>
     );
