@@ -1,5 +1,6 @@
 import { ActionIcon, TextInput } from "@mantine/core";
 import React, { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useNavigate } from "react-router-dom";
 import { TrashIcon } from "../components/TrashIcon.tsx";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
 import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
@@ -173,11 +174,21 @@ const InsertStrip = React.memo(function InsertStrip({ name, insertBefore }: { na
  * @param props item:駅 / update:駅の値を更新する関数 / remove:この駅を削除する関数
  */
 const StationNameField = React.memo(function StationNameField({ item, update, remove }: Pick<RowRenderProps<StationDto>, "item" | "update" | "remove">) {
+    const nav = useNavigate();
     return (
         <>
             <div style={{ flex: 1, minWidth: 0 }}>
                 <TextInput size="xs" value={item.name} placeholder="駅名" aria-label="駅名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
             </div>
+            <ActionIcon
+                variant="subtle"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => nav(`/route/${item.routeID}/station/${item.id}`)}
+                aria-label={`${item.name}の時刻表を見る`}
+                title="この駅の時刻表を見る"
+            >
+                🕒
+            </ActionIcon>
             {/* 駅名の右側に削除ボタン（キーボードのDeleteや操作バーからも削除できる） */}
             <ActionIcon
                 className="station-delete"
