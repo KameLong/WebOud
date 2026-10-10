@@ -83,7 +83,7 @@ function buildStopTimes(stationsInTravelOrder: StationDto[], passIndices: Set<nu
  * 駅・列車種別（普通/快速）・下り/上り各4本の時刻表を持つ、すぐに触って試せるダイヤです。
  */
 export function createSampleRoute(): RouteRecord {
-    const route = createRoute("神戸電鉄粟生線（サンプル）");
+    const route = createRoute("神戸電鉄粟生線（サンプル）", false);
     const routeId = route.id;
 
     const stations = STATION_NAMES.map((name, i) => addStation(routeId, { name, routeID: routeId, index: i, showStyle: stationShowStyle(i) }));

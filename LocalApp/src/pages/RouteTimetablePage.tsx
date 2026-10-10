@@ -515,7 +515,7 @@ export default function RouteTimetablePage() {
                             ["Ctrl+Insert", "カーソル位置の手前に空の列車を挿入"],
                             ["Ctrl+C / Ctrl+X", "選択中の列車をコピー／切り取り"],
                             ["Ctrl+V", "コピーした列車をカーソル位置に貼り付け"],
-                            ["Shift+Enter", "貼り付け時の時刻移動量（分・秒）を設定"],
+                            ["Shift+Enter", "貼り付け時の時刻移動量（分・秒）を設定（初期値は0分でそのまま貼り付け。コピー・切り取りのたびに0へ戻る）"],
                         ]}
                     />
                 </HelpSection>

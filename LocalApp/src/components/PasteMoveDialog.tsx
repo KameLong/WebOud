@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isImeComposing } from "../domain/utils.ts";
 
 /**
  * 列車貼り付け時の時刻移動量（分・秒）を設定するダイアログです。
@@ -52,6 +53,8 @@ export function PasteMoveDialog(props: {
             <div
                 onMouseDown={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
+                    // 日本語の変換確定のEnter/Escapeでダイアログを閉じたり決定したりしない
+                    if (isImeComposing(e)) return;
                     if (e.key === "Escape") {
                         e.preventDefault();
                         onCancel();
@@ -69,7 +72,7 @@ export function PasteMoveDialog(props: {
                 }}
             >
                 <div style={{ fontWeight: 700, marginBottom: 8 }}>貼り付け移動量</div>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>Ctrl+V のたびに、この量が累積で加算されます</div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>Ctrl+V のたびに、この量が累積で加算されます（0なら移動せず、そのまま貼り付けます）。コピー・切り取りのたびに0へ戻ります</div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "center" }}>
                     <div style={{ fontSize: 12, color: "#444" }}>分</div>

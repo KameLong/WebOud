@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isImeComposing } from "../domain/utils.ts";
 import type { TripDto } from "../domain/dto.ts";
 
 export type TrainTypeOption = {
@@ -71,6 +72,8 @@ export function TrainPropertyDialog(props: {
             <div
                 onMouseDown={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
+                    // 日本語の変換確定のEnter/Escapeでダイアログを閉じたり決定したりしない
+                    if (isImeComposing(e)) return;
                     if (e.key === "Escape") {
                         e.preventDefault();
                         onCancel();

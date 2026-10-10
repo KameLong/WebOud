@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isImeComposing } from "../domain/utils.ts";
 import type { StopTimeDto } from "../domain/dto.ts";
 import { isValidTimeStr, timeInt2Str, timeStr2Int } from "../domain/utils.ts";
 import type { Part } from "../domain/types.ts";
@@ -112,6 +113,8 @@ export function StopTimeEditDialog(props: {
                     padding: 14,
                 }}
                 onKeyDown={(e) => {
+                    // 日本語の変換確定のEnter/Escapeでダイアログを閉じたり決定したりしない
+                    if (isImeComposing(e)) return;
                     if (e.key === "Escape") {
                         e.preventDefault();
                         onCancel();

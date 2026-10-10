@@ -1,4 +1,5 @@
 import type { RouteRecord, RouteSummary, StoreState } from "./types.ts";
+import { DEFAULT_TRAIN_TYPE } from "../domain/defaults.ts";
 
 const STORAGE_KEY = "weboud.localapp.routes.v1";
 
@@ -15,12 +16,29 @@ function isValidStoreState(v: unknown): v is StoreState {
     return !!v && typeof v === "object" && Array.isArray((v as StoreState).routes) && typeof (v as StoreState).nextRouteId === "number";
 }
 
+/**
+ * 列車種別が1つも無い路線に、標準の列車種別を追加して返します（種別がある路線はそのまま返す）。
+ *
+ * @param route 対象の路線
+ */
+export function withDefaultTrainType(route: RouteRecord): RouteRecord {
+    if (route.trainTypes.length > 0) return route;
+    const id = route.counters.trainType;
+    return {
+        ...route,
+        counters: { ...route.counters, trainType: id + 1 },
+        trainTypes: [{ ...DEFAULT_TRAIN_TYPE, id, routeID: route.id, index: 0 }],
+    };
+}
+
 function loadState(): StoreState {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return defaultState();
         const parsed = JSON.parse(raw) as unknown;
-        return isValidStoreState(parsed) ? parsed : defaultState();
+        if (!isValidStoreState(parsed)) return defaultState();
+        // 以前のデータで種別が空の路線にも、標準の種別を補う
+        return { ...parsed, routes: parsed.routes.map(withDefaultTrainType) };
     } catch (e) {
         console.error("failed to load local data", e);
         return defaultState();
@@ -124,10 +142,11 @@ export function getRoute(id: number): RouteRecord | undefined {
  * 空の路線を作成します。
  *
  * @param name 路線名
+ * @param addDefaultTrainType trueなら標準の列車種別(普通)を最初から追加する
  */
-export function createRoute(name: string): RouteRecord {
+export function createRoute(name: string, addDefaultTrainType = true): RouteRecord {
     const id = state.nextRouteId;
-    const route: RouteRecord = {
+    const base: RouteRecord = {
         id,
         name,
         updatedAt: Date.now(),
@@ -136,6 +155,7 @@ export function createRoute(name: string): RouteRecord {
         trainTypes: [],
         trips: [],
     };
+    const route = addDefaultTrainType ? withDefaultTrainType(base) : base;
     setState({ ...state, nextRouteId: id + 1, routes: [...state.routes, route] });
     return route;
 }
@@ -230,7 +250,7 @@ export function importAllFromJson(json: string) {
     if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as StoreState).routes)) {
         throw new Error("不正なファイル形式です");
     }
-    setState(parsed as StoreState);
+    setState({ ...(parsed as StoreState), routes: (parsed as StoreState).routes.map(withDefaultTrainType) });
 }
 
 /**
@@ -244,7 +264,7 @@ export function importRouteFromJson(json: string): RouteRecord {
         throw new Error("不正なファイル形式です");
     }
     const newId = state.nextRouteId;
-    const imported: RouteRecord = { ...parsed, id: newId, updatedAt: Date.now() };
+    const imported: RouteRecord = withDefaultTrainType({ ...parsed, id: newId, updatedAt: Date.now() });
     setState({ ...state, nextRouteId: newId + 1, routes: [...state.routes, imported] });
     return imported;
 }

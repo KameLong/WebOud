@@ -1,4 +1,4 @@
-import { getRoute, updateRoute } from "./localStore.ts";
+import { getRoute, updateRoute, withDefaultTrainType } from "./localStore.ts";
 import type { StationDto, StopTimeDto, TimeTableDto, TrainTypeDto, TripDto, TripWithStopTimesDto } from "../domain/dto.ts";
 
 /**
@@ -135,14 +135,16 @@ export function insertTrainTypes(routeId: number, position: number, dtos: Omit<T
 }
 
 /**
- * 列車種別をまとめて削除し、indexを振り直します。使用中の列車の処理は呼び出し側で先に行うこと。
+ * 列車種別をまとめて削除し、indexを振り直します。すべて削除した場合は標準の列車種別(普通)を自動で追加します。
+ * 使用中の列車の処理は呼び出し側で先に行うこと。
  *
  * @param routeId 路線ID
  * @param ids 削除する種別IDの配列
  */
 export function deleteTrainTypes(routeId: number, ids: number[]) {
     const idSet = new Set(ids);
-    updateRoute(routeId, (r) => ({ ...r, trainTypes: renumber(r.trainTypes.filter((t) => !idSet.has(t.id))) }));
+    // すべて削除した場合は、標準の列車種別が自動で追加される
+    updateRoute(routeId, (r) => withDefaultTrainType({ ...r, trainTypes: renumber(r.trainTypes.filter((t) => !idSet.has(t.id))) }));
 }
 
 export function updateTrainType(routeId: number, item: TrainTypeDto) {
@@ -336,8 +338,9 @@ export function reorderTrips(routeId: number, direct: number, orderedTripIds: nu
  *
  * @param routeId 路線ID
  * @param trips 追加する列車（id/tripIDはプレースホルダ可。採番し直される）
+ * @param position 同じ方向の列車の中での挿入位置（0始まり。範囲外は端に丸める）。省略時は末尾に追加する
  */
-export function addTripBlock(routeId: number, trips: TripWithStopTimesDto[]): TripWithStopTimesDto[] {
+export function addTripBlock(routeId: number, trips: TripWithStopTimesDto[], position?: number): TripWithStopTimesDto[] {
     const created: TripWithStopTimesDto[] = [];
     updateRoute(routeId, (r) => {
         let tripCounter = r.counters.trip;
@@ -355,11 +358,17 @@ export function addTripBlock(routeId: number, trips: TripWithStopTimesDto[]): Tr
             return trip;
         });
 
-        return {
-            ...r,
-            counters: { ...r.counters, trip: tripCounter, stopTime: stopTimeCounter },
-            trips: [...r.trips, ...newTrips],
-        };
+        const counters = { ...r.counters, trip: tripCounter, stopTime: stopTimeCounter };
+        if (position === undefined || newTrips.length === 0) {
+            return { ...r, counters, trips: [...r.trips, ...newTrips] };
+        }
+
+        // 同じ方向の列車の中の指定位置へ挿入する（他方向の列車の並びはそのまま）
+        const direct = newTrips[0].direct;
+        const sameDirection = r.trips.filter((t) => t.direct === direct);
+        const others = r.trips.filter((t) => t.direct !== direct);
+        sameDirection.splice(Math.max(0, Math.min(position, sameDirection.length)), 0, ...newTrips);
+        return { ...r, counters, trips: [...others, ...sameDirection] };
     });
     return created;
 }

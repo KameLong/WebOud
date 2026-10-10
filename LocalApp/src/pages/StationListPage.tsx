@@ -1,12 +1,12 @@
 import { ActionIcon, TextInput } from "@mantine/core";
-import React, { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { TrashIcon } from "../components/TrashIcon.tsx";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
 import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { StationDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute, subscribe } from "../store/localStore.ts";
-import { getDirectStyle, makeShowStyle, setDirectStyle, SHOW_DEP } from "../domain/utils.ts";
+import { getDirectStyle, isImeComposing, makeShowStyle, setDirectStyle, SHOW_DEP } from "../domain/utils.ts";
 
 const EMPTY_STATIONS: StationDto[] = [];
 
@@ -64,43 +64,29 @@ const styles: Record<string, React.CSSProperties> = {
 };
 
 /**
- * 駅名を入力してEnterで駅を追加する最下行です。
+ * 新しい駅名を入力する最下行。Enterで末尾に駅を追加する。
+ * ここに入力した名前は、行間の「＋」ボタンやCtrl+Insertでの挿入にも使われる（空のままでは挿入できない）。
  *
- * @param routeId 路線ID
- * @param stationCount 現在の駅数（末尾に追加するときの挿入位置）
+ * @param props newName:入力中の駅名 / setNewName:入力値の更新 / error:空のまま追加しようとしたときの警告表示 / inputRef:入力欄のref / onAppend:末尾に追加する処理
  */
-function AppendComponent({ routeId, stationCount }: { routeId: number; stationCount: number }) {
-    const [newName, setNewName] = useState("");
-    const newInputRef = useRef<HTMLInputElement | null>(null);
-
-    /**
-     * 名前から駅を作成し、一覧へ反映します。
-     *
-     * @param nameRaw 入力された駅名（前後の空白は除去、空なら何もしない）
-     */
-    function createStationByName(nameRaw: string) {
-        const name = nameRaw.trim();
-        if (!name) return;
-
-        timetableApi.insertStations(routeId, stationCount, [{ name, routeID: routeId, index: stationCount, showStyle: DEFAULT_SHOW_STYLE }]);
-
-        setNewName("");
-        requestAnimationFrame(() => newInputRef.current?.focus());
-    }
+function AppendComponent(props: { newName: string; setNewName: (v: string) => void; error: boolean; inputRef: React.RefObject<HTMLInputElement | null>; onAppend: () => void }) {
+    const { newName, setNewName, error, inputRef, onAppend } = props;
 
     return (
         <div className="station-row station-append-row" style={{ ...styles.row, background: "#f0fff4" }}>
             <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
                 <TextInput
-                    ref={newInputRef}
+                    ref={inputRef}
                     value={newName}
-                    placeholder="駅名を入力して Enter"
-                    aria-label="駅名"
+                    placeholder="新しい駅名 (Enter / ＋で挿入)"
+                    title="駅名を入力してEnterで末尾に追加。行間の＋ボタンでその位置に挿入"
+                    aria-label="新しい駅名"
+                    error={error ? "駅名を入力してください" : undefined}
                     onChange={(e) => setNewName(e.currentTarget.value)}
                     onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === "Enter" && !isImeComposing(e)) {
                             e.preventDefault();
-                            createStationByName(newName);
+                            onAppend();
                         }
                     }}
                 />
@@ -169,14 +155,28 @@ const InsertStrip = React.memo(function InsertStrip({ name, insertBefore }: { na
 
 /**
  * 駅名の入力欄と、削除ボタン（ゴミ箱アイコン）。行の選択状態が変わっても再描画されないよう分離している。
+ * 駅名は空にできない。入力途中で空になっても保存せず、入力欄を離れたときに元の駅名へ戻す。
  *
  * @param props item:駅 / update:駅の値を更新する関数 / remove:この駅を削除する関数
  */
 const StationNameField = React.memo(function StationNameField({ item, update, remove }: Pick<RowRenderProps<StationDto>, "item" | "update" | "remove">) {
+    // 編集中の文字列。nullのときは保存済みの駅名を表示する
+    const [draft, setDraft] = useState<string | null>(null);
     return (
         <>
             <div style={{ flex: 1, minWidth: 0 }}>
-                <TextInput size="xs" value={item.name} placeholder="駅名" aria-label="駅名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
+                <TextInput
+                    size="xs"
+                    value={draft ?? item.name}
+                    placeholder="駅名"
+                    aria-label="駅名"
+                    onChange={(e) => {
+                        const v = e.currentTarget.value;
+                        setDraft(v);
+                        if (v.trim() !== "") update((x) => ({ ...x, name: v }));
+                    }}
+                    onBlur={() => setDraft(null)}
+                />
             </div>
             {/* 駅名の右側に削除ボタン（キーボードのDeleteや操作バーからも削除できる） */}
             <ActionIcon
@@ -244,6 +244,38 @@ const StationRowComponent = React.memo(function StationRowComponent({ item, isSe
 export default function StationListPage({ routeId }: { routeId: number }) {
     const stations = useSyncExternalStore(subscribe, () => getRoute(routeId)?.stations ?? EMPTY_STATIONS);
 
+    // 新しい駅名の入力欄（最下行）。末尾追加のほか、行間の＋ボタン・Ctrl+Insertでの挿入にも使う
+    const [newName, setNewName] = useState("");
+    const [nameError, setNameError] = useState(false);
+    const newInputRef = useRef<HTMLInputElement | null>(null);
+    const newNameRef = useRef(newName);
+    useLayoutEffect(() => {
+        newNameRef.current = newName;
+    });
+
+    /**
+     * 入力欄の駅名を取り出して、入力欄を空にする。空のままなら警告を出して入力欄にフォーカスし、nullを返す
+     */
+    function takeNewName(): string | null {
+        const name = newNameRef.current.trim();
+        if (!name) {
+            setNameError(true);
+            newInputRef.current?.focus();
+            return null;
+        }
+        setNewName("");
+        setNameError(false);
+        return name;
+    }
+
+    /** 入力欄の駅名で、一覧の末尾に駅を追加する */
+    function appendStation() {
+        const name = takeNewName();
+        if (!name) return;
+        timetableApi.insertStations(routeId, stations.length, [{ name, routeID: routeId, index: stations.length, showStyle: DEFAULT_SHOW_STYLE }]);
+        requestAnimationFrame(() => newInputRef.current?.focus());
+    }
+
     return (
         <div className="station-list">
             <IndexedListComponent<StationDto>
@@ -252,12 +284,26 @@ export default function StationListPage({ routeId }: { routeId: number }) {
                 onUpdate={(item) => timetableApi.updateStation(routeId, item)}
                 onInsert={(position, dtos) => timetableApi.insertStations(routeId, position, dtos)}
                 onRemove={(ids) => timetableApi.deleteStations(routeId, ids)}
-                createEmpty={(routeId, index) => ({ id: 0, name: "", routeID: routeId, index, showStyle: DEFAULT_SHOW_STYLE })}
+                createEmpty={(routeId, index) => {
+                    const name = takeNewName();
+                    return name ? { name, routeID: routeId, index, showStyle: DEFAULT_SHOW_STYLE } : null;
+                }}
                 toClip={(s) => s}
-                fromClip={(c, routeId, index) => ({ id: 0, name: c.name, routeID: routeId, index, showStyle: c.showStyle })}
+                fromClip={(c, routeId, index) => (c.name?.trim() ? { name: c.name, routeID: routeId, index, showStyle: c.showStyle } : null)}
                 HeaderComponent={StationHeaderComponent}
                 RowComponent={StationRowComponent}
-                AppendRowComponent={<AppendComponent routeId={routeId} stationCount={stations.length} />}
+                AppendRowComponent={
+                    <AppendComponent
+                        newName={newName}
+                        setNewName={(v) => {
+                            setNewName(v);
+                            setNameError(false);
+                        }}
+                        error={nameError}
+                        inputRef={newInputRef}
+                        onAppend={appendStation}
+                    />
+                }
             />
         </div>
     );

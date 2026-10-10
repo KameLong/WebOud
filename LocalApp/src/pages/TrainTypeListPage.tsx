@@ -1,5 +1,7 @@
 import { ActionIcon, Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
+import { DEFAULT_TRAIN_TYPE } from "../domain/defaults.ts";
+import { isImeComposing } from "../domain/utils.ts";
 import { TrashIcon } from "../components/TrashIcon.tsx";
 import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
@@ -7,6 +9,9 @@ import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute, subscribe } from "../store/localStore.ts";
 
 const EMPTY_TYPES: TrainTypeDto[] = [];
+
+/** 付け替え先の候補として表示する「標準の種別を新しく作成」を表す仮のID */
+const NEW_DEFAULT_ID = -1;
 
 /** 使用中の種別を削除するときの選択結果 */
 type DeleteChoice = { kind: "cancel" } | { kind: "deleteTrips" } | { kind: "reassign"; toId: number };
@@ -178,7 +183,7 @@ function AppendTrainTypeRow({ routeId, itemCount }: { routeId: number; itemCount
                     aria-label="種別名"
                     onChange={(e) => setNewName(e.currentTarget.value)}
                     onKeyDown={(e) => {
-                        if (e.key === "Enter") {
+                        if (e.key === "Enter" && !isImeComposing(e)) {
                             e.preventDefault();
                             createByName(newName);
                         }
@@ -342,13 +347,23 @@ export default function TrainTypeListPage({ routeId }: { routeId: number }) {
         const tripCount = (route?.trips ?? []).filter((t) => idSet.has(t.trainTypeID)).length;
         if (tripCount === 0) return confirm(`${ids.length}件削除しますか？`);
 
-        const candidates = items.filter((t) => !idSet.has(t.id));
+        // 付け替え先。すべての種別を削除する場合は、残る種別が無いので、標準の種別(普通)を新しく作ってそこへ付け替える
+        const remaining = items.filter((t) => !idSet.has(t.id));
+        const candidates: TrainTypeDto[] =
+            remaining.length > 0
+                ? remaining
+                : [{ ...DEFAULT_TRAIN_TYPE, id: NEW_DEFAULT_ID, routeID: routeId, index: 0, name: `${DEFAULT_TRAIN_TYPE.name}（標準の種別を新しく作成）` }];
         const choice = await new Promise<DeleteChoice>((resolve) => setDeleteAsk({ tripCount, candidates, resolve }));
         setDeleteAsk(null);
 
         if (choice.kind === "cancel") return false;
         if (choice.kind === "reassign") {
-            timetableApi.reassignTrainType(routeId, ids, choice.toId);
+            let toId = choice.toId;
+            if (toId === NEW_DEFAULT_ID) {
+                // 先に標準の種別を作っておく（削除後に自動で作られるものとは別に、付け替え先として必要なため）
+                toId = timetableApi.insertTrainTypes(routeId, items.length, [{ ...DEFAULT_TRAIN_TYPE, routeID: routeId, index: items.length }])[0].id;
+            }
+            timetableApi.reassignTrainType(routeId, ids, toId);
         } else {
             const tripIds = (route?.trips ?? []).filter((t) => idSet.has(t.trainTypeID)).map((t) => t.id);
             timetableApi.deleteTrips(routeId, tripIds);

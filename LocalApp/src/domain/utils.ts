@@ -213,6 +213,17 @@ export function timeStr2Int(timeStr: string): number {
     return res;
 }
 
+/**
+ * 日本語などのIME変換中（またはその確定を行うキー操作）かを返します。
+ * 変換確定のEnterを「決定」と取り違えないために、Enter/Escapeの処理の前に確認します。
+ *
+ * @param e Reactのキーボードイベント
+ */
+export function isImeComposing(e: { nativeEvent: KeyboardEvent; keyCode: number }) {
+    // Safariは確定のEnterがisComposing=falseで届くため、IME処理中を表すkeyCode 229も見る
+    return e.nativeEvent.isComposing || e.keyCode === 229;
+}
+
 //入力したキーが数値か？
 /**
  * @param e キーイベント

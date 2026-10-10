@@ -71,7 +71,7 @@ export function useTripClipboard(params: {
     const { routeId, direct, trips, getSelectedCols, getCursorCol, getPasteIndex, onAfterMutate } = params;
 
     const clipRef = useRef<ClipboardPayload | null>(null);
-    const [pasteMove, setPasteMove] = useState({ minutes: 1, seconds: 0 });
+    const [pasteMove, setPasteMove] = useState({ minutes: 0, seconds: 0 });
 
     const offsetRef = useRef<number>(0);
 
@@ -85,6 +85,8 @@ export function useTripClipboard(params: {
 
         clipRef.current = { trips: picked.map(cloneTrip) };
         offsetRef.current = 0;
+        // コピーした瞬間に、貼り付け移動量を0(そのまま貼り付け)に戻す
+        setPasteMove({ minutes: 0, seconds: 0 });
         return true;
     }, [getSelectedCols, trips]);
 
@@ -97,6 +99,8 @@ export function useTripClipboard(params: {
 
         clipRef.current = { trips: picked.map(cloneTrip) };
         offsetRef.current = 0;
+        // 切り取った瞬間にも、貼り付け移動量を0(そのまま貼り付け)に戻す
+        setPasteMove({ minutes: 0, seconds: 0 });
 
         // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
         const ids = picked.map((t) => t.id);
@@ -133,7 +137,8 @@ export function useTripClipboard(params: {
             };
         });
 
-        const result = addTripBlock(routeId, newTrips);
+        // カーソル列の直前に挿入する（カーソルが末尾の空列にあるときは末尾に追加）
+        const result = addTripBlock(routeId, newTrips, insertPosForCursor);
         if (Array.isArray(result)) {
             // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
             onAfterMutate?.(insertPosForCursor + pastedCount);

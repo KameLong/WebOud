@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Button, Checkbox, Group, Text } from "@mantine/core";
+import { isImeComposing } from "../domain/utils.ts";
 
 /** index(並び順)で管理される一覧アイテムが最低限持つべきフィールド */
 export type IndexedItemBase = {
@@ -46,9 +47,11 @@ type Props<TItem extends IndexedItemBase> = {
     confirmDelete?: (ids: number[]) => Promise<boolean> | boolean;
 
     toClip: (item: TItem) => TItem;
-    fromClip: (clip: TItem, routeId: number, index: number) => Omit<TItem, "id">;
+    /** クリップボードのデータから新しい行を作る。貼り付けられない行（不正なデータなど）はnullを返すと読み飛ばされる */
+    fromClip: (clip: TItem, routeId: number, index: number) => Omit<TItem, "id"> | null;
 
-    createEmpty: (routeId: number, index: number) => Omit<TItem, "id">;
+    /** 挿入する新しい行を作る（Ctrl+Insertや行間の＋ボタン）。作れない場合（入力不足など）はnullを返すと何も挿入されない */
+    createEmpty: (routeId: number, index: number) => Omit<TItem, "id"> | null;
 
     RowComponent: React.ComponentType<RowRenderProps<TItem>>;
     HeaderComponent: React.ComponentType;
@@ -193,7 +196,9 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
     /** カーソル位置の手前に空のアイテムを1件挿入し、新規アイテムを選択状態にする(Ctrl+Insert) */
     function insertOne() {
         const position = getInsertPosition();
-        const [created] = onInsert(position, [createEmpty(routeId, position)]);
+        const dto = createEmpty(routeId, position);
+        if (!dto) return;
+        const [created] = onInsert(position, [dto]);
 
         setSelectedIds(new Set([created.id]));
         setCursorId(created.id);
@@ -237,7 +242,9 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
      */
     function insertBeforeId(id: number) {
         const position = Math.max(0, indexOfId(id));
-        const [created] = onInsert(position, [createEmpty(routeId, position)]);
+        const dto = createEmpty(routeId, position);
+        if (!dto) return;
+        const [created] = onInsert(position, [dto]);
 
         setSelectedIds(new Set([created.id]));
         setCursorId(created.id);
@@ -275,10 +282,9 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         if (!clip || clip.items.length === 0) return;
 
         const position = selectedIds.size === 0 ? ordered.length : getInsertPosition();
-        const createdList = onInsert(
-            position,
-            clip.items.map((c, k) => fromClip(c, routeId, position + k)),
-        );
+        const dtos = clip.items.map((c, k) => fromClip(c, routeId, position + k)).filter((d): d is Omit<TItem, "id"> => d !== null);
+        if (dtos.length === 0) return;
+        const createdList = onInsert(position, dtos);
 
         const newSel = new Set(createdList.map((x) => x.id));
         const newCursor = createdList.length ? createdList[createdList.length - 1].id : cursorId;
@@ -339,7 +345,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         const target = e.target as HTMLElement;
 
         if (isTextEditing(target)) {
-            if (e.key !== "Escape") return;
+            if (e.key !== "Escape" || isImeComposing(e)) return;
             const rowEl = target.closest("[data-row-id]");
             if (!rowEl) return;
             e.preventDefault();
