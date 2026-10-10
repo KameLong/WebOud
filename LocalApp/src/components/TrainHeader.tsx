@@ -29,9 +29,10 @@ export function TrainHeader(props: {
                 backgroundColor: "white",
             }}
         >
-            <div style={{ height: LINE_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center", borderBottom: "1px solid black" }}>
+            <div style={{ height: LINE_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {traintype.shortName}
             </div>
+            <div style={{borderBottom:"1px solid #333"}}></div>
             <div style={{ height: LINE_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>{t.no || " "}</div>
             <div style={{ borderBottom: "2px solid #333" }}></div>
             <div style={{ height: LINE_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>{t.name}</div>
