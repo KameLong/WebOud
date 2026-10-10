@@ -4,6 +4,7 @@ import RouteListPage from "./pages/RouteListPage.tsx";
 import { RoutePage } from "./pages/RoutePage.tsx";
 import RouteTimetablePage from "./pages/RouteTimetablePage.tsx";
 import { RouteDiagramPage } from "./pages/RouteDiagramPage.tsx";
+import { StationTimetablePage } from "./pages/StationTimetablePage.tsx";
 import { RouteTreeSidebar } from "./components/RouteTreeSidebar.tsx";
 import { MobileRouteMenu } from "./components/MobileRouteMenu.tsx";
 
@@ -29,6 +30,7 @@ function App() {
                     <Route path="/route/:routeId" element={<RoutePage />} />
                     <Route path="/route/:routeId/timetable/:direct" element={<RouteTimetablePage />} />
                     <Route path="/route/:routeId/diagram" element={<RouteDiagramPage />} />
+                    <Route path="/route/:routeId/station/:stationId" element={<StationTimetablePage />} />
                 </Route>
             </Routes>
         </BrowserRouter>
