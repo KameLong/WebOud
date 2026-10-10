@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Switch } from "@mantine/core";
 import { decodeShowStyle, getDirectStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH } from "../domain/utils.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
 import { useColumnWindow } from "../hooks/useColumnWindow.ts";
@@ -220,18 +221,18 @@ export default function RouteTimetablePage() {
             return;
         }
 
-        // 編集開始（スマホではダイアログを出さず、カーソルを1段下へ進めるだけにする）
+        // 編集開始（スマホで連続入力モードが有効な間はダイアログを出さず、カーソルを1段下へ進めるだけにする）
         if (e.key === "Enter") {
             e.preventDefault();
-            if (isMobile) {
+            if (isMobile && cont.state.enabled) {
                 nav.moveVertical(1);
             } else {
                 openEdit();
             }
             return;
         }
-        // 数値入力（スマホでは連続入力モードが常時有効なため、ここには到達しない）
-        if (isDigitKey(e) && !isMobile) {
+        // 数値入力（連続入力モードが有効なときはcont.onKeyDownが既に処理してここには来ない）
+        if (isDigitKey(e)) {
             e.preventDefault();
             openEdit(e.key);
             return;
@@ -323,7 +324,14 @@ export default function RouteTimetablePage() {
         <div style={{ height: "100%", padding: "10px" }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
                 <span style={{ fontSize: 12, color: "#888" }}>※ 左側の駅名をクリックすると、その駅の時刻順に列車を並び替えます</span>
-                <button onClick={() => setHelpOpen(true)} style={{ ...helpButtonStyle, marginLeft: "auto" }} title="ヘルプ">
+                <Switch
+                    label="連続入力"
+                    checked={cont.state.enabled}
+                    onChange={() => cont.toggle()}
+                    style={{ marginLeft: "auto" }}
+                    title="数字2桁で時・分を順に確定し、入力後は自動で1段下へ進みます（Alt+Tでも切り替え可能）"
+                />
+                <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
                     ？
                 </button>
             </div>
@@ -464,7 +472,7 @@ export default function RouteTimetablePage() {
                             ["Shift+← / Shift+→", "列車の列を範囲選択"],
                             ["Enter", "カーソル位置の時刻を編集"],
                             ["0〜9（数字キー）", "入力した数字から時刻編集を開始"],
-                            ["Alt+T", "連続入力モードの切り替え（数字2桁で時・分を順に確定し、入力後は自動で1段下へ）"],
+                            ["Alt+T", "連続入力モードの切り替え（上部の「連続入力」スイッチでも切り替え可。数字2桁で時・分を順に確定し、入力後は自動で1段下へ）"],
                             ["Alt+L", "カーソル位置の時刻を1分進める"],
                             ["Alt+J", "カーソル位置の時刻を1分戻す"],
                             ["Ctrl+Delete", "カーソル位置の時刻・番線を消去"],
