@@ -6,9 +6,6 @@ import { getRoute, renameRoute, subscribe } from "../store/localStore.ts";
 import { ActionIcon, Box, Button, Container, Group, Stack, Text, TextInput, Title } from "@mantine/core";
 import { HelpDialog, HelpList, HelpSection, HelpShortcutTable } from "../components/HelpDialog.tsx";
 
-/** 画面遷移ボタンの文字を、狭い画面では折り返して全文を表示する */
-const navButtonStyles = { root: { height: "auto", minHeight: 36, padding: "6px 8px" }, label: { whiteSpace: "normal", textAlign: "center" } } as const;
-
 export function RoutePage() {
     const urlParams = useParams<{ routeId: string }>();
     const routeId: number = Number(urlParams.routeId);
@@ -63,18 +60,6 @@ export function RoutePage() {
                         </Title>
                         <TrainTypeListPage routeId={routeId} />
                     </section>
-
-                    <Group gap="xs" grow wrap="nowrap">
-                        <Button variant="light" styles={navButtonStyles} onClick={() => nav(`/route/${routeId}/timetable/0`)}>
-                            下り時刻表
-                        </Button>
-                        <Button variant="light" styles={navButtonStyles} onClick={() => nav(`/route/${routeId}/timetable/1`)}>
-                            上り時刻表
-                        </Button>
-                        <Button variant="light" styles={navButtonStyles} onClick={() => nav(`/route/${routeId}/diagram`)}>
-                            ダイヤグラム
-                        </Button>
-                    </Group>
                 </Stack>
             </Container>
 
@@ -85,7 +70,7 @@ export function RoutePage() {
                             "路線名を変更する（タイトル欄を編集）",
                             "駅の追加・削除・並び替え、着/番線/発の表示設定（下り・上り別）の変更",
                             "列車種別の追加・削除・並び替え、略称・色・太字・線種の設定",
-                            "下り時刻表／上り時刻表／ダイヤグラムの編集画面へ移動する",
+                            "左のメニュー（スマホでは下部のメニューボタン）から、時刻表・ダイヤグラムの画面へ移動する",
                         ]}
                     />
                 </HelpSection>

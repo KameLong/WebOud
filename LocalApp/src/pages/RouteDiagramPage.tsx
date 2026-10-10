@@ -24,8 +24,6 @@ export function RouteDiagramPage() {
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center", padding: 10 }}>
                 <button onClick={() => navigate(`/route/${routeId}`)}>← 路線編集へ</button>
-                <button onClick={() => navigate(`/route/${routeId}/timetable/0`)}>下り時刻表</button>
-                <button onClick={() => navigate(`/route/${routeId}/timetable/1`)}>上り時刻表</button>
                 <button onClick={() => setHelpOpen(true)} style={{ ...helpButtonStyle, marginLeft: "auto" }} title="ヘルプ">
                     ？
                 </button>
@@ -38,7 +36,7 @@ export function RouteDiagramPage() {
                     <HelpList
                         items={[
                             "登録されている下り・上りすべての列車の運行ダイヤを時刻表ダイヤグラムとして表示する（編集はできません）",
-                            "下り時刻表／上り時刻表の編集画面へ移動する",
+                            "左のメニュー（スマホでは下部のメニューボタン）から、時刻表の編集画面へ移動する",
                         ]}
                     />
                 </HelpSection>
