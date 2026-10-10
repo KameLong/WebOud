@@ -396,11 +396,20 @@ export class DiagramCanvas {
                 this.ctx.lineTo(this.transform.getCanvasX(item.points[i].x), this.transform.getCanvasY(item.points[i].y));
             }
             this.ctx.stroke();
-            const numberText = item.number;
+            // 列車番号は、駅間（縦位置が変わる区間）の最初の線に沿って、その傾きに合わせて描く。
+            // 始発駅に着・発の両方の時刻があると最初の区間は水平（同じ駅内）になるため、それを飛ばす。
+            let seg = item.points.findIndex((p, i) => i + 1 < item.points.length && item.points[i + 1].y !== p.y);
+            if (seg < 0) seg = 0;
+            const x0 = this.transform.getCanvasX(item.points[seg].x);
+            const y0 = this.transform.getCanvasY(item.points[seg].y);
+            const x1 = this.transform.getCanvasX(item.points[seg + 1].x);
+            const y1 = this.transform.getCanvasY(item.points[seg + 1].y);
             this.ctx.save();
-            this.ctx.translate(this.transform.getCanvasX(item.points[0].x), this.transform.getCanvasY(item.points[0].y));
-            this.ctx.rotate(Math.atan2((item.points[1].y - item.points[0].y) * this.transform.yScale, (item.points[1].x - item.points[0].x) * this.transform.xScale));
-            this.ctx.fillText(numberText, 0, 0);
+            this.ctx.fillStyle = item.color;
+            this.ctx.translate(x0, y0);
+            this.ctx.rotate(Math.atan2(y1 - y0, x1 - x0));
+            // 線に重ならないよう、線の少し上（回転後の座標で上側）に描く
+            this.ctx.fillText(item.number, 2 * this.transform.SCALE, -2 * this.transform.SCALE);
             this.ctx.restore();
         });
     }
