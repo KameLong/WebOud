@@ -6,9 +6,14 @@ export interface Point {
 }
 export interface DiagramLine {
     color: string;
+    /** 列車種別が「線太」のとき、運行線を太く描く */
+    bold: boolean;
     number: string;
     points: Point[];
 }
+
+/** 「線太」の運行線の太さ（通常は1。SCALE倍して描画する） */
+const BOLD_LINE_WIDTH = 2.5;
 
 export class DiagramTransformC {
     x: number;
@@ -390,7 +395,7 @@ export class DiagramCanvas {
             }
             this.ctx.beginPath();
             this.ctx.strokeStyle = item.color;
-            this.ctx.lineWidth = this.transform.SCALE;
+            this.ctx.lineWidth = (item.bold ? BOLD_LINE_WIDTH : 1) * this.transform.SCALE;
             this.ctx.moveTo(this.transform.getCanvasX(item.points[0].x), this.transform.getCanvasY(item.points[0].y));
             for (let i = 1; i < item.points.length; i++) {
                 this.ctx.lineTo(this.transform.getCanvasX(item.points[i].x), this.transform.getCanvasY(item.points[i].y));

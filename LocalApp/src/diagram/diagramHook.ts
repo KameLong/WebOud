@@ -64,6 +64,7 @@ const makeDiagramLine = (trips: { train: TripWithTimes; stopTimes: StopTimeDto[]
     trips.forEach((trip) => {
         const diagramLine: DiagramLine = {
             color: trip.trainType.color,
+            bold: trip.trainType.lineBold,
             points: [],
             number: trip.train.no,
         };
