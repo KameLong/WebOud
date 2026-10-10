@@ -154,6 +154,13 @@
     display: contents;
 }
 
+/* 駅名の行：選択ハンドル・駅名・(スマホのみ)削除ボタンを横に並べる */
+.station-name-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 /* 駅編集：グレーの背景の上に、各駅を白いカードとして浮かせて並べる */
 .station-list .indexed-list {
     display: flex;
@@ -224,13 +231,6 @@
     }
 
     /* 駅名の右側に削除ボタン */
-    .station-name-inner {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-    }
-
     .station-list .station-delete {
         display: inline-flex;
     }
@@ -427,6 +427,36 @@
 
     /* 追加行の「-」は、狭い画面では省略して種別名の入力欄だけにする */
     .tt-row .tt-append-fields {
+        display: none;
+    }
+}
+
+/* 一覧の選択操作バー（駅・種別編集共通） */
+.indexed-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #fff;
+    padding: 6px 0;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.indexed-hint {
+    margin-top: 2px;
+}
+
+.row-select-handle {
+    flex-shrink: 0;
+}
+
+/* キーボードで移動したとき、固定表示の操作バーに隠れないようにする */
+[data-row-id] {
+    scroll-margin-top: 64px;
+}
+
+@media (max-width: 780px) {
+    .indexed-hint {
         display: none;
     }
 }

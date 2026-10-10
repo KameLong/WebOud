@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Button, Checkbox, Group, Text } from "@mantine/core";
 
 /** index(並び順)で管理される一覧アイテムが最低限持つべきフィールド */
 export type IndexedItemBase = {
@@ -20,6 +21,8 @@ export type RowRenderProps<TItem> = {
     onMouseDown: (e: React.MouseEvent) => void;
     /** 行内の値を更新して即座にストアへ保存する */
     update: (updater: (x: TItem) => TItem) => void;
+    /** 選択ハンドル(RowSelectHandle)のクリック処理。行内の好きな位置に<RowSelectHandle>を置き、これを渡す */
+    onSelectClick: (e: React.MouseEvent) => void;
     /** この行を（確認のうえ）削除する */
     remove: () => void;
     /** この行の手前に空の行を1件挿入する */
@@ -51,6 +54,15 @@ type Props<TItem extends IndexedItemBase> = {
     HeaderComponent: React.ComponentType;
     AppendRowComponent?: React.ReactNode;
 };
+
+/**
+ * 行の選択用の丸いチェックボックス。入力欄などとは別に、行の選択状態だけを切り替える。
+ *
+ * @param props checked:選択中か / onClick:クリック処理（RowRenderPropsのonSelectClickを渡す）
+ */
+export function RowSelectHandle(props: { checked: boolean; onClick: (e: React.MouseEvent) => void }) {
+    return <Checkbox className="row-select-handle" size="sm" radius="xl" checked={props.checked} onChange={() => undefined} onClick={props.onClick} aria-label="この行を選択" />;
+}
 
 /**
  * nをmin〜maxの範囲に収める
@@ -232,8 +244,12 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         setAnchorId(created.id);
     }
 
-    /** 選択中のアイテムをクリップボードへコピーし、カーソルを選択範囲の次の行へ進める(Ctrl+C) */
-    async function handleCopy() {
+    /**
+     * 選択中のアイテムをクリップボードへコピーする。キーボード(Ctrl+C)のときは、カーソルを選択範囲の次の行へ進める
+     *
+     * @param keepSelection trueなら選択状態を変えない（操作バーのボタンから呼ぶとき）
+     */
+    async function handleCopy(keepSelection = false) {
         if (selectedIds.size === 0) return;
         const selectedOrdered = ordered.filter((x) => selectedIds.has(x.id));
         const payload: ClipboardPayload<TItem> = {
@@ -241,6 +257,7 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
             items: selectedOrdered.map(toClip),
         };
         await writeClipboard(payload);
+        if (keepSelection) return;
 
         const lastId = lastSelectedId(selectedIds);
         const lastIdx = indexOfId(lastId);
@@ -271,17 +288,73 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
         requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
     }
 
+    /** 全行を選択する */
+    function selectAll() {
+        if (orderedIds.length === 0) return;
+        setSelectedIds(new Set(orderedIds));
+        setCursorId(orderedIds[orderedIds.length - 1]);
+        setAnchorId(orderedIds[0]);
+    }
+
+    /** 選択を解除する */
+    function clearSelection() {
+        setSelectedIds(new Set());
+        setAnchorId(null);
+    }
+
     /**
-     * 一覧ルートのonKeyDownハンドラ。矢印キーでの移動/範囲選択とコピペ・挿入・削除のショートカットをまとめて処理する
+     * 文字入力中の要素（テキスト入力・セレクトなど）かを返す。ここではショートカットを奪わない
+     *
+     * @param t キーイベントの発生元
+     */
+    function isTextEditing(t: HTMLElement | null) {
+        if (!t) return false;
+        if (t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable) return true;
+        if (t.tagName === "INPUT") return !["checkbox", "radio", "button", "submit", "range", "color"].includes((t as HTMLInputElement).type);
+        return false;
+    }
+
+    /**
+     * 指定行の最初のテキスト入力にフォーカスして編集を始める
+     *
+     * @param id 編集する行ID
+     * @param selectText trueなら入力済みの文字を全選択する
+     */
+    function focusRowInput(id: number | null, selectText: boolean) {
+        if (id == null) return;
+        const input = listRef.current?.querySelector(`[data-row-id="${id}"] input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])`) as HTMLInputElement | null;
+        if (!input) return;
+        input.focus();
+        if (selectText) input.select();
+    }
+
+    /**
+     * 一覧ルートのonKeyDownハンドラ。「選択モード」（一覧自体・チェックボックスなどにフォーカスがある状態）では、
+     * 矢印キーでの移動/範囲選択、Space(選択切替)、Ctrl+A/C/V/Insert、Delete、Enter/F2(名前の編集開始)を処理する。
+     * 文字入力中は何も奪わず、Escapeだけで選択モードに戻る。
      *
      * @param e 一覧ルートで受け取ったキーイベント
      */
     async function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-        const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-        if (tag === "input" || tag === "textarea") return;
+        const target = e.target as HTMLElement;
+
+        if (isTextEditing(target)) {
+            if (e.key !== "Escape") return;
+            const rowEl = target.closest("[data-row-id]");
+            if (!rowEl) return;
+            e.preventDefault();
+            const id = Number(rowEl.getAttribute("data-row-id"));
+            setSelectedIds(new Set([id]));
+            setCursorId(id);
+            setAnchorId(id);
+            target.blur();
+            listRef.current?.focus({ preventScroll: true });
+            return;
+        }
         if (orderedIds.length === 0) return;
 
         const isCtrl = e.ctrlKey || e.metaKey;
+        const onRoot = target === listRef.current;
 
         const curId = cursorId ?? orderedIds[0];
         const curIdx = indexOfId(curId);
@@ -303,6 +376,11 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
             return;
         }
 
+        if (isCtrl && (e.key === "a" || e.key === "A")) {
+            e.preventDefault();
+            selectAll();
+            return;
+        }
         if (isCtrl && (e.key === "c" || e.key === "C")) {
             e.preventDefault();
             await handleCopy();
@@ -323,24 +401,73 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
             await deleteSelected();
             return;
         }
+        if (e.key === "Escape") {
+            clearSelection();
+            return;
+        }
+
+        // 以下は一覧自体にフォーカスがあるときだけ（チェックボックスやボタン上では、その要素の標準動作を優先する）
+        if (!onRoot) return;
+        if (e.key === " ") {
+            e.preventDefault();
+            toggleSelected(curId);
+            return;
+        }
+        if (e.key === "Enter" || e.key === "F2") {
+            e.preventDefault();
+            focusRowInput(curId, true);
+            return;
+        }
+        if (e.key.length === 1 && !isCtrl && !e.altKey && cursorId != null) {
+            // そのまま文字を打ち始めたら、その行の名前の編集に入る（入力された文字は新しくフォーカスした欄に入る）
+            focusRowInput(cursorId, false);
+        }
     }
 
     /**
-     * idの行用のonMouseDownハンドラを作る。単一選択/Ctrl追加選択/Shift範囲選択を切り替える
+     * 指定行の選択状態を切り替える（他の選択は維持）
      *
      * @param id 対象の行ID
      */
-    const makeRowMouseDown = (id: number) => (e: React.MouseEvent) => {
-        // チェックボックスや入力欄など、行内の操作可能な要素をクリックした場合は
-        // ブラウザ標準のフォーカス付与に任せる。ここで listRef にフォーカスを
-        // 奪うと、ブラウザ側のフォーカス移動と競合してスクロール位置がずれ、
-        // 1回目のクリックが正しく反映されない(あるいは意図せずスクロールする)
-        // 不具合が起きるため。
-        const targetTag = (e.target as HTMLElement)?.tagName;
-        const isInteractiveTarget = targetTag === "INPUT" || targetTag === "SELECT" || targetTag === "TEXTAREA" || targetTag === "BUTTON";
-        if (!isInteractiveTarget) {
-            listRef.current?.focus({ preventScroll: true });
+    function toggleSelected(id: number) {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+        setCursorId(id);
+        setAnchorId(id);
+    }
+
+    /**
+     * 選択ハンドルのクリック処理。通常は追加選択の切り替え、Shift+クリックは範囲選択
+     *
+     * @param id 対象の行ID
+     * @param e クリックイベント
+     */
+    function onHandleClick(id: number, e: React.MouseEvent) {
+        if (e.shiftKey && (anchorId != null || cursorId != null)) {
+            const a = anchorId ?? cursorId!;
+            setSelectedIds(rangeSelect(a, id));
+            setCursorId(id);
+            return;
         }
+        toggleSelected(id);
+    }
+
+    /**
+     * idの行用のonMouseDownハンドラを作る。行の余白をクリックしたときの選択（単一/Ctrl追加/Shift範囲）を処理する。
+     * 入力欄・ボタン・チェックボックスの操作では選択状態を変えない（選択は選択ハンドルで行う）。
+     *
+     * @param id 対象の行ID
+     */
+    const rowMouseDown = (id: number, e: React.MouseEvent) => {
+        // 入力欄などはブラウザ標準のフォーカス付与に任せる（ここでlistRefにフォーカスを奪うと、
+        // フォーカス移動と競合してスクロール位置がずれる不具合が起きるため）
+        const isInteractiveTarget = !!(e.target as HTMLElement)?.closest("input, select, textarea, button, label");
+        if (isInteractiveTarget) return;
+        listRef.current?.focus({ preventScroll: true });
 
         const isSelected = selectedIds.has(id);
 
@@ -351,34 +478,118 @@ export function IndexedListComponent<TItem extends IndexedItemBase>(props: Props
             return;
         }
 
-        if (!e.ctrlKey && !e.metaKey) {
-            if (isSelected && selectedIds.size === 1) {
-                setSelectedIds(new Set());
-                setCursorId(null);
-                setAnchorId(null);
-                return;
-            }
-            setSelectedIds(new Set([id]));
-            setCursorId(id);
-            setAnchorId(id);
+        if (e.ctrlKey || e.metaKey) {
+            toggleSelected(id);
             return;
         }
+
+        if (isSelected && selectedIds.size === 1) {
+            setSelectedIds(new Set());
+            setCursorId(null);
+            setAnchorId(null);
+            return;
+        }
+        setSelectedIds(new Set([id]));
+        setCursorId(id);
+        setAnchorId(id);
     };
+
+    // カーソル行が画面外なら見える位置までスクロールする（キーボード移動用）
+    useEffect(() => {
+        if (cursorId == null) return;
+        const raf = requestAnimationFrame(() => {
+            (listRef.current?.querySelector(`[data-row-id="${cursorId}"]`) as HTMLElement | null)?.scrollIntoView({ block: "nearest" });
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [cursorId]);
+
+    // 行に渡すコールバックは、行IDごとに同じ関数を使い回す（行コンポーネントのReact.memoを効かせるため）。
+    // 中身は常に最新の関数(latest)を呼ぶので、古いクロージャを掴むことはない。
+    const latest = useRef({ rowMouseDown, updateById, deleteIds, insertBeforeId, onHandleClick });
+    useLayoutEffect(() => {
+        latest.current = { rowMouseDown, updateById, deleteIds, insertBeforeId, onHandleClick };
+    });
+    const handlerCache = useRef(new Map<number, Omit<RowRenderProps<TItem>, "item" | "isSelected">>());
+    useLayoutEffect(() => {
+        // 削除された行のぶんを掃除する
+        const alive = new Set(orderedIds);
+        for (const id of handlerCache.current.keys()) if (!alive.has(id)) handlerCache.current.delete(id);
+    }, [orderedIds]);
+
+    /**
+     * 行IDに対応する、安定した(再描画しても同じ参照の)コールバック一式を返す
+     *
+     * @param id 行ID
+     */
+    function getRowHandlers(id: number) {
+        let h = handlerCache.current.get(id);
+        if (!h) {
+            h = {
+                onMouseDown: (e) => latest.current.rowMouseDown(id, e),
+                onSelectClick: (e) => latest.current.onHandleClick(id, e),
+                update: (updater) => latest.current.updateById(id, updater),
+                remove: () => void latest.current.deleteIds([id]),
+                insertBefore: () => latest.current.insertBeforeId(id),
+            };
+            handlerCache.current.set(id, h);
+        }
+        return h;
+    }
 
     return (
         <div>
-            <div className="indexed-list" ref={listRef} tabIndex={0} onKeyDown={onKeyDown} style={{ outline: "none", width: "fit-content" }}>
+            {/* 選択操作バー：PC・スマホ共通。選択中の行に対する操作をここからも行える */}
+            <div className="indexed-toolbar">
+                <Group gap="xs" justify="space-between" wrap="wrap">
+                    <Text size="sm" fw={600}>
+                        {selectedIds.size > 0 ? `${selectedIds.size}件選択中` : "未選択"}
+                    </Text>
+                    <Group gap={4} wrap="wrap">
+                        <Button size="compact-xs" variant="default" onClick={selectAll} disabled={orderedIds.length === 0} title="すべて選択 (Ctrl+A)">
+                            全選択
+                        </Button>
+                        <Button size="compact-xs" variant="default" onClick={() => void handleCopy(true)} disabled={selectedIds.size === 0} title="コピー (Ctrl+C)">
+                            コピー
+                        </Button>
+                        <Button size="compact-xs" variant="default" onClick={() => void paste()} title="貼り付け (Ctrl+V)">
+                            貼り付け
+                        </Button>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            color="red"
+                            c="red"
+                            onClick={() => void deleteSelected()}
+                            disabled={selectedIds.size === 0}
+                            title="削除 (Delete)"
+                        >
+                            削除
+                        </Button>
+                        <Button size="compact-xs" variant="subtle" color="gray" onClick={clearSelection} disabled={selectedIds.size === 0} title="選択解除 (Esc)">
+                            解除
+                        </Button>
+                    </Group>
+                </Group>
+                <Text className="indexed-hint" size="xs" c="dimmed">
+                    左端の○で選択（Shift:範囲）／入力欄で Esc → 選択モード：↑↓ 移動、Shift+↑↓ 範囲、Space 選択、Ctrl+A/C/V、Delete、Enter/F2 で名前を編集
+                </Text>
+            </div>
+
+            <div
+                className="indexed-list"
+                ref={listRef}
+                tabIndex={0}
+                onKeyDown={onKeyDown}
+                onFocus={(e) => {
+                    // 行の中の入力欄などにフォーカスが入ったら、その行をキーボード操作の基準にする（選択は変えない）
+                    const rowEl = (e.target as HTMLElement).closest("[data-row-id]");
+                    if (rowEl) setCursorId(Number(rowEl.getAttribute("data-row-id")));
+                }}
+                style={{ outline: "none", width: "fit-content" }}
+            >
                 <HeaderComponent />
                 {ordered.map((item) => (
-                    <RowComponent
-                        key={item.id}
-                        item={item}
-                        isSelected={selectedIds.has(item.id)}
-                        onMouseDown={makeRowMouseDown(item.id)}
-                        update={(updater) => updateById(item.id, updater)}
-                        remove={() => void deleteIds([item.id])}
-                        insertBefore={() => insertBeforeId(item.id)}
-                    />
+                    <RowComponent key={item.id} item={item} isSelected={selectedIds.has(item.id)} {...getRowHandlers(item.id)} />
                 ))}
 
                 {AppendRowComponent ?? null}

@@ -1,7 +1,7 @@
 import { ActionIcon, TextInput } from "@mantine/core";
-import React, { useRef, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { ShowStyleComponent } from "../components/ShowStyleComponent.tsx";
-import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
+import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { StationDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute, subscribe } from "../store/localStore.ts";
@@ -151,19 +151,71 @@ function StationHeaderComponent() {
  * @param onMouseDown 行のmousedownハンドラ（選択処理）
  * @param update 行の値を更新する関数（未保存変更として記録される）
  */
-function StationRowComponent({ item, isSelected, onMouseDown, update, remove, insertBefore }: RowRenderProps<StationDto>) {
+/**
+ * 駅と駅の間の「駅を挿入」ボタン（スマホ幅のみ表示）。行の選択状態が変わっても再描画されないよう分離している。
+ *
+ * @param props name:駅名（ボタンのラベル用） / insertBefore:この駅の手前に挿入する処理
+ */
+const InsertStrip = React.memo(function InsertStrip({ name, insertBefore }: { name: string; insertBefore: () => void }) {
+    return (
+        <div className="station-insert">
+            <ActionIcon variant="light" size="sm" radius="xl" onClick={insertBefore} aria-label={`${name}の手前に駅を挿入`} title="ここに駅を挿入">
+                ＋
+            </ActionIcon>
+        </div>
+    );
+});
+
+/**
+ * 駅名の入力欄と、削除ボタン（スマホ幅のみ表示）。行の選択状態が変わっても再描画されないよう分離している。
+ *
+ * @param props item:駅 / update:駅の値を更新する関数 / remove:この駅を削除する関数
+ */
+const StationNameField = React.memo(function StationNameField({ item, update, remove }: Pick<RowRenderProps<StationDto>, "item" | "update" | "remove">) {
     return (
         <>
-            {/* スマホ幅のみ：駅と駅の間に「駅を挿入」ボタン */}
-            {item.index > 0 && (
-                <div className="station-insert">
-                    <ActionIcon variant="light" size="sm" radius="xl" onClick={insertBefore} aria-label={`${item.name}の手前に駅を挿入`} title="ここに駅を挿入">
-                        ＋
-                    </ActionIcon>
-                </div>
-            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <TextInput size="xs" value={item.name} placeholder="駅名" aria-label="駅名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
+            </div>
+            {/* スマホ幅のみ：駅名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
+            <ActionIcon
+                className="station-delete"
+                variant="subtle"
+                color="red"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={remove}
+                aria-label={`${item.name}を削除`}
+                title="この駅を削除"
+            >
+                ✕
+            </ActionIcon>
+        </>
+    );
+});
+
+/**
+ * 下り・上りの着/番線/発のチェックボックス群。行の選択状態が変わっても再描画されないよう分離している（Mantineの部品が多く重いため）。
+ *
+ * @param props showStyle:駅の表示スタイル(下り・上り) / update:駅の値を更新する関数
+ */
+const StationBlocks = React.memo(function StationBlocks({ showStyle, update }: { showStyle: number; update: RowRenderProps<StationDto>["update"] }) {
+    const changeDown = useCallback((bits: number) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) })), [update]);
+    const changeUp = useCallback((bits: number) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) })), [update]);
+    return (
+        <div className="station-blocks">
+            <ShowStyleComponent title="下り" bits={getDirectStyle(showStyle, 0)} onChangeBits={changeDown} />
+            <ShowStyleComponent title="上り" bits={getDirectStyle(showStyle, 1)} onChangeBits={changeUp} />
+        </div>
+    );
+});
+
+const StationRowComponent = React.memo(function StationRowComponent({ item, isSelected, onMouseDown, onSelectClick, update, remove, insertBefore }: RowRenderProps<StationDto>) {
+    return (
+        <>
+            {item.index > 0 && <InsertStrip name={item.name} insertBefore={insertBefore} />}
             <div
                 className="station-row"
+                data-row-id={item.id}
                 onMouseDown={onMouseDown}
                 style={{
                     ...styles.row,
@@ -172,40 +224,16 @@ function StationRowComponent({ item, isSelected, onMouseDown, update, remove, in
             >
                 <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
                     <div className="station-name-inner">
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <TextInput size="xs" value={item.name} placeholder="駅名" aria-label="駅名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
-                        </div>
-                        {/* スマホ幅のみ：駅名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
-                        <ActionIcon
-                            className="station-delete"
-                            variant="subtle"
-                            color="red"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClick={remove}
-                            aria-label={`${item.name}を削除`}
-                            title="この駅を削除"
-                        >
-                            ✕
-                        </ActionIcon>
+                        <RowSelectHandle checked={isSelected} onClick={onSelectClick} />
+                        <StationNameField item={item} update={update} remove={remove} />
                     </div>
                 </div>
 
-                <div className="station-blocks">
-                    <ShowStyleComponent
-                        title="下り"
-                        bits={getDirectStyle(item.showStyle, 0)}
-                        onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) }))}
-                    />
-                    <ShowStyleComponent
-                        title="上り"
-                        bits={getDirectStyle(item.showStyle, 1)}
-                        onChangeBits={(bits) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) }))}
-                    />
-                </div>
+                <StationBlocks showStyle={item.showStyle} update={update} />
             </div>
         </>
     );
-}
+});
 
 /**
  * 駅の一覧編集UIです。

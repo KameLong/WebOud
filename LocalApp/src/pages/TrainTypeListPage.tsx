@@ -1,6 +1,6 @@
 import { ActionIcon, Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
-import { IndexedListComponent, type RowRenderProps } from "../components/IndexedListComponent.tsx";
+import { IndexedListComponent, RowSelectHandle, type RowRenderProps } from "../components/IndexedListComponent.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
 import * as timetableApi from "../store/timetableApi.ts";
 import { getRoute, subscribe } from "../store/localStore.ts";
@@ -94,7 +94,7 @@ function ColorCell(props: { color: string; onCommit: (color: string) => void }) 
 }
 
 const COL = {
-    name: 140,
+    name: 176,
     short: 70,
     color: 50,
     chk: 56,
@@ -223,10 +223,82 @@ function TrainTypeHeaderComponent() {
  * @param onMouseDown 行のmousedownハンドラ（選択処理）
  * @param update 行の値を更新する関数（未保存変更として記録される）
  */
-function TrainTypeRowComponent({ item, isSelected, onMouseDown, update, remove }: RowRenderProps<TrainTypeDto>) {
+/**
+ * 種別名の入力欄と、削除ボタン（スマホ幅のみ表示）。行の選択状態が変わっても再描画されないよう分離している。
+ *
+ * @param props item:種別 / update:種別の値を更新する関数 / remove:この種別を削除する関数
+ */
+const TrainTypeNameField = React.memo(function TrainTypeNameField({ item, update, remove }: Pick<RowRenderProps<TrainTypeDto>, "item" | "update" | "remove">) {
+    return (
+        <>
+            <TextInput size="xs" style={{ flex: 1, minWidth: 0 }} value={item.name} aria-label="種別名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
+            {/* スマホ幅のみ：種別名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
+            <ActionIcon
+                className="tt-delete"
+                variant="subtle"
+                color="red"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={remove}
+                aria-label={`${item.name}を削除`}
+                title="この種別を削除"
+            >
+                ✕
+            </ActionIcon>
+        </>
+    );
+});
+
+/**
+ * 略称・色・太字・線太・線種の入力群。行の選択状態が変わっても再描画されないよう分離している（Mantineの部品が多く重いため）。
+ *
+ * @param props item:種別 / update:種別の値を更新する関数
+ */
+const TrainTypeFields = React.memo(function TrainTypeFields({ item, update }: Pick<RowRenderProps<TrainTypeDto>, "item" | "update">) {
+    return (
+        <div className="tt-fields">
+            <div className="tt-field tt-field-short" style={{ ...styles.cell, ...styles.shortCell }}>
+                <span className="tt-label">略称</span>
+                <TextInput size="xs" value={item.shortName} aria-label="略称" onChange={(e) => update((x) => ({ ...x, shortName: e.currentTarget.value }))} />
+            </div>
+
+            <div className="tt-field tt-field-color" style={{ ...styles.cell, ...styles.colorCell }}>
+                <span className="tt-label">色</span>
+                <ColorCell color={item.color} onCommit={(color) => update((x) => ({ ...x, color }))} />
+            </div>
+
+            <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
+                <span className="tt-label">太字</span>
+                <Checkbox size="md" checked={item.fontBold} aria-label="太字" onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
+            </label>
+
+            <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
+                <span className="tt-label">線太</span>
+                <Checkbox size="md" checked={item.lineBold} aria-label="線太" onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
+            </label>
+
+            <div className="tt-field" style={{ ...styles.cell, ...styles.styleCell }}>
+                <span className="tt-label">線種</span>
+                <NativeSelect
+                    size="xs"
+                    value={String(item.lineStyle ?? 0)}
+                    aria-label="線種"
+                    onChange={(e) => update((x) => ({ ...x, lineStyle: Number(e.currentTarget.value) }))}
+                    data={[
+                        { value: "0", label: "実線" },
+                        { value: "1", label: "破線" },
+                        { value: "2", label: "点線" },
+                    ]}
+                />
+            </div>
+        </div>
+    );
+});
+
+const TrainTypeRowComponent = React.memo(function TrainTypeRowComponent({ item, isSelected, onMouseDown, onSelectClick, update, remove }: RowRenderProps<TrainTypeDto>) {
     return (
         <div
             className="tt-row"
+            data-row-id={item.id}
             onMouseDown={onMouseDown}
             style={{
                 ...styles.row,
@@ -235,67 +307,15 @@ function TrainTypeRowComponent({ item, isSelected, onMouseDown, update, remove }
         >
             <div className="tt-name" style={{ ...styles.cell, ...styles.nameCell }}>
                 <div className="tt-name-inner">
-                    <TextInput
-                        size="xs"
-                        style={{ flex: 1, minWidth: 0 }}
-                        value={item.name}
-                        aria-label="種別名"
-                        onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))}
-                    />
-                    {/* スマホ幅のみ：種別名の右側に削除ボタン（PC幅ではキーボードのDeleteで削除） */}
-                    <ActionIcon
-                        className="tt-delete"
-                        variant="subtle"
-                        color="red"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={remove}
-                        aria-label={`${item.name}を削除`}
-                        title="この種別を削除"
-                    >
-                        ✕
-                    </ActionIcon>
+                    <RowSelectHandle checked={isSelected} onClick={onSelectClick} />
+                    <TrainTypeNameField item={item} update={update} remove={remove} />
                 </div>
             </div>
 
-            <div className="tt-fields">
-                <div className="tt-field tt-field-short" style={{ ...styles.cell, ...styles.shortCell }}>
-                    <span className="tt-label">略称</span>
-                    <TextInput size="xs" value={item.shortName} aria-label="略称" onChange={(e) => update((x) => ({ ...x, shortName: e.currentTarget.value }))} />
-                </div>
-
-                <div className="tt-field tt-field-color" style={{ ...styles.cell, ...styles.colorCell }}>
-                    <span className="tt-label">色</span>
-                    <ColorCell color={item.color} onCommit={(color) => update((x) => ({ ...x, color }))} />
-                </div>
-
-                <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
-                    <span className="tt-label">太字</span>
-                    <Checkbox size="md" checked={item.fontBold} aria-label="太字" onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
-                </label>
-
-                <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
-                    <span className="tt-label">線太</span>
-                    <Checkbox size="md" checked={item.lineBold} aria-label="線太" onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
-                </label>
-
-                <div className="tt-field" style={{ ...styles.cell, ...styles.styleCell }}>
-                    <span className="tt-label">線種</span>
-                    <NativeSelect
-                        size="xs"
-                        value={String(item.lineStyle ?? 0)}
-                        aria-label="線種"
-                        onChange={(e) => update((x) => ({ ...x, lineStyle: Number(e.currentTarget.value) }))}
-                        data={[
-                            { value: "0", label: "実線" },
-                            { value: "1", label: "破線" },
-                            { value: "2", label: "点線" },
-                        ]}
-                    />
-                </div>
-            </div>
+            <TrainTypeFields item={item} update={update} />
         </div>
     );
-}
+});
 /**
  * 列車種別の一覧編集UIです。
  *
