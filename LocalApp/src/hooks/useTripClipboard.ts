@@ -48,8 +48,9 @@ function isEditableTripId(id: number) {
  */
 function addOffsetToStopTime(st: StopTimeDto, offsetSeconds: number): StopTimeDto {
     const next = { ...st };
-    if (next.ariTime >= 0) next.ariTime += offsetSeconds;
-    if (next.depTime >= 0) next.depTime += offsetSeconds;
+    // 戻す量が大きくても、時刻が0:00より前（負の値＝未設定の意味になる）にならないようにする
+    if (next.ariTime >= 0) next.ariTime = Math.max(0, next.ariTime + offsetSeconds);
+    if (next.depTime >= 0) next.depTime = Math.max(0, next.depTime + offsetSeconds);
     return next;
 }
 
@@ -71,11 +72,12 @@ export function useTripClipboard(params: {
     const { routeId, direct, trips, getSelectedCols, getCursorCol, getPasteIndex, onAfterMutate } = params;
 
     const clipRef = useRef<ClipboardPayload | null>(null);
-    const [pasteMove, setPasteMove] = useState({ minutes: 0, seconds: 0 });
+    /** 貼り付けのたびに加算する時刻移動量（秒。負の値なら戻す） */
+    const [pasteMove, setPasteMove] = useState(0);
 
     const offsetRef = useRef<number>(0);
 
-    const deltaSeconds = Math.max(0, (pasteMove.minutes | 0) * 60 + (pasteMove.seconds | 0));
+    const deltaSeconds = pasteMove | 0;
 
     const copy = useCallback(() => {
         const cols = getSelectedCols();
@@ -86,7 +88,7 @@ export function useTripClipboard(params: {
         clipRef.current = { trips: picked.map(cloneTrip) };
         offsetRef.current = 0;
         // コピーした瞬間に、貼り付け移動量を0(そのまま貼り付け)に戻す
-        setPasteMove({ minutes: 0, seconds: 0 });
+        setPasteMove(0);
         return true;
     }, [getSelectedCols, trips]);
 
@@ -100,7 +102,7 @@ export function useTripClipboard(params: {
         clipRef.current = { trips: picked.map(cloneTrip) };
         offsetRef.current = 0;
         // 切り取った瞬間にも、貼り付け移動量を0(そのまま貼り付け)に戻す
-        setPasteMove({ minutes: 0, seconds: 0 });
+        setPasteMove(0);
 
         // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
         const ids = picked.map((t) => t.id);
@@ -115,7 +117,7 @@ export function useTripClipboard(params: {
         const payload = clipRef.current;
         if (!payload || payload.trips.length === 0) return false;
 
-        if (deltaSeconds > 0) offsetRef.current += deltaSeconds;
+        if (deltaSeconds !== 0) offsetRef.current += deltaSeconds;
         const offsetSeconds = offsetRef.current;
 
         const pastedCount = payload.trips.length;

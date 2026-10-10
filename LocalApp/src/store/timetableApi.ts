@@ -317,6 +317,41 @@ export function shiftStopTime(routeId: number, tripId: number, stationId: number
 }
 
 /**
+ * 指定した列車の、指定駅（のカーソル位置の時刻）から後ろの駅の時刻を、まとめてずらします。
+ * 先頭の駅は、カーソルがある「着」なら着と発、「発」（または番線）なら発だけを対象にし、
+ * それより後ろの駅は着・発の両方を対象にします。未設定(-1)の時刻は変えず、結果が0より小さくなる場合は0にします。
+ *
+ * @param routeId 路線ID
+ * @param tripId 対象の列車ID
+ * @param stationIds ずらす駅のID（表示順に、カーソルの駅から末尾まで）
+ * @param firstPart 先頭の駅でカーソルがあるパート（arr/track/dep）
+ * @param offsetSeconds ずらす秒数（負で戻す）
+ */
+export function shiftStopTimesFrom(routeId: number, tripId: number, stationIds: number[], firstPart: "arr" | "dep" | "track", offsetSeconds: number) {
+    updateRoute(routeId, (r) => {
+        const tripIndex = r.trips.findIndex((t) => t.id === tripId);
+        if (tripIndex < 0) return r;
+        const trip = r.trips[tripIndex];
+
+        const shift = (v: number) => (v >= 0 ? Math.max(0, v + offsetSeconds) : v);
+        const stopTimes = { ...trip.stopTimesByStationId };
+        stationIds.forEach((stationId, i) => {
+            const existing = stopTimes[stationId];
+            if (!existing) return;
+            const next = { ...existing };
+            const isFirst = i === 0;
+            if (!isFirst || firstPart === "arr") next.ariTime = shift(next.ariTime);
+            next.depTime = shift(next.depTime);
+            stopTimes[stationId] = next;
+        });
+
+        const nextTrips = [...r.trips];
+        nextTrips[tripIndex] = { ...trip, stopTimesByStationId: stopTimes };
+        return { ...r, trips: nextTrips };
+    });
+}
+
+/**
  * 指定方向の列車を orderedTripIds の順番に並び替えます（他方向の列車の並びはそのまま）
  *
  * @param routeId 路線ID

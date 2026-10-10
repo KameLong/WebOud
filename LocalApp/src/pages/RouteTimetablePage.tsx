@@ -13,7 +13,7 @@ import { useStopTimeEditor, useTimetableData } from "../hooks/useTimetableData.t
 import { useTripClipboard } from "../hooks/useTripClipboard.ts";
 import { PasteMoveDialog } from "../components/PasteMoveDialog.tsx";
 import { TrainPropertyDialog } from "../components/TrainPropertyDialog.tsx";
-import { putTrip, shiftStopTime } from "../store/timetableApi.ts";
+import { putTrip, shiftStopTime, shiftStopTimesFrom } from "../store/timetableApi.ts";
 import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
@@ -199,6 +199,21 @@ export default function RouteTimetablePage() {
     const keyEvent = async (e: KeyLike) => {
         // macOSはAlt(Option)併用時にkeyが特殊文字に化ける(例: Alt+T→†)ため、
         // Alt併用のショートカットはレイアウト非依存のe.codeで判定する
+        // Alt+Shift+L / J：カーソル位置とそれより下の駅の時刻（その列車）をまとめて1分進める/戻す
+        if (e.altKey && e.shiftKey && (e.code === "KeyL" || e.code === "KeyJ")) {
+            e.preventDefault();
+            const cursor = nav.cursor;
+            const trip = trips[cursor.c];
+            if (!trip || trip.id === -1) return;
+            shiftStopTimesFrom(
+                routeId,
+                trip.id,
+                stations.slice(cursor.r).map((s) => s.id),
+                cursor.part,
+                e.code === "KeyL" ? 60 : -60,
+            );
+            return;
+        }
         if (e.altKey && e.code === "KeyL") {
             const cursor = nav.cursor;
             e.preventDefault();
@@ -508,6 +523,7 @@ export default function RouteTimetablePage() {
                             ["連続入力中の Backspace / Esc", "1文字削除 / 入力をやめて連続入力モードを終了"],
                             ["Alt+L", "カーソル位置の時刻を1分進める"],
                             ["Alt+J", "カーソル位置の時刻を1分戻す"],
+                            ["Alt+Shift+L / Alt+Shift+J", "カーソル位置の時刻と、それより下の駅の時刻（その列車）をまとめて1分進める／戻す"],
                             ["Ctrl+Delete", "カーソル位置の時刻・番線を消去"],
                             ["Ctrl+^", "カーソル位置を「経由なし」に設定"],
                             ["Alt+-", "カーソル位置を「通過」に設定"],
@@ -515,7 +531,7 @@ export default function RouteTimetablePage() {
                             ["Ctrl+Insert", "カーソル位置の手前に空の列車を挿入"],
                             ["Ctrl+C / Ctrl+X", "選択中の列車をコピー／切り取り"],
                             ["Ctrl+V", "コピーした列車をカーソル位置に貼り付け"],
-                            ["Shift+Enter", "貼り付け時の時刻移動量（分・秒）を設定（初期値は0分でそのまま貼り付け。コピー・切り取りのたびに0へ戻る）"],
+                            ["Shift+Enter", "貼り付け時の時刻移動量（分・秒）を設定（初期値は0分でそのまま貼り付け。マイナスで時刻を戻せる。コピー・切り取りのたびに0へ戻る）"],
                         ]}
                     />
                 </HelpSection>
