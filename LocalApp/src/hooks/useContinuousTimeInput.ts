@@ -233,20 +233,21 @@ export function useContinuousTimeInput(opts: Options) {
                 const digit = e.key;
                 setWarning(null);
 
-                setBuf((prev) => {
-                    const nb = (prev + digit).slice(0, 2);
-                    queueMicrotask(() => {
-                        void commitIfReady(nb);
-                    });
-                    return nb;
-                });
+                // setBuf の更新関数（第2引数の関数形）はReactの仕様上、StrictModeなどで
+                // 複数回呼ばれることがあるため、中で確定処理(副作用)を行ってはいけない。
+                // ここでは次のbufの値を直接計算してsetBuf・確定処理を1回だけ行う。
+                const nb = (buf + digit).slice(0, 2);
+                setBuf(nb);
+                if (nb.length === 2) {
+                    void commitIfReady(nb);
+                }
 
                 return true;
             }
 
             return false;
         },
-        [enabled, toggle, reset, commitIfReady]
+        [enabled, toggle, reset, buf, commitIfReady]
     );
 
     const state: State = useMemo(
