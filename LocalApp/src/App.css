@@ -9,6 +9,18 @@
     --rt-keypad-h: 208px;
 }
 
+/* 連続入力モードで不正な値を確定しようとしたときの警告表示 */
+.rt-input-warning {
+    color: #c0392b;
+    background: #fdecea;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
 /* 狭い画面(モバイル想定)では左の路線ツリーを隠し、各ページ内のナビゲーションボタンに任せる */
 @media (max-width: 780px) {
     .route-tree-sidebar {

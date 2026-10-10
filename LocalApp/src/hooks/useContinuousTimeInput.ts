@@ -24,6 +24,8 @@ type State = {
     enabled: boolean;
     buf: string;
     lastTime: number; // seconds, -1 if unknown
+    /** 直近の確定が不正だった場合の警告文。次の確定操作や入力で消える */
+    warning: string | null;
 };
 
 /**
@@ -32,8 +34,10 @@ type State = {
  * - buf が 2桁になったら確定
  *   - lastTime === -1 の場合：bufをhh扱いして lastTime を更新して終了（保存しない）
  *   - lastTime !== -1 の場合：bufをmm扱いして時補完→ StopTime更新 → moveVertical(1)
+ *   - 不正な値（hh:0〜25、mm:0〜59の範囲外）は確定せず、警告を出してbufを残す
  * - Escape：bufクリアして enabled=false
  * - Backspace：buf末尾削除
+ * - commitPending：Enterやカーソル移動の直前に呼び、1桁だけ入力されていれば0埋めして確定を試みる
  *
  * @param opts stations:駅一覧 / trips:列車一覧 / nav:カーソル操作 / changeStopTime:確定した時刻の保存関数
  */
@@ -43,6 +47,7 @@ export function useContinuousTimeInput(opts: Options) {
     const [enabled, setEnabled] = useState(false);
     const [buf, setBuf] = useState("");
     const [lastTime, setLastTime] = useState<number>(-1);
+    const [warning, setWarning] = useState<string | null>(null);
 
     useEffect(() => {
         const c = nav.cursor.c;
@@ -55,16 +60,18 @@ export function useContinuousTimeInput(opts: Options) {
         const lt = getLastTimeFormStopTimes(list, r);
         setLastTime(lt);
         setBuf("");
+        setWarning(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nav.cursor, trips, stations]);
 
     /**
-     * 入力途中のバッファを消します。
+     * 入力途中のバッファと警告を消します。
      *
      * @param disableAlso trueなら連続入力モード自体も終了する
      */
     const reset = useCallback((disableAlso: boolean) => {
         setBuf("");
+        setWarning(null);
         if (disableAlso) setEnabled(false);
     }, []);
 
@@ -74,6 +81,7 @@ export function useContinuousTimeInput(opts: Options) {
             if (!next) {
                 setBuf("");
                 setLastTime(-1);
+                setWarning(null);
             } else {
                 const c = nav.cursor.c;
                 const r = nav.cursor.r;
@@ -92,15 +100,13 @@ export function useContinuousTimeInput(opts: Options) {
         });
     }, [nav, trips, stations]);
 
-    const commitIfReady = useCallback(
-        /**
-         * 2桁入力されていれば時刻として確定します。
-         *
-         * @param nextBuf 入力済みの数字文字列。2桁のときだけ処理する
-         */
-        async (nextBuf: string) => {
-            if (nextBuf.length !== 2) return false;
-
+    /**
+     * 2桁の文字列を時刻として確定を試みます。不正な場合はbufを残したまま警告を出してfalseを返します。
+     *
+     * @param s 2桁の数字文字列
+     */
+    const commit2 = useCallback(
+        async (s: string): Promise<boolean> => {
             const r = nav.cursor.r;
             const c = nav.cursor.c;
             const st = stations[r];
@@ -110,22 +116,25 @@ export function useContinuousTimeInput(opts: Options) {
                 return true;
             }
 
-            const s = nextBuf;
-            setBuf("");
-
             if (lastTime === -1) {
                 const hh = Number(s);
                 if (Number.isNaN(hh) || hh < 0 || hh > 25) {
-                    return true;
+                    setWarning(`「${s}」は時刻として入力できません（0〜25で入力してください）`);
+                    return false;
                 }
+                setWarning(null);
+                setBuf("");
                 setLastTime(hh * 3600);
                 return true;
             }
 
             const mm = Number(s);
             if (Number.isNaN(mm) || mm < 0 || mm > 59) {
-                return true;
+                setWarning(`「${s}」は分として入力できません（0〜59で入力してください）`);
+                return false;
             }
+            setWarning(null);
+            setBuf("");
 
             const part = nav.cursor.part;
             const current: StopTimeDto =
@@ -165,6 +174,31 @@ export function useContinuousTimeInput(opts: Options) {
         [stations, trips, nav, changeStopTime, lastTime]
     );
 
+    /**
+     * 2桁たまったら確定します（入力中の自動確定用）。
+     *
+     * @param nextBuf 入力済みの数字文字列。2桁のときだけ処理する
+     */
+    const commitIfReady = useCallback(
+        async (nextBuf: string) => {
+            if (nextBuf.length !== 2) return false;
+            await commit2(nextBuf);
+            return true;
+        },
+        [commit2]
+    );
+
+    /**
+     * Enterやカーソル移動の直前に呼び、入力途中のバッファを確定させます。
+     * 1桁だけ入力されていれば0埋めして確定を試みます。何も入力されていなければ何もせずtrueを返します。
+     * 不正な値だった場合は警告を出し、bufを残したままfalseを返します（呼び出し側は後続の操作を中断してください）。
+     */
+    const commitPending = useCallback(async (): Promise<boolean> => {
+        if (buf.length === 0) return true;
+        const padded = buf.length === 1 ? buf.padStart(2, "0") : buf;
+        return commit2(padded);
+    }, [buf, commit2]);
+
     const onKeyDown = useCallback(
         /**
          * 連続入力用のキー処理。処理した場合はtrueを返します。
@@ -189,6 +223,7 @@ export function useContinuousTimeInput(opts: Options) {
 
             if (e.key === "Backspace") {
                 e.preventDefault?.();
+                setWarning(null);
                 setBuf((prev) => prev.slice(0, -1));
                 return true;
             }
@@ -196,6 +231,7 @@ export function useContinuousTimeInput(opts: Options) {
             if (isDigitKey(e)) {
                 e.preventDefault?.();
                 const digit = e.key;
+                setWarning(null);
 
                 setBuf((prev) => {
                     const nb = (prev + digit).slice(0, 2);
@@ -218,8 +254,9 @@ export function useContinuousTimeInput(opts: Options) {
             enabled,
             buf,
             lastTime,
+            warning,
         }),
-        [enabled, buf, lastTime]
+        [enabled, buf, lastTime, warning]
     );
 
     return {
@@ -228,5 +265,6 @@ export function useContinuousTimeInput(opts: Options) {
         reset,
         toggle,
         onKeyDown,
+        commitPending,
     };
 }

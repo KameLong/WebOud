@@ -221,11 +221,15 @@ export default function RouteTimetablePage() {
             return;
         }
 
-        // 編集開始（スマホで連続入力モードが有効な間はダイアログを出さず、カーソルを1段下へ進めるだけにする）
+        // 編集開始（スマホで連続入力モードが有効な間はダイアログを出さず、入力途中のバッファを確定してから1段下へ進める）
         if (e.key === "Enter") {
             e.preventDefault();
             if (isMobile && cont.state.enabled) {
-                nav.moveVertical(1);
+                const hadPending = cont.state.buf.length > 0;
+                const ok = await cont.commitPending();
+                if (!ok) return; // 不正な入力中は確定・移動せず、警告を表示したままその場に留める
+                // バッファがあった場合はcommitPending自身が必要な移動を行う(分の確定時のみ)ため、ここでは動かさない
+                if (!hadPending) nav.moveVertical(1);
             } else {
                 openEdit();
             }
@@ -316,6 +320,23 @@ export default function RouteTimetablePage() {
         }
         tripClipboard.onKeyDown(e);
 
+        // カーソル移動の前に、入力途中のバッファがあれば確定を試みる（1桁なら0埋め）。
+        // 不正な値だった場合は警告を出したまま移動をブロックし、その場で修正できるようにする。
+        const isArrowKey = e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight";
+        if (isArrowKey && cont.state.enabled) {
+            const hadPending = cont.state.buf.length > 0;
+            const ok = await cont.commitPending();
+            if (!ok) {
+                e.preventDefault();
+                return;
+            }
+            if (hadPending) {
+                // 確定処理自体が必要な移動を行っている(分の確定時のみ)ため、矢印キー自体の移動は行わない
+                e.preventDefault();
+                return;
+            }
+        }
+
         nav.onKeyDown(e);
         await new Promise((res) => setTimeout(res, 0));
     };
@@ -335,6 +356,7 @@ export default function RouteTimetablePage() {
                     ？
                 </button>
             </div>
+            {cont.state.warning && <div className="rt-input-warning">{cont.state.warning}</div>}
             <div
                 ref={scrollRef}
                 className="rt-grid-scroll"
@@ -379,7 +401,16 @@ export default function RouteTimetablePage() {
                             width: trips.length * COLUMN_WIDTH,
                             paddingLeft: colWindow.first * COLUMN_WIDTH,
                         }}
-                        onMouseDown={(e) => nav.onMouseDownDelegated(e, focusGrid)}
+                        onMouseDown={(e) => {
+                            // 別セルをタップしてカーソルを移動する前に、入力途中のバッファがあれば確定を試みる
+                            if (cont.state.enabled && cont.state.buf.length > 0) {
+                                void cont.commitPending().then((ok) => {
+                                    if (ok) nav.onMouseDownDelegated(e, focusGrid);
+                                });
+                                return;
+                            }
+                            nav.onMouseDownDelegated(e, focusGrid);
+                        }}
                     >
                         {trips.slice(colWindow.first, colWindow.last).map((t, i) => {
                             const c = colWindow.first + i;
