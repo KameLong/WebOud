@@ -7,7 +7,7 @@ import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../component
 /**
  * 1時間分の行（時刻の数字＋分の一覧）を描画します。
  *
- * @param hour 時間帯の時（0:00からの経過時間数。24時で折り返さない）
+ * @param hour 時間帯の時（0〜23。深夜0〜2時台は23時の次の行として扱う）
  * @param entries この時間に発車（終着のみの列車は着）する列車の一覧
  */
 function HourRow({ hour, entries }: StationTimetableHour) {
@@ -15,17 +15,38 @@ function HourRow({ hour, entries }: StationTimetableHour) {
         <tr style={{ borderBottom: "1px solid #eee" }}>
             <td style={{ padding: "4px 8px", fontWeight: 700, textAlign: "right", borderRight: "2px solid #333", verticalAlign: "top", background: "#fafafa" }}>{hour}</td>
             <td style={{ padding: "4px 8px" }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 12px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 14px" }}>
                     {entries.map((e) => {
                         const mm = Math.floor((e.time % 3600) / 60)
                             .toString()
                             .padStart(2, "0");
                         const label = e.isArrivalOnly ? `(${mm})` : mm;
-                        const title = [e.trainType.name, e.trip.no, e.trip.name].filter(Boolean).join(" ") + (e.isArrivalOnly ? "（この駅が終着）" : "");
+                        const marker = e.isOrigin && e.isTerminus ? "●▲" : e.isOrigin ? "●" : e.isTerminus ? "▲" : "";
+                        const title =
+                            [e.trainType.name, e.trip.no, e.trip.name, e.destChar && `${e.destChar}方面`].filter(Boolean).join(" ") +
+                            (e.isOrigin ? "（この駅が始発）" : "") +
+                            (e.isTerminus ? "（この駅が終着）" : "");
                         return (
-                            <span key={e.trip.id} title={title || undefined} style={{ color: e.trainType.color, fontWeight: e.trainType.fontBold ? 700 : 400, whiteSpace: "nowrap" }}>
+                            <span
+                                key={e.trip.id}
+                                title={title || undefined}
+                                style={{
+                                    position: "relative",
+                                    display: "inline-block",
+                                    color: e.trainType.color,
+                                    fontWeight: e.trainType.fontBold ? 700 : 400,
+                                    whiteSpace: "nowrap",
+                                    paddingTop: 7,
+                                    paddingRight: 9,
+                                    paddingBottom: 7,
+                                }}
+                            >
                                 {e.trainType.shortName && <sup style={{ fontSize: 10 }}>{e.trainType.shortName}</sup>}
                                 {label}
+                                {marker && <span style={{ position: "absolute", top: 0, right: 0, fontSize: 7, lineHeight: 1, color: "#333" }}>{marker}</span>}
+                                {e.destChar && (
+                                    <span style={{ position: "absolute", bottom: 0, right: 0, fontSize: 9, lineHeight: 1, fontWeight: 400, color: "#666" }}>{e.destChar}</span>
+                                )}
                             </span>
                         );
                     })}
@@ -42,12 +63,13 @@ function HourRow({ hour, entries }: StationTimetableHour) {
  * @param hours 時間帯ごとの行
  */
 function DirectionTable({ title, hours }: { title: string; hours: StationTimetableHour[] }) {
+    const hasAnyTrain = hours.some((h) => h.entries.length > 0);
     return (
         <div style={{ flex: "1 1 320px", minWidth: 280 }}>
             <Title order={4} mb="xs">
                 {title}
             </Title>
-            {hours.length === 0 ? (
+            {!hasAnyTrain ? (
                 <Text size="sm" c="dimmed">
                     この駅に停車する列車はありません
                 </Text>
@@ -119,10 +141,16 @@ export function StationTimetablePage() {
                     <HelpList
                         items={[
                             "選択した駅に停車する列車の発車時刻を、時間帯ごと・方向（下り/上り）ごとに一覧表示する（表示専用、編集はできません）",
+                            "時間帯は午前3時始まり・翌午前2時終わりで固定表示（0〜2時台は23時の次に表示）",
                             "上部のプルダウンで別の駅へすぐに切り替えられる",
                             "括弧( )付きの数字は、この駅が終着で発車時刻が無いため、代わりに到着時刻を表示している",
-                            "色付き・右上の略称は列車種別を表す（種別編集ページの設定に合わせる）",
+                            "色付き・左上の略称は列車種別を表す（種別編集ページの設定に合わせる）",
                         ]}
+                    />
+                </HelpSection>
+                <HelpSection title="凡例">
+                    <HelpList
+                        items={["右上の●：この駅がその列車の始発駅", "右上の▲：この駅がその列車の終着駅", "右下の1文字：その列車の行き先（終着駅名の頭文字）"]}
                     />
                 </HelpSection>
             </HelpDialog>
