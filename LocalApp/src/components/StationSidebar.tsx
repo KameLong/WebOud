@@ -176,6 +176,9 @@ export function StationSidebar(props: {
                                     flex: "1 1 auto",
                                     minWidth: 0,
                                     cursor: "pointer",
+                                    // 着・発の2段表示などで行が高くなっても、駅名を縦方向の中央に置く
+                                    display: "flex",
+                                    alignItems: "center",
                                 }}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.background = "#eef6ff";
