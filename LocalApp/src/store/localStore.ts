@@ -254,6 +254,19 @@ export function importAllFromJson(json: string) {
 }
 
 /**
+ * 新しい路線を追加して保存します（OuDiaの取り込みなど、外部のデータから路線を作るとき用）。
+ * 列車種別が空なら標準の種別を補います。
+ *
+ * @param build 新しい路線のIDを受け取り、そのIDを持つ路線データを返す関数
+ */
+export function addRoute(build: (id: number) => RouteRecord): RouteRecord {
+    const newId = state.nextRouteId;
+    const route = withDefaultTrainType({ ...build(newId), id: newId, updatedAt: Date.now() });
+    setState({ ...state, nextRouteId: newId + 1, routes: [...state.routes, route] });
+    return route;
+}
+
+/**
  * 1路線分のJSONを読み込み、新しい路線として追加します
  *
  * @param json exportRouteAsJsonで書き出したJSON文字列

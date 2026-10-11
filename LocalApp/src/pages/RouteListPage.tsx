@@ -12,6 +12,7 @@ import {
     listRoutes,
     subscribe,
 } from "../store/localStore.ts";
+import { OudiaImportDialog } from "../components/OudiaImportDialog.tsx";
 import { createSampleRoute } from "../sampleData.ts";
 import { HelpDialog, HelpList, HelpSection } from "../components/HelpDialog.tsx";
 
@@ -49,6 +50,7 @@ export default function RouteListPage() {
     const routeFileReset = useRef<() => void>(null);
     const allFileReset = useRef<() => void>(null);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [oudiaOpen, setOudiaOpen] = useState(false);
 
     /**
      * 路線を新規作成して編集画面へ移動します。
@@ -172,6 +174,9 @@ export default function RouteListPage() {
                 <Button variant="light" size="compact-sm" onClick={onLoadSample}>
                     サンプルダイヤを読み込む（神戸電鉄粟生線）
                 </Button>
+                <Button variant="light" size="compact-sm" onClick={() => setOudiaOpen(true)}>
+                    OuDiaファイルを取り込む
+                </Button>
                 <Button variant="default" size="compact-sm" onClick={onExportAll}>
                     全データをエクスポート
                 </Button>
@@ -256,12 +261,14 @@ export default function RouteListPage() {
                 </Table>
             )}
 
+            <OudiaImportDialog open={oudiaOpen} onClose={() => setOudiaOpen(false)} />
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="路線一覧 - ヘルプ">
                 <HelpSection title="このページでできること">
                     <HelpList
                         items={[
                             "新しい路線（ダイヤ）を名前を付けて作成する",
                             "サンプルダイヤ（神戸電鉄粟生線）を読み込んで試す",
+                            "OuDiaのファイル(.oud)を読み込んで、新しい路線として取り込む（取り込むダイヤと路線名を選べる）",
                             "路線名をクリックして路線編集画面（駅・列車種別の編集）へ移動する。時刻表・ダイヤグラムは、路線編集画面などの左のメニュー（スマホでは下部のメニューボタン）から開く",
                             "路線を書き出す／複製する／削除する（スマホでは各行の「⋮」メニューから。削除は確認あり、取り消せません）",
                             "路線単体、または全データをJSONファイルとして書き出す（バックアップ・他端末への移行用）",
