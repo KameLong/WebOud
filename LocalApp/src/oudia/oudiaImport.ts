@@ -147,7 +147,9 @@ export function oudiaToRouteRecord(parsed: ParsedOudia, diagramIndex: number, ro
             const tripId = trips.length + 1;
             const stopTimesByStationId: Record<number, StopTimeDto> = {};
             stations.forEach((station, i) => {
-                const h = streak.stHandlings[i];
+                // OuDiaのEkiJikokuは各列車の走行順（上りは駅一覧と逆順）に並んでいるため、
+                // 上り列車は駅一覧を逆順にたどって対応する時刻を拾う
+                const h = streak.stHandlings[direct === 1 ? stations.length - 1 - i : i];
                 if (!h) return;
                 const ariTime = normalizeTime(h.arrival.getTime());
                 const depTime = normalizeTime(h.departure.getTime());
