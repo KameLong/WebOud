@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button, Container, NativeSelect, Text, Title } from "@mantine/core";
-import { useStationTimetable, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
+import { useStationTimetable, type StationTimetableEntry, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
 import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
+import type { TrainTypeDto } from "../domain/dto.ts";
 
 /**
  * 1時間分の行（時刻の数字＋分の一覧）を描画します。
@@ -41,7 +42,6 @@ function HourRow({ hour, entries }: StationTimetableHour) {
                                     paddingBottom: 7,
                                 }}
                             >
-                                {e.trainType.shortName && <sup style={{ fontSize: 10 }}>{e.trainType.shortName}</sup>}
                                 {label}
                                 {marker && <span style={{ position: "absolute", top: 0, right: 0, fontSize: 7, lineHeight: 1, color: "#333" }}>{marker}</span>}
                                 {e.destChar && (
@@ -53,6 +53,44 @@ function HourRow({ hour, entries }: StationTimetableHour) {
                 </div>
             </td>
         </tr>
+    );
+}
+
+/**
+ * 時間帯ごとの行一覧から、実際に使われている列車種別を重複なく集めます（種別の並び順＝index順）。
+ *
+ * @param hourGroups 下り・上りの時間帯ごとの行一覧
+ */
+function collectTrainTypes(hourGroups: StationTimetableHour[][]): TrainTypeDto[] {
+    const byId = new Map<number, TrainTypeDto>();
+    for (const hours of hourGroups) {
+        for (const h of hours) {
+            for (const e of h.entries as StationTimetableEntry[]) {
+                byId.set(e.trainType.id, e.trainType);
+            }
+        }
+    }
+    return [...byId.values()].sort((a, b) => a.index - b.index);
+}
+
+/**
+ * 列車種別の色の凡例（色の四角＋種別名）を一覧表示します。
+ *
+ * @param trainTypes 表示する種別一覧
+ */
+function TrainTypeLegend({ trainTypes }: { trainTypes: TrainTypeDto[] }) {
+    if (trainTypes.length === 0) return null;
+    return (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", marginTop: 20, paddingTop: 12, borderTop: "1px solid #eee" }}>
+            {trainTypes.map((t) => (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                    <span style={{ width: 14, height: 14, borderRadius: 3, background: t.color, flexShrink: 0 }} />
+                    <span style={{ color: t.color, fontWeight: t.fontBold ? 700 : 400 }}>
+                        {t.shortName && t.shortName !== t.name ? `${t.shortName}（${t.name || "無名"}）` : t.name || "（名称未設定）"}
+                    </span>
+                </div>
+            ))}
+        </div>
     );
 }
 
@@ -97,6 +135,7 @@ export function StationTimetablePage() {
     const [helpOpen, setHelpOpen] = useState(false);
 
     const { station, stations, down, up } = useStationTimetable(routeId, stationId);
+    const legendTrainTypes = useMemo(() => collectTrainTypes([down, up]), [down, up]);
 
     if (!station) {
         return (
@@ -136,6 +175,8 @@ export function StationTimetablePage() {
                 <DirectionTable title="上り" hours={up} />
             </div>
 
+            <TrainTypeLegend trainTypes={legendTrainTypes} />
+
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="駅時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
                     <HelpList
@@ -144,7 +185,7 @@ export function StationTimetablePage() {
                             "時間帯は午前3時始まり・翌午前2時終わりで固定表示（0〜2時台は23時の次に表示）",
                             "上部のプルダウンで別の駅へすぐに切り替えられる",
                             "括弧( )付きの数字は、この駅が終着で発車時刻が無いため、代わりに到着時刻を表示している",
-                            "色付き・左上の略称は列車種別を表す（種別編集ページの設定に合わせる）",
+                            "時刻の色は列車種別を表す。種別名は時刻表の下の凡例にまとめて表示する",
                         ]}
                     />
                 </HelpSection>
