@@ -26,6 +26,8 @@ export type StationTimetableEntry = {
     isTerminus: boolean;
     /** 行き先（この列車の終着駅名の先頭1文字） */
     destChar: string;
+    /** 行き先（この列車の終着駅名） */
+    destName: string;
 };
 
 export type StationTimetableHour = {
@@ -107,6 +109,7 @@ function buildHourRows(trips: TripWithStopTimesDto[], stationId: number, direct:
             isOrigin: endpoint?.originId === stationId,
             isTerminus: endpoint?.destId === stationId,
             destChar: endpoint?.destName.charAt(0) ?? "",
+            destName: endpoint?.destName ?? "",
         });
     }
 
