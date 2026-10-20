@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Switch } from "@mantine/core";
-import { decodeShowStyle, getDirectStyle, FONT_SIZE, getOrCreateStopTime, isDigitKey, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH } from "../domain/utils.ts";
+import { decodeShowStyle, getDirectStyle, getOrCreateStopTime, gridMetrics, isDigitKey } from "../domain/utils.ts";
+import { useFontSize } from "../hooks/useFontSize.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
 import { useColumnWindow } from "../hooks/useColumnWindow.ts";
 import { useAutoScrollCursor } from "../hooks/useAutoScrollCursor.ts";
@@ -32,6 +33,10 @@ export default function RouteTimetablePage() {
     const direct = Number(params.direct ?? 0);
     const nav_ = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
+
+    const fontSize = useFontSize();
+    const metrics = useMemo(() => gridMetrics(fontSize), [fontSize]);
+    const { FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH } = metrics;
 
     const HEADER_ROW_H = LINE_HEIGHT;
     const HEADER_H = HEADER_ROW_H * 7 + 2;
@@ -404,7 +409,7 @@ export default function RouteTimetablePage() {
                 }}
             >
                 <div style={{ display: "flex", width: "fit-content", flexWrap: "nowrap", paddingRight: "100px" }}>
-                    <StationSidebar stations={stations} trips={trips} routeId={routeId} direct={direct} HEADER_H={HEADER_H} zLeft={z.left} zCorner={z.corner} />
+                    <StationSidebar stations={stations} trips={trips} routeId={routeId} direct={direct} HEADER_H={HEADER_H} zLeft={z.left} zCorner={z.corner} metrics={metrics} />
 
                     <div
                         ref={colsRef}
@@ -447,6 +452,7 @@ export default function RouteTimetablePage() {
                                     zHeader={z.header}
                                     onOpenTripProperty={openTripProperty}
                                     trainType={trainTypeById.get(t.trainTypeID) ?? FALLBACK_TRAIN_TYPE}
+                                    metrics={metrics}
                                 />
                             );
                         })}

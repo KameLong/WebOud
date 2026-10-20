@@ -1,5 +1,6 @@
 import React from "react";
-import { FONT_SIZE, LINE_HEIGHT } from "../domain/utils.ts";
+import { gridMetrics } from "../domain/utils.ts";
+import { useFontSize } from "../hooks/useFontSize.ts";
 
 type FitTextXProps = {
     text: string;
@@ -19,6 +20,7 @@ type FitTextXProps = {
  * @param className 追加のクラス名
  */
 export function FitTextX({ text, style, className }: FitTextXProps) {
+    const { FONT_SIZE, LINE_HEIGHT } = gridMetrics(useFontSize());
     return (
         <div
             className={className}

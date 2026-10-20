@@ -1,16 +1,11 @@
-import { FONT_SIZE, LINE_HEIGHT } from "../domain/utils.ts";
+import type { GridMetrics } from "../domain/utils.ts";
 import type { TripDto, TrainTypeDto } from "../domain/dto.ts";
-
-/** 種別名欄の高さ（縦書きで4文字×2列まで収まる分）。HEADER_Hの余白内に収まるサイズにしてある */
-const SHORT_NAME_ROW_H = FONT_SIZE * 4 + 8;
-/** 縦書きの1文字分の実質幅（行間込み） */
-const VERTICAL_CHAR_W = Math.ceil(FONT_SIZE * 1.2);
 
 /**
  * 列車の見出し（種別略称・番号・列車名）を描画します。種別略称は縦書き・横方向中央寄せで表示し、
  * 文字数が多いときは自動で2列に折り返します（3列目以降は収まらない分を切り詰める）。
  *
- * @param props t:列車 / traintype:種別 / HEADER_H:高さ / zHeader:z-index / onDoubleClick:ダブルクリック時の処理
+ * @param props t:列車 / traintype:種別 / HEADER_H:高さ / zHeader:z-index / onDoubleClick:ダブルクリック時の処理 / metrics:文字サイズから決まる寸法一式
  */
 export function TrainHeader(props: {
     t: TripDto;
@@ -18,8 +13,14 @@ export function TrainHeader(props: {
     HEADER_H: number;
     zHeader: number;
     onDoubleClick?: React.MouseEventHandler<HTMLDivElement>;
+    metrics: GridMetrics;
 }) {
-    const { t, HEADER_H, zHeader, traintype } = props;
+    const { t, HEADER_H, zHeader, traintype, metrics } = props;
+    const { FONT_SIZE, LINE_HEIGHT } = metrics;
+    // 種別名欄の高さ（縦書きで4文字×2列まで収まる分）。HEADER_Hの余白内に収まるサイズにしてある
+    const SHORT_NAME_ROW_H = FONT_SIZE * 4 + 8;
+    // 縦書きの1文字分の実質幅（行間込み）
+    const VERTICAL_CHAR_W = Math.ceil(FONT_SIZE * 1.2);
     return (
         <div
             onDoubleClick={props.onDoubleClick}

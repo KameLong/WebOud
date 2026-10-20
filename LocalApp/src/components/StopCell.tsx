@@ -1,6 +1,6 @@
 import type { Cursor, Part } from "../domain/types.ts";
 import type { StationDto, StopTimeDto } from "../domain/dto.ts";
-import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, decodeShowStyle, getDirectStyle, LINE_HEIGHT, timeInt2Str } from "../domain/utils.ts";
+import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, decodeShowStyle, getDirectStyle, timeInt2Str, type GridMetrics } from "../domain/utils.ts";
 
 /**
  * 発時刻欄に表示する文字列を返します。
@@ -83,7 +83,7 @@ function contStr(buf: string, lastTime: number): string {
 /**
  * 1駅×1列車分のセル（着/番線/発）を描画します。
  *
- * @param props r:駅の行 / c:列車の列 / cursor:現在のカーソル / station:駅 / stopTime:停車時刻 / cont:連続入力の状態 / direct:0:下り 1:上り
+ * @param props r:駅の行 / c:列車の列 / cursor:現在のカーソル / station:駅 / stopTime:停車時刻 / cont:連続入力の状態 / direct:0:下り 1:上り / metrics:文字サイズから決まる寸法一式
  */
 export function StopCell(props: {
     r: number;
@@ -93,10 +93,11 @@ export function StopCell(props: {
     stopTime: StopTimeDto;
     cont: { buf: string; lastTime: number; enabled: boolean };
     direct: number;
+    metrics: GridMetrics;
 }) {
-    const { r, c, cursor, station, stopTime, cont, direct } = props;
+    const { r, c, cursor, station, stopTime, cont, direct, metrics } = props;
     const style = getDirectStyle(station.showStyle, direct);
-    const ROW_H = cellHeight(style);
+    const ROW_H = cellHeight(style, metrics.LINE_HEIGHT);
     const inThisCell = cursor.r === r && cursor.c === c;
     /**
      * このセルの指定パートにカーソルがあるかを返します。
@@ -111,7 +112,7 @@ export function StopCell(props: {
      * @param selected カーソルがあるか
      */
     const partStyle = (selected: boolean): React.CSSProperties => ({
-        lineHeight: LINE_HEIGHT,
+        lineHeight: metrics.LINE_HEIGHT,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

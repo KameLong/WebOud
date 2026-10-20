@@ -1,6 +1,7 @@
 import "./App.css";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import RouteListPage from "./pages/RouteListPage.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
 import { RoutePage } from "./pages/RoutePage.tsx";
 import RouteTimetablePage from "./pages/RouteTimetablePage.tsx";
 import { RouteDiagramPage } from "./pages/RouteDiagramPage.tsx";
@@ -26,6 +27,7 @@ function App() {
         <BrowserRouter>
             <Routes>
                 <Route path="/" element={<RouteListPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
                 <Route element={<RouteLayout />}>
                     <Route path="/route/:routeId" element={<RoutePage />} />
                     <Route path="/route/:routeId/timetable/:direct" element={<RouteTimetablePage />} />

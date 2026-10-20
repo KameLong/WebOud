@@ -76,6 +76,20 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
                 ← 路線一覧
             </div>
 
+            <div
+                onClick={() => go("/settings")}
+                style={{
+                    padding: "8px 12px",
+                    borderBottom: "1px solid #ddd",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    background: location.pathname === "/settings" ? "#e6f2ff" : undefined,
+                    fontWeight: location.pathname === "/settings" ? 700 : 400,
+                }}
+            >
+                ⚙ 設定
+            </div>
+
             <div style={{ padding: "4px 0" }}>
                 {routes.map((r) => {
                     const isOpen = openIds.has(r.id);

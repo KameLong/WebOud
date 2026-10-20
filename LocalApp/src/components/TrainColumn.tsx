@@ -1,7 +1,7 @@
 import React from "react";
 import type { Cursor } from "../domain/types.ts";
 import { TrainHeader } from "./TrainHeader.tsx";
-import { COLUMN_WIDTH } from "../domain/utils.ts";
+import type { GridMetrics } from "../domain/utils.ts";
 import { StopCell } from "./StopCell.tsx";
 import type { StationDto, TripWithStopTimesDto, TrainTypeDto } from "../domain/dto.ts";
 
@@ -9,7 +9,7 @@ export const TrainColumn = React.memo(
     /**
      * 1列車分の縦の列（見出し＋各駅のセル）を描画します。
      *
-     * @param props trip:列車 / stations:表示順の駅 / trainType:種別 / cursor:カーソル / c:列番号 / isSelected,invert:選択表示 / HEADER_H,zHeader:見出しの高さとz-index / onOpenTripProperty:見出しダブルクリック時 / cont:連続入力の状態 / direct:0:下り 1:上り
+     * @param props trip:列車 / stations:表示順の駅 / trainType:種別 / cursor:カーソル / c:列番号 / isSelected,invert:選択表示 / HEADER_H,zHeader:見出しの高さとz-index / onOpenTripProperty:見出しダブルクリック時 / cont:連続入力の状態 / direct:0:下り 1:上り / metrics:文字サイズから決まる寸法一式
      */
     function TrainColumn(props: {
         trip: TripWithStopTimesDto;
@@ -24,13 +24,14 @@ export const TrainColumn = React.memo(
         onOpenTripProperty: (tripId: number) => void;
         cont: { buf: string; lastTime: number; enabled: boolean };
         direct: number;
+        metrics: GridMetrics;
     }) {
-        const { trip, c, stations, cursor, isSelected, invert, HEADER_H, zHeader, trainType, cont, direct } = props;
+        const { trip, c, stations, cursor, isSelected, invert, HEADER_H, zHeader, trainType, cont, direct, metrics } = props;
 
         return (
             <div
                 style={{
-                    width: COLUMN_WIDTH,
+                    width: metrics.COLUMN_WIDTH,
                     flexShrink: 0,
                     boxSizing: "border-box",
                     borderRight: "1px solid #333",
@@ -50,12 +51,13 @@ export const TrainColumn = React.memo(
                         props.onOpenTripProperty?.(props.trip.id);
                     }}
                     traintype={trainType}
+                    metrics={metrics}
                 />
 
                 {stations.map((st, r) => {
                     void isSelected;
 
-                    return <StopCell cont={cont} direct={direct} key={st.id} r={r} c={c} cursor={cursor} stopTime={trip.stopTimesByStationId[st.id]} station={st} />;
+                    return <StopCell cont={cont} direct={direct} key={st.id} r={r} c={c} cursor={cursor} stopTime={trip.stopTimesByStationId[st.id]} station={st} metrics={metrics} />;
                 })}
             </div>
         );
@@ -78,7 +80,8 @@ export const TrainColumn = React.memo(
             prev.invert === next.invert &&
             prev.HEADER_H === next.HEADER_H &&
             prev.zHeader === next.zHeader &&
-            prev.direct === next.direct
+            prev.direct === next.direct &&
+            prev.metrics === next.metrics
         );
     },
 );

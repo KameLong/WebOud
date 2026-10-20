@@ -149,9 +149,14 @@ export default function RouteListPage() {
         <Container size="md" py="md" px="sm" style={{ overflow: "auto", height: "100%" }}>
             <Group justify="space-between" wrap="nowrap" mb="xs">
                 <Title order={2}>路線一覧</Title>
-                <ActionIcon variant="light" radius="xl" onClick={() => setHelpOpen(true)} aria-label="ヘルプ" title="ヘルプ">
-                    ？
-                </ActionIcon>
+                <Group gap="xs" wrap="nowrap">
+                    <ActionIcon variant="light" radius="xl" onClick={() => nav("/settings")} aria-label="設定" title="設定">
+                        ⚙
+                    </ActionIcon>
+                    <ActionIcon variant="light" radius="xl" onClick={() => setHelpOpen(true)} aria-label="ヘルプ" title="ヘルプ">
+                        ？
+                    </ActionIcon>
+                </Group>
             </Group>
             <Text size="xs" c="dimmed" mb="sm">
                 データはこの端末のブラウザ内（ローカルストレージ）にのみ保存されます。他の端末に移す場合は「エクスポート」でファイルを書き出し、その端末で「インポート」してください。
@@ -266,6 +271,7 @@ export default function RouteListPage() {
                 <HelpSection title="このページでできること">
                     <HelpList
                         items={[
+                            "右上の歯車アイコンから設定画面（文字サイズなど）を開く",
                             "新しい路線（ダイヤ）を名前を付けて作成する",
                             "サンプルダイヤ（神戸電鉄粟生線）を読み込んで試す",
                             "OuDiaのファイル(.oud)を読み込んで、新しい路線として取り込む（取り込むダイヤと路線名を選べる）",

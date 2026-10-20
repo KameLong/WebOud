@@ -1,12 +1,10 @@
 import { Fragment } from "react";
 import type { StationDto, TripWithStopTimesDto } from "../domain/dto.ts";
-import { cellHeight, decodeShowStyle, getDirectStyle, FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } from "../domain/utils.ts";
+import { cellHeight, decodeShowStyle, getDirectStyle, type GridMetrics } from "../domain/utils.ts";
 import { FitTextX } from "./FitText.tsx";
 import { reorderTrips } from "../store/timetableApi.ts";
 
 type Part = "arr" | "track" | "dep";
-
-const LABEL_WIDTH = LINE_HEIGHT;
 
 // 3:00 を日の始まりとして扱う(ダイヤグラムと同じ基準)
 const DIAGRAM_START = 3 * 3600;
@@ -14,7 +12,7 @@ const DIAGRAM_START = 3 * 3600;
 /**
  * 左側の駅名欄を描画します。
  *
- * @param props stations:表示順の駅 / trips:列車一覧 / routeId:路線ID / direct:方向 / HEADER_H:見出し高さ / zLeft,zCorner:sticky用のz-index
+ * @param props stations:表示順の駅 / trips:列車一覧 / routeId:路線ID / direct:方向 / HEADER_H:見出し高さ / zLeft,zCorner:sticky用のz-index / metrics:文字サイズから決まる寸法一式
  */
 export function StationSidebar(props: {
     stations: StationDto[];
@@ -24,8 +22,11 @@ export function StationSidebar(props: {
     HEADER_H: number;
     zLeft: number;
     zCorner: number;
+    metrics: GridMetrics;
 }) {
-    const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner } = props;
+    const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner, metrics } = props;
+    const { FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } = metrics;
+    const LABEL_WIDTH = LINE_HEIGHT;
 
     /**
      * 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。確認ダイアログでキャンセルした場合は何もしない。
@@ -151,7 +152,7 @@ export function StationSidebar(props: {
                     const parts = buildPartsForStation(showStyle);
                     const withSep = withSeparatorsForStation(showStyle);
                     const sepH = 1;
-                    const ROW_H = cellHeight(showStyle);
+                    const ROW_H = cellHeight(showStyle, LINE_HEIGHT);
                     const sepCount = withSep ? Math.max(0, parts.length - 1) : 0;
                     const contentH = Math.max(0, ROW_H - sepCount * sepH);
                     const unitH = parts.length > 0 ? Math.floor(contentH / parts.length) : ROW_H;
