@@ -1,0 +1,7 @@
+# index.html と PWA の更新判定に使うファイルは、毎回サーバーに確認させる（no-cache＝保存はするが再利用前に必ず再検証）。
+# ハッシュ付きの assets/ 以下は内容が変わるとファイル名も変わるので、通常のキャッシュのままでよい。
+<IfModule mod_headers.c>
+    <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest|workbox-.*\.js)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>

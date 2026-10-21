@@ -29,6 +29,8 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
     const [error, setError] = useState<string | null>(null);
     const [diagramIndex, setDiagramIndex] = useState(0);
     const [routeName, setRouteName] = useState("");
+    const [url, setUrl] = useState("");
+    const [loadingUrl, setLoadingUrl] = useState(false);
 
     /**
      * 選んだファイルを読み込んで内容を確認する
@@ -37,11 +39,50 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
      */
     async function onPickFile(file: File | null) {
         if (!file) return;
+        await loadBuffer(file.name, () => file.arrayBuffer());
+    }
+
+    /** URLを指定してOuDiaファイルをダウンロードし、内容を確認する */
+    async function onLoadUrl() {
+        const target = url.trim();
+        if (!target) return;
+        let parsedUrl: URL;
+        try {
+            parsedUrl = new URL(target);
+        } catch {
+            setError("URLの形式が正しくありません");
+            return;
+        }
+        if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+            setError("http:// または https:// のURLを指定してください");
+            return;
+        }
+        setLoadingUrl(true);
+        await loadBuffer(decodeURIComponent(parsedUrl.pathname.split("/").pop() || parsedUrl.hostname), async () => {
+            let res: Response;
+            try {
+                res = await fetch(parsedUrl);
+            } catch {
+                throw new Error("URLからファイルを取得できませんでした（ネットワークエラー、または配信元が他サイトからの読み込みを許可していません）");
+            }
+            if (!res.ok) throw new Error(`URLからファイルを取得できませんでした（HTTP ${res.status}）`);
+            return res.arrayBuffer();
+        });
+        setLoadingUrl(false);
+    }
+
+    /**
+     * ファイルの内容を取得して読み込み、内容を確認できる状態にする
+     *
+     * @param name 表示するファイル名
+     * @param read 内容（バイト列）を取得する処理
+     */
+    async function loadBuffer(name: string, read: () => Promise<ArrayBuffer>) {
         setError(null);
         setParsed(null);
-        setFileName(file.name);
+        setFileName(name);
         try {
-            const result = parseOudia(await file.arrayBuffer());
+            const result = parseOudia(await read());
             setParsed(result);
             setRouteName(result.summary.routeName);
             setDiagramIndex(0);
@@ -64,7 +105,7 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
         <Modal opened onClose={onClose} title="OuDiaファイルを取り込む" centered size="md" styles={{ title: { fontWeight: 700 } }}>
             <Stack gap="sm">
                 <Text size="sm" c="dimmed">
-                    OuDiaのファイル(.oud)を読み込んで、新しい路線として追加します。既存の路線は変更されません。
+                    OuDiaのファイル(.oud)を、ファイル選択またはURL指定で読み込んで、新しい路線として追加します。既存の路線は変更されません。
                 </Text>
 
                 <Group gap="xs" wrap="nowrap">
@@ -80,7 +121,23 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
                     </Text>
                 </Group>
 
-                {error && <Alert color="red">{error}</Alert>}
+                <Group gap="xs" wrap="nowrap" align="flex-end">
+                    <TextInput
+                        label="またはURLから読み込む"
+                        placeholder="https://example.com/file.oud"
+                        value={url}
+                        onChange={(e) => setUrl(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") void onLoadUrl();
+                        }}
+                        style={{ flex: 1 }}
+                    />
+                    <Button variant="default" onClick={() => void onLoadUrl()} loading={loadingUrl} disabled={!url.trim()}>
+                        読み込む
+                    </Button>
+                </Group>
+
+                {error &&<Alert color="red">{error}</Alert>}
 
                 {summary && (
                     <>
