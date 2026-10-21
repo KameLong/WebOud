@@ -163,8 +163,9 @@ export function oudiaToRouteRecord(parsed: ParsedOudia, diagramIndex: number, ro
                 direct,
                 // 種別の番号が範囲外のときは先頭の種別にする
                 trainTypeID: (trainTypes[streak.typeIdx] ?? trainTypes[0])?.id ?? 0,
-                name: streak.name,
-                no: streak.operationNum,
+                // 列車名・列車番号がOuDiaファイルに無いとき、ライブラリはundefinedを返すので、空文字列にする
+                name: streak.name ?? "",
+                no: streak.operationNum ?? "",
                 stopTimesByStationId,
             });
         }
