@@ -30,6 +30,20 @@ export default defineConfig({
             },
             workbox: {
                 globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,ttf,otf}"],
+                // PDF出力用の日本語フォント(合計約4MB)は、最初から保存せず、PDFを初めて作ったときに保存する（下のruntimeCaching）
+                globIgnores: ["pdf-font/**"],
+                runtimeCaching: [
+                    {
+                        // PDF出力用のフォントと、フォントを必要な文字だけに絞るwasm。一度読み込めば、以後はオフラインでもPDFを作れる
+                        urlPattern: ({ url }) => url.pathname.includes("/pdf-font/") || url.pathname.endsWith(".wasm"),
+                        handler: "CacheFirst",
+                        options: {
+                            cacheName: "pdf-assets",
+                            expiration: { maxEntries: 8 },
+                            cacheableResponse: { statuses: [0, 200] },
+                        },
+                    },
+                ],
             },
             devOptions: {
                 enabled: false,

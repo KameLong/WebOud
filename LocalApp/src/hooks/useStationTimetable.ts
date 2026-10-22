@@ -83,7 +83,7 @@ function buildTripEndpoints(trips: TripWithStopTimesDto[], orderedStations: Stat
  * @param stations 路線の全駅（順不同）
  * @param trainTypeById 種別ID→種別のMap
  */
-function buildHourRows(trips: TripWithStopTimesDto[], stationId: number, direct: number, stations: StationDto[], trainTypeById: Map<number, TrainTypeDto>): StationTimetableHour[] {
+export function buildHourRows(trips: TripWithStopTimesDto[], stationId: number, direct: number, stations: StationDto[], trainTypeById: Map<number, TrainTypeDto>): StationTimetableHour[] {
     const directionTrips = trips.filter((t) => t.direct === direct && t.id !== -1);
     const orderedStations = orderStationsByTravelDirection(stations, direct);
     const endpoints = buildTripEndpoints(directionTrips, orderedStations);
@@ -124,6 +124,40 @@ function buildHourRows(trips: TripWithStopTimesDto[], stationId: number, direct:
     }
 
     return DISPLAY_HOURS.map((hour) => ({ hour, entries: byHour.get(hour) ?? [] }));
+}
+
+/**
+ * 時間帯ごとの行一覧から、実際に使われている列車種別を重複なく集めます（種別の並び順＝index順）。
+ *
+ * @param hourGroups 下り・上りの時間帯ごとの行一覧
+ */
+export function collectTrainTypes(hourGroups: StationTimetableHour[][]): TrainTypeDto[] {
+    const byId = new Map<number, TrainTypeDto>();
+    for (const hours of hourGroups) {
+        for (const h of hours) {
+            for (const e of h.entries as StationTimetableEntry[]) {
+                byId.set(e.trainType.id, e.trainType);
+            }
+        }
+    }
+    return [...byId.values()].sort((a, b) => a.index - b.index);
+}
+
+/**
+ * 行き先の頭文字と終着駅名の一覧を集めます（駅名ごとに1件）。
+ *
+ * @param hourGroups 下り・上りの時間帯ごとの行一覧
+ */
+export function collectDestinations(hourGroups: StationTimetableHour[][]): { char: string; name: string }[] {
+    const seen = new Map<string, { char: string; name: string }>();
+    for (const hours of hourGroups) {
+        for (const h of hours) {
+            for (const e of h.entries) {
+                if (e.destName) seen.set(e.destName, { char: e.destChar, name: e.destName });
+            }
+        }
+    }
+    return [...seen.values()];
 }
 
 /**

@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, Container, NativeSelect } from "@mantine/core";
-import { useStationTimetable, type StationTimetableEntry, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
+import { Alert, Button, Container, NativeSelect } from "@mantine/core";
+import { collectDestinations, collectTrainTypes, useStationTimetable, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
+import { readableTextColor } from "../domain/colors.ts";
+import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../pdf/pdfFonts.ts";
 import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
 
@@ -12,46 +14,6 @@ const BRAND_COLOR = "#0a72be";
 const HOUR_CELL_COLOR = "#06406e";
 /** 偶数行の背景（縞模様） */
 const STRIPE_COLOR = "#e4e4e4";
-
-/**
- * 印刷（PDF出力）用CSS。印刷対象の1方向だけをA4縦1枚いっぱいに広げ、他の要素は隠します。
- * 時間帯の行は用紙の高さに合わせて均等に引き伸ばします。
- */
-const PRINT_CSS = `
-@page { size: A4 portrait; margin: 8mm; }
-@media print {
-  body * { visibility: hidden !important; }
-  .tt-printing, .tt-printing * { visibility: visible !important; }
-  .tt-printing {
-    position: fixed; left: 0; top: 0; width: 100%; height: 100%;
-    margin: 0 !important; box-sizing: border-box;
-    display: flex; flex-direction: column;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
-  .tt-printing .tt-rows { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-  .tt-printing .tt-row { flex: 1 1 0 !important; min-height: 0 !important; }
-  .tt-printing .tt-hour { flex-basis: 36px !important; font-size: 15px !important; }
-  .tt-printing .tt-cells { font-size: 14px !important; padding: 1px 8px !important; gap: 0 4px !important; }
-  .tt-printing .tt-head { padding: 5px 12px !important; }
-  .tt-printing .tt-legend { flex: 0 0 auto; }
-  .tt-no-print { display: none !important; }
-}
-`;
-
-/**
- * 背景色の上に載せる文字色（白/黒）を明るさから決めます。
- *
- * @param bg "#rrggbb" または "#rgb" 形式の背景色
- */
-function readableTextColor(bg: string): string {
-    const hex = bg.replace("#", "");
-    const full = hex.length === 3 ? hex.replace(/./g, (c) => c + c) : hex;
-    const r = parseInt(full.slice(0, 2), 16);
-    const g = parseInt(full.slice(2, 4), 16);
-    const b = parseInt(full.slice(4, 6), 16);
-    if ([r, g, b].some(Number.isNaN)) return "#fff";
-    return (r * 299 + g * 587 + b * 114) / 1000 > 160 ? "#000" : "#fff";
-}
 
 /**
  * 時刻（分）の見た目。基準種別（最も下位の種別＝普通）は色付き文字のみ、それ以外は種別色で塗りつぶした印で表す。
@@ -133,40 +95,6 @@ function HourRow({ hour, entries, striped, baseTypeId }: StationTimetableHour & 
     );
 }
 
-/**
- * 時間帯ごとの行一覧から、実際に使われている列車種別を重複なく集めます（種別の並び順＝index順）。
- *
- * @param hourGroups 下り・上りの時間帯ごとの行一覧
- */
-function collectTrainTypes(hourGroups: StationTimetableHour[][]): TrainTypeDto[] {
-    const byId = new Map<number, TrainTypeDto>();
-    for (const hours of hourGroups) {
-        for (const h of hours) {
-            for (const e of h.entries as StationTimetableEntry[]) {
-                byId.set(e.trainType.id, e.trainType);
-            }
-        }
-    }
-    return [...byId.values()].sort((a, b) => a.index - b.index);
-}
-
-/**
- * 行き先の頭文字と終着駅名の一覧を集めます（駅名ごとに1件）。
- *
- * @param hourGroups 下り・上りの時間帯ごとの行一覧
- */
-function collectDestinations(hourGroups: StationTimetableHour[][]): { char: string; name: string }[] {
-    const seen = new Map<string, { char: string; name: string }>();
-    for (const hours of hourGroups) {
-        for (const h of hours) {
-            for (const e of h.entries) {
-                if (e.destName) seen.set(e.destName, { char: e.destChar, name: e.destName });
-            }
-        }
-    }
-    return [...seen.values()];
-}
-
 /** 凡例の1行（見出し＋横並びの項目） */
 function LegendRow({ title, children }: { title: string; children: ReactNode }) {
     return (
@@ -229,20 +157,21 @@ function DirectionTable({
     towards,
     hours,
     baseTypeId,
-    printing,
-    onPrint,
+    exporting,
+    onExportPdf,
 }: {
     stationName: string;
     towards: string;
     hours: StationTimetableHour[];
     baseTypeId: number;
-    printing: boolean;
-    onPrint: () => void;
+    /** PDFを作成中か */
+    exporting: boolean;
+    onExportPdf: () => void;
 }) {
     const hasAnyTrain = hours.some((h) => h.entries.length > 0);
     const stationLabel = stationName.endsWith("駅") ? stationName : `${stationName}駅`;
     return (
-        <div className={printing ? "tt-sheet tt-printing" : "tt-sheet"} style={{ marginBottom: 24, border: `3px solid ${BRAND_COLOR}`, background: "#fff" }}>
+        <div className="tt-sheet" style={{ marginBottom: 24, border: `3px solid ${BRAND_COLOR}`, background: "#fff" }}>
             <div className="tt-head" style={{ background: BRAND_COLOR, color: "#fff", display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "2px 16px", padding: "8px 14px" }}>
                 <span style={{ fontSize: 22, fontWeight: 700 }}>
                     {stationLabel}発 ➡ {towards}方面
@@ -250,12 +179,12 @@ function DirectionTable({
                 <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
                     <button
                         type="button"
-                        className="tt-no-print"
-                        onClick={onPrint}
-                        style={{ cursor: "pointer", padding: "2px 10px", fontSize: 13, borderRadius: 4, border: "1px solid #fff", background: "transparent", color: "#fff" }}
-                        title="A4用紙1枚に印刷します（印刷ダイアログで「PDFに保存」を選んでください）"
+                        onClick={onExportPdf}
+                        disabled={exporting}
+                        style={{ cursor: exporting ? "default" : "pointer", padding: "2px 10px", fontSize: 13, borderRadius: 4, border: "1px solid #fff", background: "transparent", color: "#fff", opacity: exporting ? 0.6 : 1 }}
+                        title="この方向の時刻表を、A4縦1枚のPDFファイルとして保存します"
                     >
-                        PDF出力
+                        {exporting ? "作成中…" : "PDF出力"}
                     </button>
                     <span style={{ fontSize: 18, fontWeight: 700 }}>発車時刻表</span>
                 </span>
@@ -284,20 +213,9 @@ export function StationTimetablePage() {
     const stationId = Number(params.stationId ?? 0);
     const nav = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
-    /** 印刷（PDF出力）中の方向。nullなら通常表示 */
-    const [printTarget, setPrintTarget] = useState<"down" | "up" | null>(null);
-
-    // 印刷対象を描画してから印刷ダイアログを開き、閉じたら通常表示に戻す
-    useEffect(() => {
-        if (!printTarget) return;
-        const reset = () => setPrintTarget(null);
-        window.addEventListener("afterprint", reset);
-        const timer = window.setTimeout(() => window.print(), 50);
-        return () => {
-            window.clearTimeout(timer);
-            window.removeEventListener("afterprint", reset);
-        };
-    }, [printTarget]);
+    /** PDFを作成中の方向。nullなら作成していない */
+    const [exporting, setExporting] = useState<"down" | "up" | null>(null);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     const { station, stations, down, up } = useStationTimetable(routeId, stationId);
     // 最も下位（index最小）の種別は色付き文字のみで表し、それ以外は塗りつぶした印にする（上下で共通）
@@ -305,6 +223,32 @@ export function StationTimetablePage() {
     // 下りは駅リストの末尾側、上りは先頭側が方面
     const downTowards = stations[stations.length - 1]?.name ?? "";
     const upTowards = stations[0]?.name ?? "";
+
+    /**
+     * 指定した方向の時刻表をPDFにして保存します（ブラウザの印刷機能は使わず、フォントを埋め込んだPDFファイルを直接作る）。
+     *
+     * @param direction down:下り / up:上り
+     */
+    async function exportPdf(direction: "down" | "up") {
+        if (!station || exporting) return;
+        setExporting(direction);
+        setExportError(null);
+        try {
+            // PDFライブラリは大きいので、PDF出力を押したときに初めて読み込む
+            const { buildStationTimetablePdf } = await import("../pdf/stationTimetablePdf.ts");
+            const fonts = await loadPdfFonts();
+            const bytes = await buildStationTimetablePdf(
+                { stationName: station.name, towards: direction === "down" ? downTowards : upTowards, hours: direction === "down" ? down : up, baseTypeId },
+                fonts,
+                subsetFontInBrowser,
+            );
+            downloadBytes(bytes, `駅時刻表_${station.name}_${direction === "down" ? "下り" : "上り"}.pdf`);
+        } catch (e) {
+            setExportError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setExporting(null);
+        }
+    }
 
     if (!station) {
         return (
@@ -335,9 +279,13 @@ export function StationTimetablePage() {
                 </Button>
             </div>
 
-            {printTarget && <style>{PRINT_CSS}</style>}
-            <DirectionTable stationName={station.name} towards={downTowards} hours={down} baseTypeId={baseTypeId} printing={printTarget === "down"} onPrint={() => setPrintTarget("down")} />
-            <DirectionTable stationName={station.name} towards={upTowards} hours={up} baseTypeId={baseTypeId} printing={printTarget === "up"} onPrint={() => setPrintTarget("up")} />
+            {exportError && (
+                <Alert color="red" mb="sm" title="PDFを作成できませんでした">
+                    {exportError}
+                </Alert>
+            )}
+            <DirectionTable stationName={station.name} towards={downTowards} hours={down} baseTypeId={baseTypeId} exporting={exporting === "down"} onExportPdf={() => void exportPdf("down")} />
+            <DirectionTable stationName={station.name} towards={upTowards} hours={up} baseTypeId={baseTypeId} exporting={exporting === "up"} onExportPdf={() => void exportPdf("up")} />
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="駅時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
@@ -345,7 +293,7 @@ export function StationTimetablePage() {
                         items={[
                             "選択した駅に停車する列車の発車時刻を、方向（下り/上り）ごと・時間帯ごとに一覧表示する（表示専用、編集はできません）",
                             "時間帯は午前3時始まり・翌午前2時終わりで固定表示（0〜2時台は23時の次に表示）",
-                            "各表の見出し帯の「PDF出力」で、その方向だけをA4縦1枚いっぱいに印刷できる（印刷ダイアログの出力先で「PDFに保存」を選ぶ）",
+                            "各表の見出し帯の「PDF出力」で、その方向の時刻表をA4縦1枚のPDFファイルとして保存できる（ブラウザの印刷機能を使わないので、端末による崩れがない。初回だけ日本語フォントを読み込むため通信が必要）",
                             "上部のプルダウンで別の駅へすぐに切り替えられる",
                             "括弧( )付きの数字は、この駅が終着で発車時刻が無いため、代わりに到着時刻を表示している",
                             "最も下位の種別（普通など）は色付きの文字、それ以外の種別は種別の色で塗りつぶした印で表す。種別名・行先は各表の下の凡例（下り・上りで別々）を参照",
