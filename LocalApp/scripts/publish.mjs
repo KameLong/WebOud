@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** 公開先フォルダ */
-const DEST = "X:\\www\\WebOud\\LocalApp\\dist";
+const DEST = "/Volumes/share/www/WebOud/LocalApp/dist";
 
 const src = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 if (!existsSync(src)) {
