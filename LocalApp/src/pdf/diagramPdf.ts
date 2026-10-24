@@ -1,9 +1,19 @@
-import { PDFDocument } from "pdf-lib";
 import type { DiagramStation } from "../diagram/DiagramData.ts";
 import type { DiagramLine } from "../diagram/DiagramCanvas.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
-import { Canvas, embedTextFonts, type PdfFonts } from "./pdfCommon.ts";
-import { DEFAULT_HOURS_PER_PAGE, DEFAULT_MARGIN_MM, DIAGRAM_PAD, DIAGRAM_START_SECONDS, planDiagramPdf, TIME_HEADER_H, TITLE_H, type DiagramPdfOptions } from "./diagramPdfPlan.ts";
+import { Canvas, createPdfDocument, type PdfFonts } from "./pdfCommon.ts";
+import {
+    DEFAULT_HOURS_PER_PAGE,
+    DEFAULT_MARGIN_MM,
+    DIAGRAM_PAD,
+    DIAGRAM_SPAN_HOURS,
+    DIAGRAM_START_SECONDS,
+    planDiagramPdf,
+    TIME_HEADER_H,
+    TITLE_H,
+    type DiagramPdfOptions,
+    type DiagramPdfPlan,
+} from "./diagramPdfPlan.ts";
 
 /** ダイヤグラムPDFの入力（画面のダイヤグラムと同じ内容） */
 export type DiagramPdfInput = {
@@ -26,6 +36,13 @@ const STATION_LINE_COLOR = "#808080";
 const PX = 0.75;
 const LINE_WIDTH = 1 * PX;
 const BOLD_LINE_WIDTH = 2.5 * PX;
+/** 時刻の目盛りを置く間隔の候補(秒)。目盛り同士が最低このptあくものを選ぶ */
+const LABEL_STEPS = [300, 600, 900, 1200, 1800, 3600];
+const LABEL_MIN_GAP = 28;
+/** 列車番号の文字サイズと、線からの距離・線の始点からの距離(pt) */
+const NUMBER_SIZE = 6.5;
+const NUMBER_OFFSET = 2;
+const NUMBER_INSET = 1.5;
 
 /**
  * 秒を「h:mm」にします（24時を超える時刻は24を引く）。
@@ -36,6 +53,53 @@ function hm(seconds: number): string {
     const h = Math.floor(seconds / 3600) % 24;
     const m = Math.floor((seconds % 3600) / 60);
     return `${h}:${m.toString().padStart(2, "0")}`;
+}
+
+/** 1ページ分の描画に必要な、ページごとに決まる値 */
+type PageView = {
+    /** このページが表す時間帯(秒) */
+    t0: number;
+    t1: number;
+    /** 時刻(秒)・駅の縦位置を、このページ上の座標にする */
+    xOf: (t: number) => number;
+    yOf: (y: number) => number;
+};
+
+/**
+ * 運行線の描画（折れ線と、列車番号）。
+ *
+ * @param c 描画先
+ * @param view このページの値
+ * @param plan 寸法
+ * @param line 運行線
+ */
+function drawTrainLine(c: Canvas, view: PageView, plan: DiagramPdfPlan, line: DiagramLine) {
+    const { t0, t1, xOf, yOf } = view;
+    if (line.points.length < 2) return;
+    const xs = line.points.map((p) => p.x);
+    if (Math.max(...xs) < t0 || Math.min(...xs) > t1) return; // このページの時間帯に入らない列車は省く
+    c.polyline(
+        line.points.map((p) => ({ x: xOf(p.x), y: yOf(p.y) })),
+        line.color,
+        line.bold ? BOLD_LINE_WIDTH : LINE_WIDTH,
+    );
+
+    // 列車番号は、駅間（縦位置が変わる区間）のうち、このページの時間帯に入る最初の線分に沿って、傾きに合わせて描く
+    const seg = line.points.findIndex((p, i) => {
+        const q = line.points[i + 1];
+        return !!q && q.y !== p.y && Math.max(p.x, q.x) > t0 && Math.min(p.x, q.x) < t1;
+    });
+    if (seg < 0 || !line.number) return;
+    const p = line.points[seg];
+    const q = line.points[seg + 1];
+    // 線分のうち、このページに入る部分の始点（ページの端から少し内側）
+    const startX = Math.max(p.x, t0 + 20 / plan.xScale);
+    const ratio = q.x === p.x ? 0 : (startX - p.x) / (q.x - p.x);
+    const sx = xOf(startX);
+    const sy = yOf(p.y + (q.y - p.y) * ratio);
+    const angle = Math.atan2(yOf(q.y) - yOf(p.y), xOf(q.x) - xOf(p.x));
+    // 線に重ならないよう、線の少し上（傾いた向きでの上側）に置く
+    c.rotatedText(line.number, sx + NUMBER_INSET + Math.sin(angle) * NUMBER_OFFSET, sy - Math.cos(angle) * NUMBER_OFFSET, NUMBER_SIZE, line.color, angle, { dia: true });
 }
 
 /**
@@ -55,45 +119,38 @@ export async function buildDiagramPdf(input: DiagramPdfInput, fonts: PdfFonts, s
         hoursPerPage: input.options?.hoursPerPage ?? DEFAULT_HOURS_PER_PAGE,
         heightMm: input.options?.heightMm ?? null,
     };
-    const plan = planDiagramPdf(input.stations, options);
-    const { pageW, pageH, margin, stationColW, plotW, plotH, yScale, xScale, pagesX, slices, totalPages } = plan;
-    const hours = Math.min(24, Math.max(1, Math.round(options.hoursPerPage)));
-    const pageSeconds = hours * 3600;
+    const { stations } = input;
+    const plan = planDiagramPdf(stations, options);
+    const { pageW, pageH, margin, stationColW, plotW, plotH, yScale, xScale, hours, pagesX, slices, totalPages } = plan;
     const title = `${input.routeName}　ダイヤグラム`;
-    const stations = input.stations;
     const firstTime = stations[0]?.stationTime ?? 0;
+    const lastTime = stations[stations.length - 1]?.stationTime ?? firstTime;
     const allLines = [...input.downLines, ...input.upLines];
 
-    const doc = await PDFDocument.create();
-    doc.setTitle(title);
-    doc.setCreator("WebOud");
     const used = ["0123456789:()（）/ -ページ時刻", title, ...stations.map((s) => s.station.name), ...allLines.map((l) => l.number)].join("");
-    const textFonts = await embedTextFonts(doc, fonts, subset, used);
+    const { doc, textFonts } = await createPdfDocument(title, fonts, subset, used);
 
-    /** 時刻の目盛りの間隔(秒)。目盛り同士が約28pt以上あくようにする */
-    const labelStep = [300, 600, 900, 1200, 1800, 3600].find((step) => step * xScale >= 28) ?? 3600;
+    const labelStep = LABEL_STEPS.find((step) => step * xScale >= LABEL_MIN_GAP) ?? 3600;
+    const plotX = margin + stationColW;
+    const plotY = margin + TITLE_H + TIME_HEADER_H;
 
     let pageNo = 0;
     for (let px = 0; px < pagesX; px++) {
-        const t0 = DIAGRAM_START_SECONDS + px * pageSeconds;
-        const t1 = Math.min(t0 + pageSeconds, DIAGRAM_START_SECONDS + 24 * 3600);
-        for (let sl = 0; sl < slices; sl++) {
+        const t0 = DIAGRAM_START_SECONDS + px * hours * 3600;
+        const t1 = Math.min(t0 + hours * 3600, DIAGRAM_START_SECONDS + DIAGRAM_SPAN_HOURS * 3600);
+        for (let slice = 0; slice < slices; slice++) {
             pageNo++;
-            const page = doc.addPage([pageW, pageH]);
-            const c = new Canvas(page, textFonts);
-
-            const plotX = margin + stationColW;
-            const plotY = margin + TITLE_H + TIME_HEADER_H;
+            const c = new Canvas(doc.addPage([pageW, pageH]), textFonts);
             const xOf = (t: number) => plotX + (t - t0) * xScale;
-            /** ダイヤグラム上の縦位置(駅の縦位置)を、このページ上のy座標にする（縦に分けたときは、ページごとにずらす） */
-            const yOf = (y: number) => plotY + DIAGRAM_PAD + (y - firstTime) * yScale - sl * plotH;
-            const lastY = yOf(stations[stations.length - 1]?.stationTime ?? firstTime);
+            // 縦に分けたときは、ページごとに縦位置をずらす
+            const yOf = (y: number) => plotY + DIAGRAM_PAD + (y - firstTime) * yScale - slice * plotH;
+            const view: PageView = { t0, t1, xOf, yOf };
             const topY = Math.max(plotY, yOf(firstTime));
-            const bottomY = Math.min(plotY + plotH, lastY);
+            const bottomY = Math.min(plotY + plotH, yOf(lastTime));
 
             // タイトル行とページ番号（時間の範囲つき）
             c.text(title, margin, margin + TITLE_H / 2, 11, "#000000", { bold: true });
-            const sliceNote = slices > 1 ? `（縦 ${sl + 1}/${slices}）` : "";
+            const sliceNote = slices > 1 ? `（縦 ${slice + 1}/${slices}）` : "";
             c.text(`${hm(t0)}-${hm(t1)}${sliceNote}　${pageNo} / ${totalPages} ページ`, pageW - margin, margin + TITLE_H / 2, 9, "#555555", { align: "right" });
 
             // 時刻の目盛り（上端）
@@ -101,53 +158,19 @@ export async function buildDiagramPdf(input: DiagramPdfInput, fonts: PdfFonts, s
                 c.text(hm(t), xOf(t), plotY - TIME_HEADER_H / 2, 8, "#666666", { dia: true, align: "center" });
             }
 
-            // ---- 描画領域（はみ出した線は切る）----
+            // 描画領域（はみ出した線は切る）
             c.clipped(plotX, plotY, plotW, plotH, () => {
                 // 縦線：10分ごと（細）・30分（中）・1時間（太）
                 for (let t = Math.ceil(t0 / 600) * 600; t <= t1; t += 600) {
                     const min = Math.floor((t % 3600) / 60);
-                    const isHour = min === 0;
-                    const isHalf = min === 30;
-                    if (!isHour && !isHalf && 600 * xScale < 8) continue; // 細すぎるときは10分線を省く
-                    c.line(xOf(t), topY, xOf(t), bottomY, GRID_COLOR, isHour ? 1.2 : isHalf ? 0.6 : 0.3);
+                    if (min !== 0 && min !== 30 && 600 * xScale < 8) continue; // 細すぎるときは10分線を省く
+                    c.line(xOf(t), topY, xOf(t), bottomY, GRID_COLOR, min === 0 ? 1.2 : min === 30 ? 0.6 : 0.3);
                 }
-                // 駅の横線
                 for (const st of stations) c.line(plotX, yOf(st.stationTime), plotX + plotW, yOf(st.stationTime), STATION_LINE_COLOR, 0.6);
-
-                // 運行線
-                for (const line of allLines) {
-                    if (line.points.length < 2) continue;
-                    const xs = line.points.map((p) => p.x);
-                    if (Math.max(...xs) < t0 || Math.min(...xs) > t1) continue; // このページの時間帯に入らない列車は省く
-                    c.polyline(
-                        line.points.map((p) => ({ x: xOf(p.x), y: yOf(p.y) })),
-                        line.color,
-                        line.bold ? BOLD_LINE_WIDTH : LINE_WIDTH,
-                    );
-
-                    // 列車番号は、駅間（縦位置が変わる区間）のうち、このページの時間帯に入る最初の線分に沿って、傾きに合わせて描く
-                    const seg = line.points.findIndex((p, i) => {
-                        const q = line.points[i + 1];
-                        return !!q && q.y !== p.y && Math.max(p.x, q.x) > t0 && Math.min(p.x, q.x) < t1;
-                    });
-                    if (seg >= 0 && line.number) {
-                        const p = line.points[seg];
-                        const q = line.points[seg + 1];
-                        // 線分のうち、このページに入る部分の始点（ページの端から少し内側）
-                        const startX = Math.max(p.x, t0 + 20 / xScale);
-                        const ratio = q.x === p.x ? 0 : (startX - p.x) / (q.x - p.x);
-                        const sx = xOf(startX);
-                        const sy = yOf(p.y + (q.y - p.y) * ratio);
-                        const angle = Math.atan2(yOf(q.y) - yOf(p.y), xOf(q.x) - xOf(p.x));
-                        // 線に重ならないよう、線の少し上（傾いた向きでの上側）に置く
-                        const ox = -Math.sin(angle) * 0 + Math.sin(angle) * 2;
-                        const oy = -Math.cos(angle) * 2;
-                        c.rotatedText(line.number, sx + 1.5 + ox, sy + oy, 6.5, line.color, angle, { dia: true });
-                    }
-                }
+                for (const line of allLines) drawTrainLine(c, view, plan, line);
             });
 
-            // ---- 駅名欄（駅の横線と駅名）。どのページにも付ける ----
+            // 駅名欄（駅の横線と駅名）。どのページにも付ける
             for (const st of stations) {
                 const y = yOf(st.stationTime);
                 if (y < plotY - 6 || y > plotY + plotH + 2) continue;

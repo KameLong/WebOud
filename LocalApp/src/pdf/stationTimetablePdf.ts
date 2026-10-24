@@ -1,13 +1,12 @@
-import { PDFDocument } from "pdf-lib";
 import { readableTextColor } from "../domain/colors.ts";
 import type { TrainTypeDto } from "../domain/dto.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
-import { Canvas, embedTextFonts, type PdfFonts } from "./pdfCommon.ts";
+import { Canvas, createPdfDocument, type PdfFonts } from "./pdfCommon.ts";
 import { collectDestinations, collectTrainTypes, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
 
-/** 駅時刻表PDFの入力（画面の1方向分の表と同じ内容） */
 export type { PdfFonts } from "./pdfCommon.ts";
 
+/** 駅時刻表PDFの入力（画面の1方向分の表と同じ内容） */
 export type StationTimetablePdfInput = {
     /** 駅名 */
     stationName: string;
@@ -87,6 +86,99 @@ function flowLines(items: LegendItem[], maxWidth: number, gap: number): { item: 
     return lines;
 }
 
+/** 凡例の寸法(pt) */
+const LEGEND_FS = 8.5;
+const LEGEND_PITCH = 13;
+const LEGEND_TITLE_W = 34;
+const LEGEND_PAD = 6;
+const LEGEND_ROW_GAP = 3;
+/** 凡例の印の大きさ */
+const BADGE_LEGEND = { fs: 8, w: 18 };
+
+/** 凡例の配置：行（見出しと項目）、折り返したあとの各行、全体の高さ、項目の左端・最大幅 */
+type LegendLayout = { rows: { title: string; items: LegendItem[] }[]; lines: { item: LegendItem; x: number }[][][]; height: number; left: number; itemsX: number };
+
+/**
+ * 凡例（種別・行先・記号）の項目を作り、指定幅で折り返したときの配置と高さを求めます。
+ *
+ * @param c 描画先（文字幅の計測に使う）
+ * @param input 駅時刻表の入力
+ * @param sheetX 用紙の枠の左端
+ * @param sheetW 用紙の枠の幅
+ */
+function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number, sheetW: number): LegendLayout {
+    const trainTypes = collectTrainTypes([input.hours]);
+    const destinations = collectDestinations([input.hours]);
+    const left = sheetX + 10;
+    const itemsX = left + LEGEND_TITLE_W + 8;
+    const maxW = sheetX + sheetW - 10 - itemsX;
+
+    const rows: LegendLayout["rows"] = [];
+    if (trainTypes.length > 0) {
+        rows.push({
+            title: "種別",
+            items: [...trainTypes].reverse().map((t) => {
+                const name = t.name || "（名称未設定）";
+                return {
+                    width: BADGE_LEGEND.w + 4 + c.measure(name, LEGEND_FS),
+                    draw: (cv, x, cy) => {
+                        drawBadge(cv, x, cy, BADGE_LEGEND, t, t.id === input.baseTypeId, "00");
+                        cv.text(name, x + BADGE_LEGEND.w + 4, cy, LEGEND_FS, "#000000");
+                    },
+                };
+            }),
+        });
+        if (destinations.length > 0) {
+            rows.push({
+                title: "行先",
+                items: destinations.map((d) => {
+                    const head = `${d.char}`;
+                    const rest = `印 ${d.name}ゆき`;
+                    const hw = c.measure(head, LEGEND_FS, true);
+                    return {
+                        width: hw + c.measure(rest, LEGEND_FS),
+                        draw: (cv, x, cy) => {
+                            cv.text(head, x, cy, LEGEND_FS, "#000000", { bold: true });
+                            cv.text(rest, x + hw, cy, LEGEND_FS, "#000000");
+                        },
+                    };
+                }),
+            });
+        }
+        const symbols = ["● この駅が始発", "▲ この駅が終着", "(00) 終着のため到着時刻を表示"];
+        rows.push({ title: "記号", items: symbols.map((s) => ({ width: c.measure(s, LEGEND_FS), draw: (cv, x, cy) => cv.text(s, x, cy, LEGEND_FS, "#000000") })) });
+    }
+    const lines = rows.map((r) => flowLines(r.items, maxW, 12));
+    const height = rows.length === 0 ? 0 : LEGEND_PAD * 2 + lines.reduce((sum, ls) => sum + ls.length * LEGEND_PITCH, 0) + LEGEND_ROW_GAP * (rows.length - 1);
+    return { rows, lines, height, left, itemsX };
+}
+
+/**
+ * 凡例を描きます（用紙の枠の下端に、高さぶん）。
+ *
+ * @param c 描画先
+ * @param legend layoutLegendの結果
+ * @param sheetX 用紙の枠の左端
+ * @param sheetW 用紙の枠の幅
+ * @param legendTop 凡例の上端
+ */
+function drawLegend(c: Canvas, legend: LegendLayout, sheetX: number, sheetW: number, legendTop: number) {
+    if (legend.rows.length === 0) return;
+    c.hline(sheetX, sheetX + sheetW, legendTop, BRAND, 1.5);
+    let ly = legendTop + LEGEND_PAD;
+    legend.rows.forEach((r, ri) => {
+        const lines = legend.lines[ri];
+        const firstCy = ly + LEGEND_PITCH / 2;
+        c.text(r.title, legend.left, firstCy, LEGEND_FS + 0.5, "#000000", { bold: true });
+        c.hline(legend.left, legend.left + LEGEND_TITLE_W, firstCy + 6.5, BRAND, 1.5);
+        lines.forEach((line, li) => {
+            const cy = ly + LEGEND_PITCH * (li + 0.5);
+            line.forEach(({ item, x }) => item.draw(c, legend.itemsX + x, cy));
+        });
+        ly += lines.length * LEGEND_PITCH + LEGEND_ROW_GAP;
+    });
+}
+
 /**
  * PDFに描く可能性のある文字を、すべて集めます（フォントをこの文字だけに絞るため）。
  *
@@ -112,14 +204,8 @@ function collectUsedText(input: StationTimetablePdfInput, stationLabel: string):
  * @returns PDFファイルの内容
  */
 export async function buildStationTimetablePdf(input: StationTimetablePdfInput, fonts: PdfFonts, subset: FontSubsetter): Promise<Uint8Array> {
-    const doc = await PDFDocument.create();
     const stationLabel = input.stationName.endsWith("駅") ? input.stationName : `${input.stationName}駅`;
-    doc.setTitle(`${stationLabel}発 ${input.towards}方面 発車時刻表`);
-    doc.setCreator("WebOud");
-
-    // このPDFで使う文字だけに絞ったフォントを埋め込む
-    const used = collectUsedText(input, stationLabel);
-    const textFonts = await embedTextFonts(doc, fonts, subset, used);
+    const { doc, textFonts } = await createPdfDocument(`${stationLabel}発 ${input.towards}方面 発車時刻表`, fonts, subset, collectUsedText(input, stationLabel));
 
     const page = doc.addPage([PAGE_W, PAGE_H]);
     const c = new Canvas(page, textFonts);
@@ -142,59 +228,8 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
     c.text(headRight, sheetX + sheetW - 12, sheetY + HEAD_H / 2, 13, "#ffffff", { bold: true, align: "right" });
 
     // ---- 凡例（高さを先に決める）----
-    const trainTypes = collectTrainTypes([input.hours]);
-    const destinations = collectDestinations([input.hours]);
-    const LEGEND_FS = 8.5;
-    const LEGEND_PITCH = 13;
-    const legendTitleW = 34;
-    const legendLeft = sheetX + 10;
-    const legendItemsX = legendLeft + legendTitleW + 8;
-    const legendMaxW = sheetX + sheetW - 10 - legendItemsX;
-    const BADGE_LEGEND = { fs: 8, w: 18 };
-
-    const legendRows: { title: string; items: LegendItem[] }[] = [];
-    if (trainTypes.length > 0) {
-        legendRows.push({
-            title: "種別",
-            items: [...trainTypes].reverse().map((t) => {
-                const name = t.name || "（名称未設定）";
-                return {
-                    width: BADGE_LEGEND.w + 4 + c.measure(name, LEGEND_FS),
-                    draw: (cv, x, cy) => {
-                        drawBadge(cv, x, cy, BADGE_LEGEND, t, t.id === input.baseTypeId, "00");
-                        cv.text(name, x + BADGE_LEGEND.w + 4, cy, LEGEND_FS, "#000000");
-                    },
-                };
-            }),
-        });
-        if (destinations.length > 0) {
-            legendRows.push({
-                title: "行先",
-                items: destinations.map((d) => {
-                    const head = `${d.char}`;
-                    const rest = `印 ${d.name}ゆき`;
-                    const hw = c.measure(head, LEGEND_FS, true);
-                    return {
-                        width: hw + c.measure(rest, LEGEND_FS),
-                        draw: (cv, x, cy) => {
-                            cv.text(head, x, cy, LEGEND_FS, "#000000", { bold: true });
-                            cv.text(rest, x + hw, cy, LEGEND_FS, "#000000");
-                        },
-                    };
-                }),
-            });
-        }
-        const symbols = ["● この駅が始発", "▲ この駅が終着", "(00) 終着のため到着時刻を表示"];
-        legendRows.push({
-            title: "記号",
-            items: symbols.map((s) => ({ width: c.measure(s, LEGEND_FS), draw: (cv, x, cy) => cv.text(s, x, cy, LEGEND_FS, "#000000") })),
-        });
-    }
-    const legendLines = legendRows.map((r) => flowLines(r.items, legendMaxW, 12));
-    const legendPad = 6;
-    const legendRowGap = 3;
-    const legendH = legendRows.length === 0 ? 0 : legendPad * 2 + legendLines.reduce((sum, ls) => sum + ls.length * LEGEND_PITCH, 0) + legendRowGap * (legendRows.length - 1);
-    const legendTop = sheetY + sheetH - legendH;
+    const legend = layoutLegend(c, input, sheetX, sheetW);
+    const legendTop = sheetY + sheetH - legend.height;
 
     // ---- 時間帯ごとの行 ----
     const bodyTop = sheetY + HEAD_H;
@@ -240,22 +275,7 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
         });
     }
 
-    // ---- 凡例 ----
-    if (legendRows.length > 0) {
-        c.hline(sheetX, sheetX + sheetW, legendTop, BRAND, 1.5);
-        let ly = legendTop + legendPad;
-        legendRows.forEach((r, ri) => {
-            const lines = legendLines[ri];
-            const firstCy = ly + LEGEND_PITCH / 2;
-            c.text(r.title, legendLeft, firstCy, LEGEND_FS + 0.5, "#000000", { bold: true });
-            c.hline(legendLeft, legendLeft + legendTitleW, firstCy + 6.5, BRAND, 1.5);
-            lines.forEach((line, li) => {
-                const cy = ly + LEGEND_PITCH * (li + 0.5);
-                line.forEach(({ item, x }) => item.draw(c, legendItemsX + x, cy));
-            });
-            ly += lines.length * LEGEND_PITCH + legendRowGap;
-        });
-    }
+    drawLegend(c, legend, sheetX, sheetW, legendTop);
 
     // 外枠は最後に描いて、塗りの上に重ねる
     c.frame(sheetX, sheetY, sheetW, sheetH, BRAND, BORDER_W);

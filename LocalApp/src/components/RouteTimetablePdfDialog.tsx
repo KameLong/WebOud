@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Alert, Button, Group, Modal, NumberInput, SegmentedControl, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Modal, NumberInput, Stack, Text } from "@mantine/core";
 import type { StationDto } from "../domain/dto.ts";
+import { PdfOrientationControl } from "./PdfOrientationControl.tsx";
 import { useFontSize } from "../hooks/useFontSize.ts";
 import { planRouteTimetable, type PdfOrientation } from "../pdf/routeTimetablePlan.ts";
 import { DEFAULT_FONT_SIZE, MAX_FONT_SIZE, MIN_FONT_SIZE, setFontSize } from "../store/settings.ts";
@@ -63,19 +64,7 @@ function RouteTimetablePdfBody({ onClose, stations, direct, tripCount, busy, onC
                     設定画面の「全体の文字サイズ」と共通の設定です。変更すると、画面の表示にも反映されます（{MIN_FONT_SIZE}〜{MAX_FONT_SIZE}px）。
                 </Text>
 
-                <div>
-                    <Text size="sm" fw={500} mb={4}>
-                        用紙の向き
-                    </Text>
-                    <SegmentedControl
-                        value={orientation}
-                        onChange={(v) => setOrientation(v as PdfOrientation)}
-                        data={[
-                            { value: "landscape", label: "A4 横" },
-                            { value: "portrait", label: "A4 縦" },
-                        ]}
-                    />
-                </div>
+                <PdfOrientationControl value={orientation} onChange={setOrientation} />
 
                 {fits ? (
                     <Text size="sm">

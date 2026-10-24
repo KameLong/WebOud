@@ -53,6 +53,8 @@ export type DiagramPdfPlan = {
     /** 縦軸の縮尺（秒あたりのpt）と、横軸の縮尺（秒あたりのpt） */
     yScale: number;
     xScale: number;
+    /** 1ページに入れる時間（時間。1〜24に丸めたもの） */
+    hours: number;
     /** 時間方向のページ数と、縦方向のページ数（高さが用紙を超えるとき） */
     pagesX: number;
     slices: number;
@@ -104,6 +106,7 @@ export function planDiagramPdf(stations: DiagramStation[], options: DiagramPdfOp
         plotH,
         heightPt,
         yScale: heightPt / totalSeconds,
+        hours,
         xScale: plotW / (hours * 3600),
         pagesX,
         slices,

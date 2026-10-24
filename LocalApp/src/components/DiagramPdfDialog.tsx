@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import { Alert, Button, Group, Modal, NumberInput, SegmentedControl, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Modal, NumberInput, Stack, Text } from "@mantine/core";
+import { PdfOrientationControl } from "./PdfOrientationControl.tsx";
 import type { DiagramStation } from "../diagram/DiagramData.ts";
 import { DEFAULT_HOURS_PER_PAGE, DEFAULT_MARGIN_MM, planDiagramPdf, type DiagramPdfOptions } from "../pdf/diagramPdfPlan.ts";
+import type { PdfOrientation } from "../pdf/routeTimetablePlan.ts";
 
 /**
  * ダイヤグラムをPDFにする前に、用紙の向き・余白・1ページの時間・高さを決めるダイアログです。
@@ -22,14 +24,14 @@ export function DiagramPdfDialog(props: { open: boolean; onClose: () => void; st
  * @param props DiagramPdfDialogと同じ
  */
 function DiagramPdfBody({ onClose, stations, busy, onCreate }: Parameters<typeof DiagramPdfDialog>[0]) {
-    const [orientation, setOrientation] = useState<DiagramPdfOptions["orientation"]>("landscape");
+    const [orientation, setOrientation] = useState<PdfOrientation>("landscape");
     const [marginMm, setMarginMm] = useState<number>(DEFAULT_MARGIN_MM);
     const [hoursPerPage, setHoursPerPage] = useState<number>(DEFAULT_HOURS_PER_PAGE);
     // nullは「用紙の高さいっぱい」
     const [heightMm, setHeightMm] = useState<number | null>(null);
 
-    const options: DiagramPdfOptions = { orientation, marginMm, hoursPerPage, heightMm };
-    const plan = useMemo(() => planDiagramPdf(stations, options), [stations, orientation, marginMm, hoursPerPage, heightMm]);
+    const options = useMemo<DiagramPdfOptions>(() => ({ orientation, marginMm, hoursPerPage, heightMm }), [orientation, marginMm, hoursPerPage, heightMm]);
+    const plan = useMemo(() => planDiagramPdf(stations, options), [stations, options]);
     const fits = plan.overflow.length === 0;
 
     return (
@@ -39,19 +41,7 @@ function DiagramPdfBody({ onClose, stations, busy, onCreate }: Parameters<typeof
                     ダイヤグラムを、A4用紙のPDFにします。横は午前3時から翌午前3時までを、1ページに入れる時間ごとに分けます。どのページにも駅名欄を表示します。
                 </Text>
 
-                <div>
-                    <Text size="sm" fw={500} mb={4}>
-                        用紙の向き
-                    </Text>
-                    <SegmentedControl
-                        value={orientation}
-                        onChange={(v) => setOrientation(v as DiagramPdfOptions["orientation"])}
-                        data={[
-                            { value: "landscape", label: "A4 横" },
-                            { value: "portrait", label: "A4 縦" },
-                        ]}
-                    />
-                </div>
+                <PdfOrientationControl value={orientation} onChange={setOrientation} />
 
                 <Group gap="sm" align="flex-end" wrap="wrap">
                     <NumberInput label="余白" value={marginMm} onChange={(v) => setMarginMm(Math.max(0, Number(v) || 0))} min={0} max={40} step={1} suffix=" mm" style={{ width: 110 }} />
