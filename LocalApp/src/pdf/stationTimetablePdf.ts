@@ -35,8 +35,8 @@ const STRIPE = "#e4e4e4";
 const HEAD_H = 34;
 /** 時の数字セルの幅 */
 const HOUR_W = 36;
-/** 外枠の太さ */
-const BORDER_W = 3;
+/** 外枠の太さ（画面の3px = 2.25pt） */
+const BORDER_W = 2.25;
 
 /** 時刻の印の大きさの候補（大きい順）。最も混み合う行が1行に収まる最大のものを全行で使う */
 const BADGE_SIZES = [
@@ -242,7 +242,7 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
 
     // ---- 凡例 ----
     if (legendRows.length > 0) {
-        c.hline(sheetX, sheetX + sheetW, legendTop, BRAND, 2);
+        c.hline(sheetX, sheetX + sheetW, legendTop, BRAND, 1.5);
         let ly = legendTop + legendPad;
         legendRows.forEach((r, ri) => {
             const lines = legendLines[ri];

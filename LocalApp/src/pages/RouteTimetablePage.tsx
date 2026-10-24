@@ -17,6 +17,8 @@ import { TrainPropertyDialog } from "../components/TrainPropertyDialog.tsx";
 import { putTrip, shiftStopTime, shiftStopTimesFrom } from "../store/timetableApi.ts";
 import { getRoute } from "../store/localStore.ts";
 import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../pdf/pdfFonts.ts";
+import type { PdfOrientation } from "../pdf/routeTimetablePlan.ts";
+import { RouteTimetablePdfDialog } from "../components/RouteTimetablePdfDialog.tsx";
 import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
@@ -35,6 +37,7 @@ export default function RouteTimetablePage() {
     const direct = Number(params.direct ?? 0);
     const nav_ = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
+    const [pdfOpen, setPdfOpen] = useState(false);
     const [pdfBusy, setPdfBusy] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -143,10 +146,12 @@ export default function RouteTimetablePage() {
      * @param tripId 編集する列車ID
      */
     /**
-     * この方向の時刻表をA4横のPDFにして保存します（ブラウザの印刷機能は使わず、フォントを埋め込んだPDFを直接作る）。
-     * 列車が多いときは列車の列がページに分かれ、どのページにも駅名欄を表示します。
+     * この方向の時刻表をA4のPDFにして保存します（ブラウザの印刷機能は使わず、フォントを埋め込んだPDFを直接作る）。
+     * 列車や駅が多いときはA4に収まるようページが分かれ、どのページにも駅名欄を表示します。
+     *
+     * @param orientation 用紙の向き（A4の横・縦）
      */
-    const exportPdf = async () => {
+    const exportPdf = async (orientation: PdfOrientation) => {
         if (pdfBusy) return;
         setPdfBusy(true);
         setPdfError(null);
@@ -155,8 +160,9 @@ export default function RouteTimetablePage() {
             const { buildRouteTimetablePdf } = await import("../pdf/routeTimetablePdf.ts");
             const fonts = await loadPdfFonts();
             const routeName = getRoute(routeId)?.name ?? "路線";
-            const bytes = await buildRouteTimetablePdf({ routeName, direct, stations, trips: trips.filter((t) => t.id !== -1), trainTypeById }, fonts, subsetFontInBrowser);
+            const bytes = await buildRouteTimetablePdf({ routeName, direct, stations, trips: trips.filter((t) => t.id !== -1), trainTypeById, fontSize, orientation }, fonts, subsetFontInBrowser);
             downloadBytes(bytes, `${routeName}_${direct === 1 ? "上り" : "下り"}時刻表.pdf`);
+            setPdfOpen(false);
         } catch (e) {
             setPdfError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -400,7 +406,7 @@ export default function RouteTimetablePage() {
                     style={{ flexShrink: 0 }}
                     title="数字2桁で時・分を順に確定し、入力後は自動で1段下へ進みます（Alt+Tでも切り替え可能）"
                 />
-                <Button variant="default" size="compact-xs" style={{ flexShrink: 0 }} styles={{ label: { whiteSpace: "nowrap" } }} onClick={() => void exportPdf()} loading={pdfBusy} title="この方向の時刻表を、A4横のPDFファイルとして保存します（列車が多いときは複数ページ。どのページにも駅名欄を表示）">
+                <Button variant="default" size="compact-xs" style={{ flexShrink: 0 }} styles={{ label: { whiteSpace: "nowrap" } }} onClick={() => setPdfOpen(true)} title="この方向の時刻表を、A4のPDFファイルとして保存します（文字サイズと用紙の向きを選べます。複数ページのときも、どのページにも駅名欄を表示）">
                     PDF出力
                 </Button>
                 <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
@@ -408,6 +414,7 @@ export default function RouteTimetablePage() {
                 </button>
             </div>
             {pdfError && <div className="rt-input-warning">PDFを作成できませんでした：{pdfError}</div>}
+            <RouteTimetablePdfDialog open={pdfOpen} onClose={() => setPdfOpen(false)} stations={stations} direct={direct} tripCount={trips.filter((t) => t.id !== -1).length} busy={pdfBusy} onCreate={(o) => void exportPdf(o)} />
             {cont.state.warning && <div className="rt-input-warning">{cont.state.warning}</div>}
             <div
                 ref={scrollRef}
@@ -546,7 +553,7 @@ export default function RouteTimetablePage() {
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
                     <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
-                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。上部の「PDF出力」で、この方向の時刻表をA4横のPDFにして保存できます（列車が多いときは複数ページになり、どのページにも駅名欄が付きます）。スマホでは物理キーボードが無いため、画面下部に数字入力とショートカット操作用のキーパッドを表示します。
+                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。上部の「PDF出力」を押すと、文字サイズと用紙の向き（A4横・縦）を選ぶ画面が出て、この方向の時刻表をA4のPDFにして保存できます（列車や駅が多いときは複数ページになり、どのページにも駅名欄が付きます。A4に収まらないときは文字サイズを小さくしてください）。スマホでは物理キーボードが無いため、画面下部に数字入力とショートカット操作用のキーパッドを表示します。
                     </p>
                 </HelpSection>
                 <HelpSection title="キーボードショートカット">

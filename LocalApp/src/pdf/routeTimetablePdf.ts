@@ -1,9 +1,10 @@
 import { PDFDocument } from "pdf-lib";
 import { ariTimeStr, depTimeStr } from "../domain/stopTimeText.ts";
 import type { StationDto, TrainTypeDto, TripWithStopTimesDto } from "../domain/dto.ts";
-import { decodeParts, decodeShowStyle, getDirectStyle } from "../domain/utils.ts";
+import { gridMetrics } from "../domain/utils.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
 import { Canvas, embedTextFonts, type PdfFonts } from "./pdfCommon.ts";
+import { MARGIN, planRouteTimetable, S, stationHeight, THICK, THIN, TITLE_H, type PdfOrientation } from "./routeTimetablePlan.ts";
 
 /** 路線時刻表PDFの入力（画面の時刻表と同じ内容） */
 export type RouteTimetablePdfInput = {
@@ -17,28 +18,17 @@ export type RouteTimetablePdfInput = {
     trips: TripWithStopTimesDto[];
     /** 種別ID→種別 */
     trainTypeById: Map<number, TrainTypeDto>;
+    /** 画面の文字サイズ(px)。画面と同じ比率の寸法・罫線の太さで描くために使う（省略時は14） */
+    fontSize?: number;
+    /** 用紙の向き（A4。省略時は横） */
+    orientation?: PdfOrientation;
 };
 
-// ---- 用紙・寸法(pt)。A4横 ----
-const PAGE_W = 841.89;
-const PAGE_H = 595.28;
-const MARGIN = 20;
-/** ページ上部のタイトル行の高さ */
-const TITLE_H = 20;
-/** 列車の見出し（種別・番号・列車名）1行の高さ */
-const HEAD_ROW_H = 12;
-/** 列車1列の幅 */
-const COL_W = 27;
-/** 駅名欄の着/番線/発ラベルの幅 */
-const LABEL_W = 14;
-/** 1行(着・番線・発の1つ)の高さの上限と下限。下限を下回るときは、駅をページに分ける */
-const MAX_LINE_H = 14;
-const MIN_LINE_H = 9;
+/** 罫線の色（画面の#333） */
+const LINE_COLOR = "#333333";
+
 /** 見出しの種別の既定値 */
 const FALLBACK_TYPE: TrainTypeDto = { id: 0, name: "", routeID: 0, index: 0, shortName: "", color: "#000000", fontBold: false, lineBold: false, lineStyle: 0 };
-
-/** 駅1つ分の、描画する行（着/番線/発）の並び */
-type StationRows = { station: StationDto; parts: ("arr" | "track" | "dep")[]; showArr: boolean; showDep: boolean };
 
 /**
  * 配列を、1つあたりの上限(maxCount)を超えないように分けます。
@@ -53,32 +43,12 @@ function chunk<T>(items: T[], maxCount: number): T[][] {
 }
 
 /**
- * 駅を、行数の合計がmaxLinesを超えない範囲で、ページごとのまとまりに分けます。
- *
- * @param rows 駅ごとの行
- * @param maxLines 1ページに入る行数
- */
-function chunkStations(rows: StationRows[], maxLines: number): StationRows[][] {
-    const out: StationRows[][] = [[]];
-    let lines = 0;
-    for (const r of rows) {
-        if (lines + r.parts.length > maxLines && out[out.length - 1].length > 0) {
-            out.push([]);
-            lines = 0;
-        }
-        out[out.length - 1].push(r);
-        lines += r.parts.length;
-    }
-    return out;
-}
-
-/**
- * 路線時刻表（1方向）を、A4横のPDFにします。列車が多いときは、列車の列を何ページかに分けます。
- * どのページにも、駅名欄（駅名と着/番線/発）と、列車の見出し（種別・番号・列車名）を表示します。
+ * 路線時刻表（1方向）を、A4のPDFにします。画面の時刻表と同じ寸法・同じ比率の罫線で描き（文字サイズの設定に合わせて拡大縮小）、
+ * 列車や駅が多いときは、A4に収まるようにページを分けます。どのページにも、駅名欄と、列車の見出し（種別・番号・列車名）を表示します。
  * ブラウザの印刷機能は使わず、日本語フォントを埋め込んだPDFを直接作るので、環境によってレイアウトが変わりません。
  *
- * @param input 路線名・方向・駅・列車
- * @param fonts 埋め込む日本語フォント（標準・太字）
+ * @param input 路線名・方向・駅・列車・文字サイズ・用紙の向き
+ * @param fonts 埋め込むフォント（日本語フォント・DiaPro）
  * @param subset フォントを必要な文字だけに絞る関数
  * @returns PDFファイルの内容
  */
@@ -87,13 +57,19 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
     const directLabel = direct === 1 ? "上り" : "下り";
     const title = `${input.routeName}　${directLabel}時刻表`;
 
+    // ---- 画面（StationSidebar / TrainColumn / TrainHeader / StopCell）と同じ寸法。単位はpt ----
+    const fontSizePx = input.fontSize ?? 14;
+    const m = gridMetrics(fontSizePx);
+    const plan = planRouteTimetable(stations, direct, trips.length, fontSizePx, input.orientation ?? "landscape");
+    const { pageW, pageH, fs, lineH, colW, nameColW, labelW, stationInnerW, stationColW, headH, nameRowH, arrBorder, colsPerPage, stationChunks, totalPages } = plan;
+
     const doc = await PDFDocument.create();
     doc.setTitle(title);
     doc.setCreator("WebOud");
 
     const used = [
         "0123456789:()（）/ -",
-        "‥║⇂〇着番線発列車種別番号名ページ時刻表上下り",
+        "‥║⇂〇着番線発列車種別番号名ページ時刻表上下り｜",
         title,
         ...stations.map((s) => s.name),
         ...trips.flatMap((t) => [t.no, t.name]),
@@ -101,99 +77,103 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
     ].join("");
     const textFonts = await embedTextFonts(doc, fonts, subset, used);
 
-    // 駅ごとの行（着/番線/発）。表示する行が1つも無い駅は、画面と同じく「発」だけ出す
-    const stationRows: StationRows[] = stations.map((station) => {
-        const parts = decodeParts(station.showStyle, direct);
-        const s = decodeShowStyle(getDirectStyle(station.showStyle, direct));
-        return { station, parts: parts.length > 0 ? parts : ["dep"], showArr: s.showArr, showDep: s.showDep };
-    });
-
-    // 駅名欄の幅（いちばん長い駅名に合わせる。広がりすぎないよう上限あり）
-    const measurer = new Canvas(doc.addPage([PAGE_W, PAGE_H]), textFonts);
-    doc.removePage(0);
-    const NAME_FS = 8.5;
-    const nameW = Math.min(110, Math.max(48, Math.max(0, ...stations.map((s) => measurer.measure(s.name, NAME_FS))) + 8));
-    const stationColW = nameW + LABEL_W;
-
-    const colsPerPage = Math.max(1, Math.floor((PAGE_W - MARGIN * 2 - stationColW) / COL_W));
     const colChunks = chunk(trips, colsPerPage);
-    const headH = HEAD_ROW_H * 3;
-    const availBodyH = PAGE_H - MARGIN * 2 - TITLE_H - headH;
-    const stationChunks = chunkStations(stationRows, Math.max(3, Math.floor(availBodyH / MIN_LINE_H)));
-
-    const totalPages = colChunks.length * stationChunks.length;
     let pageNo = 0;
     for (const cols of colChunks) {
         for (const rows of stationChunks) {
             pageNo++;
-            const page = doc.addPage([PAGE_W, PAGE_H]);
+            const page = doc.addPage([pageW, pageH]);
             const c = new Canvas(page, textFonts);
 
             const left = MARGIN;
-            const top = MARGIN;
-            const bodyTop = top + TITLE_H + headH;
-            const totalLines = rows.reduce((sum, r) => sum + r.parts.length, 0);
-            const lineH = Math.min(MAX_LINE_H, availBodyH / Math.max(1, totalLines));
-            const bodyH = lineH * totalLines;
-            const tableW = stationColW + COL_W * Math.max(1, cols.length);
-            const fs = Math.min(9, lineH * 0.72);
+            const top = MARGIN + TITLE_H;
+            const nCols = Math.max(1, cols.length);
+            const tableW = stationColW + colW * nCols;
+            const bodyH = rows.reduce((sum, r) => sum + stationHeight(r, lineH), 0);
+            const headTop = top + THICK; // 見出しの上端（上の太枠の下）
+            const bodyTop = headTop + headH;
+            const tableBottom = bodyTop + bodyH + THICK;
+            const cellsLeft = left + stationColW; // 列車の列の左端
 
             // タイトル行とページ番号
-            c.text(title, left, top + TITLE_H / 2 - 2, 12, "#000000", { bold: true });
-            c.text(`${pageNo} / ${totalPages} ページ`, PAGE_W - MARGIN, top + TITLE_H / 2 - 2, 9, "#555555", { align: "right" });
+            c.text(title, left, MARGIN + TITLE_H / 2 - 2, 12, "#000000", { bold: true });
+            c.text(`${pageNo} / ${totalPages} ページ`, pageW - MARGIN, MARGIN + TITLE_H / 2 - 2, 9, "#555555", { align: "right" });
 
-            // 列車の見出し（種別略称・番号・列車名）。駅名欄の左上にも項目名を入れる
-            const heads = ["列車種別", "列車番号", "列車名"];
-            heads.forEach((h, i) => c.text(h, left + 3, top + TITLE_H + HEAD_ROW_H * (i + 0.5), 7.5, "#333333"));
+            // ---- 駅名欄の左上（列車種別/列車番号の項目名）。背景は画面と同じ薄い灰色 ----
+            c.rect(left + THICK, headTop, stationInnerW, headH, "#fafafa");
+            const justifyW = stationInnerW - m.FONT_SIZE * 0.4 * S;
+            const justifyX = left + THICK + m.FONT_SIZE * 0.2 * S;
+            c.justifiedText("列車種別", justifyX, headTop + lineH / 2, justifyW, fs);
+            c.justifiedText("列車番号", justifyX, headTop + lineH + THIN + lineH / 2, justifyW, fs);
+
+            // ---- 列車の見出し（種別略称・番号・縦書きの列車名）----
+            const typeRowY = headTop + lineH / 2;
+            const noRowY = headTop + lineH + THIN + lineH / 2;
+            const nameRowTop = headTop + lineH + THIN + lineH + THICK;
             cols.forEach((trip, ci) => {
-                const x = left + stationColW + COL_W * ci;
+                const x = cellsLeft + colW * ci;
+                const cx = x + (colW - THIN) / 2;
                 const type = input.trainTypeById.get(trip.trainTypeID) ?? FALLBACK_TYPE;
-                const cx = x + COL_W / 2;
-                const inner = COL_W - 3;
-                const bd = type.fontBold;
-                c.text(type.shortName, cx, top + TITLE_H + HEAD_ROW_H * 0.5, c.fitSize(type.shortName, 8, inner, 5, bd), type.color, { bold: bd, align: "center" });
-                c.text(trip.no, cx, top + TITLE_H + HEAD_ROW_H * 1.5, c.fitSize(trip.no, 8, inner, 5, bd), type.color, { bold: bd, align: "center" });
-                c.text(trip.name, cx, top + TITLE_H + HEAD_ROW_H * 2.5, c.fitSize(trip.name, 7, inner, 4.5), "#333333", { align: "center" });
+                const inner = colW - THIN - 2;
+                c.text(type.shortName, cx, typeRowY, c.fitSize(type.shortName, fs, inner, fs * 0.5, false), type.color, { align: "center" });
+                c.text(trip.no, cx, noRowY, c.fitSize(trip.no, fs, inner, fs * 0.5, false), type.color, { align: "center" });
+                // 列車名は縦書き。1列に4文字、最大2列（右の列から）。収まらない分は切り詰める
+                const chars = [...(trip.name ?? "")].slice(0, 8);
+                const colCount = Math.ceil(chars.length / 4);
+                const vcw = Math.ceil(m.FONT_SIZE * 1.2) * S; // 縦書き1列の幅
+                const textTop = nameRowTop + (nameRowH - (m.FONT_SIZE * 4 + 2) * S) / 2;
+                chars.forEach((ch, k) => {
+                    const colIdx = Math.floor(k / 4);
+                    const rowIdx = k % 4;
+                    const cxChar = cx + (colCount * vcw) / 2 - vcw / 2 - colIdx * vcw;
+                    // 縦書きでは、長音「ー」は縦棒にする
+                    c.text(ch === "ー" ? "｜" : ch, cxChar, textTop + fs * (rowIdx + 0.5), fs, type.color, { align: "center" });
+                });
             });
 
-            // 駅名欄（駅名と着/番線/発のラベル）と、各セルの時刻
+            // ---- 本体：駅名欄（駅名と着/番線/発）と、各セルの時刻 ----
             let y = bodyTop;
             rows.forEach((r) => {
-                const blockH = lineH * r.parts.length;
-                const nameSize = c.fitSize(r.station.name, NAME_FS, nameW - 6, 5);
-                c.text(r.station.name, left + 3, y + blockH / 2, nameSize, "#000000");
+                const blockH = stationHeight(r, lineH);
+                // 駅名は、画面のFitTextX（均等割付）と同じ。駅名の幅は駅名欄の幅から、ラベル欄との間隔(0.5文字)を引いたもの
+                const nameW = nameColW - m.FONT_SIZE * 0.5 * S - m.FONT_SIZE * 0.4 * S;
+                c.justifiedText(r.station.name, left + THICK + m.FONT_SIZE * 0.2 * S, y + blockH / 2, nameW, fs);
 
+                let py = y;
                 r.parts.forEach((part, pi) => {
-                    const cy = y + lineH * (pi + 0.5);
+                    const ph = lineH + (part === "arr" && r.showArr && r.showDep ? arrBorder : 0);
+                    const cy = py + lineH / 2;
                     const label = part === "arr" ? "着" : part === "dep" ? "発" : "番線";
-                    c.text(label, left + stationColW - 2, cy, Math.min(6.5, lineH * 0.6), "#444444", { align: "right" });
-                    if (pi > 0) c.hline(left + nameW, left + tableW, y + lineH * pi, "#888888", 0.3);
+                    c.text(label, left + THICK + stationInnerW - labelW / 2, cy, c.fitSize(label, fs, labelW, fs * 0.5), "#000000", { align: "center" });
+                    // 番線を表示する駅では、駅名欄の行の間に薄い灰色の区切り線（画面の#ddd）
+                    if (pi > 0 && r.parts.includes("track")) c.rect(left + THICK + nameColW, py, labelW, THIN, "#dddddd");
 
                     cols.forEach((trip, ci) => {
                         const st = trip.stopTimesByStationId[r.station.id];
                         const text = part === "arr" ? ariTimeStr(st, r.showArr, r.showDep, false) : part === "dep" ? depTimeStr(st, r.showArr, r.showDep, false) : "";
                         if (!text) return;
                         const type = input.trainTypeById.get(trip.trainTypeID) ?? FALLBACK_TYPE;
-                        const x = left + stationColW + COL_W * ci;
-                        // 時刻の数字は、画面と同じDiaProで描く
-                        c.text(text, x + COL_W / 2, cy, fs, type.color, { bold: type.fontBold, dia: true, align: "center" });
+                        const x = cellsLeft + colW * ci;
+                        // 時刻の数字は、画面と同じDiaProで描く（画面では太字にしない）
+                        c.text(text, x + (colW - THIN) / 2, cy, fs, type.color, { dia: true, align: "center" });
                     });
+                    // 着と発の両方があるとき、着の下に黒い細線（時刻のセル側だけ）
+                    if (part === "arr" && r.showArr && r.showDep) c.rect(cellsLeft, py + lineH, colW * nCols, arrBorder, "#000000");
+                    py += ph;
                 });
-
                 y += blockH;
-                // 駅と駅の区切り（最後の駅は外枠で兼ねる）
-                if (r !== rows[rows.length - 1]) c.hline(left, left + tableW, y, "#000000", 0.6);
             });
 
-            // 縦の罫線（列ごと）と、見出し・外枠
-            cols.forEach((_, ci) => c.vline(left + stationColW + COL_W * (ci + 1), top + TITLE_H, bodyTop + bodyH, "#666666", 0.4));
-            c.hline(left, left + tableW, top + TITLE_H + HEAD_ROW_H, "#888888", 0.3);
-            c.hline(left, left + tableW, top + TITLE_H + HEAD_ROW_H * 2, "#888888", 0.3);
-            c.hline(left, left + tableW, bodyTop, "#000000", 1);
-            c.vline(left + nameW, bodyTop, bodyTop + bodyH, "#888888", 0.3);
-            c.vline(left + stationColW, top + TITLE_H, bodyTop + bodyH, "#000000", 1);
-            c.frame(left, top + TITLE_H, tableW, headH + bodyH, "#000000", 1.2);
-            if (trips.length === 0) c.text("この方向の列車はありません", left + stationColW + 12, bodyTop + 14, 10, "#666666");
+            // ---- 罫線（画面と同じ：列の右は細線、見出しの区切りと外枠は太線）----
+            cols.forEach((_, ci) => c.rect(cellsLeft + colW * (ci + 1) - THIN, top, THIN, tableBottom - top, LINE_COLOR));
+            c.rect(left, headTop + lineH, tableW, THIN, LINE_COLOR); // 種別の下（細線）
+            c.rect(left, headTop + lineH + THIN + lineH, tableW, THICK, LINE_COLOR); // 番号の下（太線）
+            c.rect(left, bodyTop - THICK, tableW, THICK, LINE_COLOR); // 見出しの下（太線）
+            c.rect(left, top, tableW, THICK, LINE_COLOR); // 上の外枠
+            c.rect(left, tableBottom - THICK, tableW, THICK, LINE_COLOR); // 下の外枠
+            c.rect(left, top, THICK, tableBottom - top, LINE_COLOR); // 左の外枠
+            c.rect(left + stationColW - THICK, top, THICK, tableBottom - top, LINE_COLOR); // 駅名欄の右（太線）
+            if (trips.length === 0) c.text("この方向の列車はありません", cellsLeft + 12, bodyTop + 14, 10, "#666666");
         }
     }
 

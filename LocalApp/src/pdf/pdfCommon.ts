@@ -143,6 +143,29 @@ export class Canvas {
     }
 
     /**
+     * 均等割付で文字を描く（画面のFitTextXと同じ）。文字を指定幅いっぱいに、文字の間隔を均等にして並べる。
+     * 1文字のときは左寄せ。幅に収まらないときは、収まるまで文字を小さくする。
+     *
+     * @param text 文字列
+     * @param x 左端
+     * @param centerY 縦の中心
+     * @param width 並べる幅
+     * @param size 希望の文字サイズ
+     */
+    justifiedText(text: string | null | undefined, x: number, centerY: number, width: number, size: number) {
+        const chars = [...(text ?? "")];
+        if (chars.length === 0) return;
+        const fit = this.fitSize(text, size, width, size * 0.4);
+        const total = chars.reduce((sum, ch) => sum + this.measure(ch, fit), 0);
+        const gap = chars.length > 1 ? Math.max(0, (width - total) / (chars.length - 1)) : 0;
+        let cx = x;
+        for (const ch of chars) {
+            this.text(ch, cx, centerY, fit, "#000000");
+            cx += this.measure(ch, fit) + gap;
+        }
+    }
+
+    /**
      * 指定幅に収まるよう、必要なら文字サイズを小さくした大きさを返す
      *
      * @param text 文字列
