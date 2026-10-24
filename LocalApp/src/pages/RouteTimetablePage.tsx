@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Switch } from "@mantine/core";
+import { Button, Switch } from "@mantine/core";
 import { decodeShowStyle, getDirectStyle, getOrCreateStopTime, gridMetrics, isDigitKey } from "../domain/utils.ts";
 import { useFontSize } from "../hooks/useFontSize.ts";
 import { useSelectionNavigation } from "../hooks/useSelectionNavigation.ts";
@@ -15,6 +15,8 @@ import { useTripClipboard } from "../hooks/useTripClipboard.ts";
 import { PasteMoveDialog } from "../components/PasteMoveDialog.tsx";
 import { TrainPropertyDialog } from "../components/TrainPropertyDialog.tsx";
 import { putTrip, shiftStopTime, shiftStopTimesFrom } from "../store/timetableApi.ts";
+import { getRoute } from "../store/localStore.ts";
+import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../pdf/pdfFonts.ts";
 import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
@@ -33,6 +35,8 @@ export default function RouteTimetablePage() {
     const direct = Number(params.direct ?? 0);
     const nav_ = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
+    const [pdfBusy, setPdfBusy] = useState(false);
+    const [pdfError, setPdfError] = useState<string | null>(null);
 
     const fontSize = useFontSize();
     const metrics = useMemo(() => gridMetrics(fontSize), [fontSize]);
@@ -138,6 +142,28 @@ export default function RouteTimetablePage() {
      *
      * @param tripId 編集する列車ID
      */
+    /**
+     * この方向の時刻表をA4横のPDFにして保存します（ブラウザの印刷機能は使わず、フォントを埋め込んだPDFを直接作る）。
+     * 列車が多いときは列車の列がページに分かれ、どのページにも駅名欄を表示します。
+     */
+    const exportPdf = async () => {
+        if (pdfBusy) return;
+        setPdfBusy(true);
+        setPdfError(null);
+        try {
+            // PDFライブラリは大きいので、PDF出力を押したときに初めて読み込む
+            const { buildRouteTimetablePdf } = await import("../pdf/routeTimetablePdf.ts");
+            const fonts = await loadPdfFonts();
+            const routeName = getRoute(routeId)?.name ?? "路線";
+            const bytes = await buildRouteTimetablePdf({ routeName, direct, stations, trips: trips.filter((t) => t.id !== -1), trainTypeById }, fonts, subsetFontInBrowser);
+            downloadBytes(bytes, `${routeName}_${direct === 1 ? "上り" : "下り"}時刻表.pdf`);
+        } catch (e) {
+            setPdfError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setPdfBusy(false);
+        }
+    };
+
     const openTripProperty = (tripId: number) => {
         setTripPropTargetId(tripId);
         setTripPropOpen(true);
@@ -363,19 +389,25 @@ export default function RouteTimetablePage() {
 
     return (
         <div style={{ height: "100%", padding: "10px" }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: "#888" }}>※ 左側の駅名をクリックすると、その駅の時刻順に列車を並び替えます</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", marginBottom: 6 }}>
                 <Switch
                     label="連続入力"
+                    size="sm"
                     checked={cont.state.enabled}
                     onChange={() => cont.toggle()}
-                    style={{ marginLeft: "auto" }}
+                    // 狭い画面でラベルが縦に折れないようにする
+                    styles={{ label: { whiteSpace: "nowrap" } }}
+                    style={{ flexShrink: 0 }}
                     title="数字2桁で時・分を順に確定し、入力後は自動で1段下へ進みます（Alt+Tでも切り替え可能）"
                 />
+                <Button variant="default" size="compact-xs" style={{ flexShrink: 0 }} styles={{ label: { whiteSpace: "nowrap" } }} onClick={() => void exportPdf()} loading={pdfBusy} title="この方向の時刻表を、A4横のPDFファイルとして保存します（列車が多いときは複数ページ。どのページにも駅名欄を表示）">
+                    PDF出力
+                </Button>
                 <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
                     ？
                 </button>
             </div>
+            {pdfError && <div className="rt-input-warning">PDFを作成できませんでした：{pdfError}</div>}
             {cont.state.warning && <div className="rt-input-warning">{cont.state.warning}</div>}
             <div
                 ref={scrollRef}
@@ -514,7 +546,7 @@ export default function RouteTimetablePage() {
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
                     <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
-                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。スマホでは物理キーボードが無いため、画面下部に数字入力とショートカット操作用のキーパッドを表示します。
+                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。上部の「PDF出力」で、この方向の時刻表をA4横のPDFにして保存できます（列車が多いときは複数ページになり、どのページにも駅名欄が付きます）。スマホでは物理キーボードが無いため、画面下部に数字入力とショートカット操作用のキーパッドを表示します。
                     </p>
                 </HelpSection>
                 <HelpSection title="キーボードショートカット">

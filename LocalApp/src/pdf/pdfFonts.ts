@@ -1,6 +1,6 @@
 import hbSubsetWasmUrl from "harfbuzzjs/dist/harfbuzz-subset.wasm?url";
 import { createFontSubsetter } from "./fontSubset.ts";
-import type { PdfFonts } from "./stationTimetablePdf.ts";
+import type { PdfFonts } from "./pdfCommon.ts";
 
 let cache: Promise<PdfFonts> | null = null;
 

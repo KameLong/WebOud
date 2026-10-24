@@ -98,12 +98,12 @@
 
 /* グリッドの描画領域からスマホ用キーパッド分の高さを確保する(時刻表画面側でこのクラスを付与) */
 .rt-grid-scroll {
-    height: calc(100% - 46px);
+    height: calc(100% - 38px);
 }
 
 @media (max-width: 780px) {
     .rt-grid-scroll {
-        height: calc(100% - 46px - var(--rt-keypad-h));
+        height: calc(100% - 38px - var(--rt-keypad-h));
     }
 }
 

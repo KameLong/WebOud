@@ -1,11 +1,13 @@
-import fontkit from "@pdf-lib/fontkit";
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { parseHexColor, readableTextColor } from "../domain/colors.ts";
+import { PDFDocument } from "pdf-lib";
+import { readableTextColor } from "../domain/colors.ts";
 import type { TrainTypeDto } from "../domain/dto.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
+import { Canvas, embedTextFonts, type PdfFonts } from "./pdfCommon.ts";
 import { collectDestinations, collectTrainTypes, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
 
 /** 駅時刻表PDFの入力（画面の1方向分の表と同じ内容） */
+export type { PdfFonts } from "./pdfCommon.ts";
+
 export type StationTimetablePdfInput = {
     /** 駅名 */
     stationName: string;
@@ -16,9 +18,6 @@ export type StationTimetablePdfInput = {
     /** 文字のみで表す基準種別のID */
     baseTypeId: number;
 };
-
-/** PDFに埋め込む日本語フォントのデータ */
-export type PdfFonts = { regular: Uint8Array; bold: Uint8Array };
 
 // ---- 用紙・配色（画面の駅時刻表に合わせる）----
 /** A4縦(pt) */
@@ -45,94 +44,6 @@ const BADGE_SIZES = [
     { fs: 10.5, w: 21, gap: 3 },
     { fs: 9, w: 18.5, gap: 2 },
 ];
-
-/** 画面の記号のうち、フォントに無い場合に置き換える文字 */
-const FALLBACK_CHARS: Record<string, string> = { "➡": "→", "▲": "△", "●": "○" };
-
-/**
- * "#rrggbb"をpdf-libの色にします（読み取れなければ黒）。
- *
- * @param color 色
- */
-function toRgb(color: string) {
-    const c = parseHexColor(color) ?? { r: 0, g: 0, b: 0 };
-    return rgb(c.r / 255, c.g / 255, c.b / 255);
-}
-
-/** 1つのフォント（と、含まれる文字の集合）を扱いやすくまとめたもの */
-type TextFont = { font: PDFFont; chars: Set<number> };
-
-/**
- * フォントに無い文字を、代わりの文字に置き換えます（それも無ければ「?」）。
- *
- * @param f フォント
- * @param text 文字列
- */
-function safe(f: TextFont, text: string): string {
-    return [...text]
-        .map((ch) => {
-            if (f.chars.has(ch.codePointAt(0)!)) return ch;
-            const alt = FALLBACK_CHARS[ch];
-            return alt && f.chars.has(alt.codePointAt(0)!) ? alt : "?";
-        })
-        .join("");
-}
-
-/**
- * 文字列の幅(pt)を測ります。
- *
- * @param f フォント
- * @param text 文字列
- * @param size 文字サイズ(pt)
- */
-function width(f: TextFont, text: string, size: number): number {
-    return f.font.widthOfTextAtSize(safe(f, text), size);
-}
-
-/** 用紙の上端を原点(下向きが正)にした座標で描くための、小さな描画ヘルパー */
-class Canvas {
-    private page: PDFPage;
-    private regular: TextFont;
-    private bold: TextFont;
-
-    constructor(page: PDFPage, regular: TextFont, bold: TextFont) {
-        this.page = page;
-        this.regular = regular;
-        this.bold = bold;
-    }
-
-    /** 長方形を塗る（y:上端、下向き座標） */
-    rect(x: number, y: number, w: number, h: number, color: string) {
-        this.page.drawRectangle({ x, y: PAGE_H - y - h, width: w, height: h, color: toRgb(color) });
-    }
-
-    /** 枠線だけの長方形（外枠） */
-    frame(x: number, y: number, w: number, h: number, color: string, lineWidth: number) {
-        this.page.drawRectangle({ x, y: PAGE_H - y - h, width: w, height: h, borderColor: toRgb(color), borderWidth: lineWidth });
-    }
-
-    /** 水平線 */
-    hline(x1: number, x2: number, y: number, color: string, lineWidth: number) {
-        this.page.drawLine({ start: { x: x1, y: PAGE_H - y }, end: { x: x2, y: PAGE_H - y }, thickness: lineWidth, color: toRgb(color) });
-    }
-
-    /**
-     * 文字を描く。centerYは文字の縦方向の中心（下向き座標）、align="center"のときxは中心。
-     */
-    text(text: string, x: number, centerY: number, size: number, color: string, opts: { bold?: boolean; align?: "left" | "center" | "right" } = {}) {
-        const f = opts.bold ? this.bold : this.regular;
-        const t = safe(f, text);
-        const w = f.font.widthOfTextAtSize(t, size);
-        const left = opts.align === "center" ? x - w / 2 : opts.align === "right" ? x - w : x;
-        // 文字の縦中心が指定位置に来るよう、ベースラインを少し下げる
-        this.page.drawText(t, { x: left, y: PAGE_H - centerY - size * 0.34, size, font: f.font, color: toRgb(color) });
-    }
-
-    /** 文字の幅を測る */
-    measure(text: string, size: number, bold = false): number {
-        return width(bold ? this.bold : this.regular, text, size);
-    }
-}
 
 /**
  * 時刻の印（種別色で塗った四角＋分）または色付き文字（基準種別）を描く。
@@ -182,14 +93,7 @@ function flowLines(items: LegendItem[], maxWidth: number, gap: number): { item: 
  * @param stationLabel 「駅」を補った駅名
  */
 function collectUsedText(input: StationTimetablePdfInput, stationLabel: string): string {
-    const parts = [
-        "0123456789()（）:/ -",
-        "発車時刻表方面種別行先印ゆき記号この駅が始発終着のため到着時刻を表示（名称未設定）",
-        // フォントに無い記号を置き換える先の文字
-        "➡→△○▲●?",
-        stationLabel,
-        input.towards,
-    ];
+    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先印ゆき記号この駅が始発終着のため到着時刻を表示（名称未設定）", "➡▲●", stationLabel, input.towards];
     for (const t of collectTrainTypes([input.hours])) parts.push(t.name);
     for (const d of collectDestinations([input.hours])) parts.push(d.char, d.name);
     for (const h of input.hours) for (const e of h.entries) parts.push(e.destChar);
@@ -208,17 +112,13 @@ function collectUsedText(input: StationTimetablePdfInput, stationLabel: string):
  */
 export async function buildStationTimetablePdf(input: StationTimetablePdfInput, fonts: PdfFonts, subset: FontSubsetter): Promise<Uint8Array> {
     const doc = await PDFDocument.create();
-    doc.registerFontkit(fontkit);
     const stationLabel = input.stationName.endsWith("駅") ? input.stationName : `${input.stationName}駅`;
     doc.setTitle(`${stationLabel}発 ${input.towards}方面 発車時刻表`);
     doc.setCreator("WebOud");
 
     // このPDFで使う文字だけに絞ったフォントを埋め込む
     const used = collectUsedText(input, stationLabel);
-    const regularFont = await doc.embedFont(await subset(fonts.regular, used), { subset: false });
-    const boldFont = await doc.embedFont(await subset(fonts.bold, used), { subset: false });
-    const regular: TextFont = { font: regularFont, chars: new Set(regularFont.getCharacterSet()) };
-    const bold: TextFont = { font: boldFont, chars: new Set(boldFont.getCharacterSet()) };
+    const { regular, bold } = await embedTextFonts(doc, fonts, subset, used);
 
     const page = doc.addPage([PAGE_W, PAGE_H]);
     const c = new Canvas(page, regular, bold);
