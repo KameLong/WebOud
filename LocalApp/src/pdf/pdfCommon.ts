@@ -1,5 +1,5 @@
 import fontkit from "@pdf-lib/fontkit";
-import { rgb, type PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
+import { clip, degrees, endPath, popGraphicsState, pushGraphicsState, rectangle, rgb, type PDFDocument, type PDFFont, type PDFPage } from "pdf-lib";
 import { parseHexColor } from "../domain/colors.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
 
@@ -115,6 +115,41 @@ export class Canvas {
     /** 水平線 */
     hline(x1: number, x2: number, y: number, color: string, lineWidth: number) {
         this.page.drawLine({ start: { x: x1, y: this.pageH - y }, end: { x: x2, y: this.pageH - y }, thickness: lineWidth, color: toRgb(color) });
+    }
+
+    /** 線分（任意の向き）。座標は上端が原点・下向きが正 */
+    line(x1: number, y1: number, x2: number, y2: number, color: string, lineWidth: number) {
+        this.page.drawLine({ start: { x: x1, y: this.pageH - y1 }, end: { x: x2, y: this.pageH - y2 }, thickness: lineWidth, color: toRgb(color) });
+    }
+
+    /** 折れ線（隣り合う点を線分でつなぐ） */
+    polyline(points: { x: number; y: number }[], color: string, lineWidth: number) {
+        for (let i = 1; i < points.length; i++) this.line(points[i - 1].x, points[i - 1].y, points[i].x, points[i].y, color, lineWidth);
+    }
+
+    /**
+     * 長方形の範囲の中だけに描く（範囲からはみ出した部分は見えない）。drawの中で描いたものが対象。
+     */
+    clipped(x: number, y: number, w: number, h: number, draw: () => void) {
+        this.page.pushOperators(pushGraphicsState(), rectangle(x, this.pageH - y - h, w, h), clip(), endPath());
+        try {
+            draw();
+        } finally {
+            this.page.pushOperators(popGraphicsState());
+        }
+    }
+
+    /**
+     * 傾けた文字を描く。(x, y)は文字の左端のベースライン、angleは右へ水平を0とし、下向きを正とする角度（ラジアン）。
+     * 数字だけならDiaPro、それ以外の文字を含むときは日本語フォントで描く。
+     */
+    rotatedText(text: string | null | undefined, x: number, y: number, size: number, color: string, angle: number, opts: { dia?: boolean } = {}) {
+        const t0 = text ?? "";
+        const dm = this.fonts.diaRegular;
+        const useDia = !!opts.dia && [...t0].every((ch) => dm.chars.has(ch.codePointAt(0)!));
+        const f = useDia ? dm : this.fonts.regular;
+        const t = useDia ? t0 : safe(f, t0);
+        this.page.drawText(t, { x, y: this.pageH - y, size, font: f.font, color: toRgb(color), rotate: degrees((-angle * 180) / Math.PI) });
     }
 
     /** 垂直線 */
