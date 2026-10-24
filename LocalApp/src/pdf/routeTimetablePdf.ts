@@ -99,7 +99,7 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
         ...trips.flatMap((t) => [t.no, t.name]),
         ...[...input.trainTypeById.values()].map((t) => t.shortName),
     ].join("");
-    const { regular, bold } = await embedTextFonts(doc, fonts, subset, used);
+    const textFonts = await embedTextFonts(doc, fonts, subset, used);
 
     // 駅ごとの行（着/番線/発）。表示する行が1つも無い駅は、画面と同じく「発」だけ出す
     const stationRows: StationRows[] = stations.map((station) => {
@@ -109,7 +109,7 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
     });
 
     // 駅名欄の幅（いちばん長い駅名に合わせる。広がりすぎないよう上限あり）
-    const measurer = new Canvas(doc.addPage([PAGE_W, PAGE_H]), regular, bold);
+    const measurer = new Canvas(doc.addPage([PAGE_W, PAGE_H]), textFonts);
     doc.removePage(0);
     const NAME_FS = 8.5;
     const nameW = Math.min(110, Math.max(48, Math.max(0, ...stations.map((s) => measurer.measure(s.name, NAME_FS))) + 8));
@@ -127,7 +127,7 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
         for (const rows of stationChunks) {
             pageNo++;
             const page = doc.addPage([PAGE_W, PAGE_H]);
-            const c = new Canvas(page, regular, bold);
+            const c = new Canvas(page, textFonts);
 
             const left = MARGIN;
             const top = MARGIN;
@@ -175,7 +175,8 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
                         if (!text) return;
                         const type = input.trainTypeById.get(trip.trainTypeID) ?? FALLBACK_TYPE;
                         const x = left + stationColW + COL_W * ci;
-                        c.text(text, x + COL_W / 2, cy, fs, type.color, { bold: type.fontBold, align: "center" });
+                        // 時刻の数字は、画面と同じDiaProで描く
+                        c.text(text, x + COL_W / 2, cy, fs, type.color, { bold: type.fontBold, dia: true, align: "center" });
                     });
                 });
 

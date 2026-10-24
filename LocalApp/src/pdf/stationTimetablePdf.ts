@@ -59,7 +59,8 @@ const BADGE_SIZES = [
 function drawBadge(c: Canvas, x: number, cy: number, size: { fs: number; w: number }, trainType: TrainTypeDto, plain: boolean, label: string) {
     const h = size.fs + 4;
     if (!plain) c.rect(x, cy - h / 2, size.w, h, trainType.color);
-    c.text(label, x + size.w / 2, cy, size.fs, plain ? trainType.color : readableTextColor(trainType.color), { bold: trainType.fontBold || !plain, align: "center" });
+    // 時刻（分）の数字は、画面と同じDiaProで描く
+    c.text(label, x + size.w / 2, cy, size.fs, plain ? trainType.color : readableTextColor(trainType.color), { bold: trainType.fontBold || !plain, dia: true, align: "center" });
 }
 
 /** 凡例の項目（横に並べ、幅が足りなければ折り返す） */
@@ -118,10 +119,10 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
 
     // このPDFで使う文字だけに絞ったフォントを埋め込む
     const used = collectUsedText(input, stationLabel);
-    const { regular, bold } = await embedTextFonts(doc, fonts, subset, used);
+    const textFonts = await embedTextFonts(doc, fonts, subset, used);
 
     const page = doc.addPage([PAGE_W, PAGE_H]);
-    const c = new Canvas(page, regular, bold);
+    const c = new Canvas(page, textFonts);
 
     const sheetX = MARGIN;
     const sheetY = MARGIN;
@@ -219,7 +220,7 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
             if (i % 2 === 0) c.rect(sheetX + HOUR_W, y, sheetW - HOUR_W, rowH, STRIPE);
             c.rect(sheetX, y, HOUR_W, rowH, HOUR_CELL);
             c.hline(sheetX, sheetX + HOUR_W, y + rowH, "#ffffff", 1.5);
-            c.text(String(h.hour), sheetX + HOUR_W / 2, y + rowH / 2, 15, "#ffffff", { bold: true, align: "center" });
+            c.text(String(h.hour), sheetX + HOUR_W / 2, y + rowH / 2, 15, "#ffffff", { bold: true, dia: true, align: "center" });
 
             h.entries.forEach((e, k) => {
                 const line = Math.floor(k / perLine);

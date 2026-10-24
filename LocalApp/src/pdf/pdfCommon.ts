@@ -4,7 +4,17 @@ import { parseHexColor } from "../domain/colors.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
 
 /** PDFに埋め込む日本語フォントのデータ */
-export type PdfFonts = { regular: Uint8Array; bold: Uint8Array };
+export type PdfFonts = {
+    /** 日本語フォント（標準・太字） */
+    regular: Uint8Array;
+    bold: Uint8Array;
+    /** 時刻の数字に使うDiaProフォント（標準・太字） */
+    diaRegular: Uint8Array;
+    diaBold: Uint8Array;
+};
+
+/** PDFで使うフォント一式 */
+export type PdfTextFonts = { regular: TextFont; bold: TextFont; diaRegular: TextFont; diaBold: TextFont };
 
 /** フォントに無い文字を置き換える先（それも無ければ「?」） */
 const FALLBACK_CHARS: Record<string, string> = { "➡": "→", "▲": "△", "●": "○", "⇂": "↓", "║": "｜" };
@@ -47,33 +57,49 @@ export function safe(f: TextFont, text: string | null | undefined): string {
  * （pdf-lib自身のサブセット化は文字が欠けるため使わない）。
  *
  * @param doc PDF文書
- * @param fonts フォントのデータ
+ * @param fonts フォントのデータ（日本語フォントとDiaPro）
  * @param subset フォントを必要な文字だけに絞る関数
  * @param used PDFに描く可能性のある文字
  */
-export async function embedTextFonts(doc: PDFDocument, fonts: PdfFonts, subset: FontSubsetter, used: string): Promise<{ regular: TextFont; bold: TextFont }> {
+export async function embedTextFonts(doc: PDFDocument, fonts: PdfFonts, subset: FontSubsetter, used: string): Promise<PdfTextFonts> {
     doc.registerFontkit(fontkit);
     const text = used + FALLBACK_TARGET_CHARS;
-    const regularFont = await doc.embedFont(await subset(fonts.regular, text), { subset: false });
-    const boldFont = await doc.embedFont(await subset(fonts.bold, text), { subset: false });
-    return {
-        regular: { font: regularFont, chars: new Set(regularFont.getCharacterSet()) },
-        bold: { font: boldFont, chars: new Set(boldFont.getCharacterSet()) },
+    const embed = async (bytes: Uint8Array): Promise<TextFont> => {
+        const font = await doc.embedFont(await subset(bytes, text), { subset: false });
+        return { font, chars: new Set(font.getCharacterSet()) };
     };
+    return { regular: await embed(fonts.regular), bold: await embed(fonts.bold), diaRegular: await embed(fonts.diaRegular), diaBold: await embed(fonts.diaBold) };
 }
 
 /** 用紙の上端を原点(下向きが正)にした座標で描くための、小さな描画ヘルパー */
 export class Canvas {
     private page: PDFPage;
-    private regular: TextFont;
-    private bold: TextFont;
+    private fonts: PdfTextFonts;
     private pageH: number;
 
-    constructor(page: PDFPage, regular: TextFont, bold: TextFont) {
+    constructor(page: PDFPage, fonts: PdfTextFonts) {
         this.page = page;
-        this.regular = regular;
-        this.bold = bold;
+        this.fonts = fonts;
         this.pageH = page.getHeight();
+    }
+
+    /**
+     * 文字列を、フォントごとの連続した部分（run）に分ける。dia指定のときは、DiaProにある文字はDiaPro、
+     * 無い文字（「〇」「:」「（」など）は日本語フォントで描く。
+     */
+    private runs(text: string, bold: boolean, dia: boolean): { font: TextFont; text: string }[] {
+        const jp = bold ? this.fonts.bold : this.fonts.regular;
+        if (!dia) return [{ font: jp, text: safe(jp, text) }];
+        const dm = bold ? this.fonts.diaBold : this.fonts.diaRegular;
+        const out: { font: TextFont; text: string }[] = [];
+        for (const ch of text ?? "") {
+            const f = dm.chars.has(ch.codePointAt(0)!) ? dm : jp;
+            const t = f === jp ? safe(jp, ch) : ch;
+            const last = out[out.length - 1];
+            if (last && last.font === f) last.text += t;
+            else out.push({ font: f, text: t });
+        }
+        return out;
     }
 
     /** 長方形を塗る（y:上端、下向き座標） */
@@ -99,19 +125,21 @@ export class Canvas {
     /**
      * 文字を描く。centerYは文字の縦方向の中心（下向き座標）、align="center"のときxは中心。
      */
-    text(text: string | null | undefined, x: number, centerY: number, size: number, color: string, opts: { bold?: boolean; align?: "left" | "center" | "right" } = {}) {
-        const f = opts.bold ? this.bold : this.regular;
-        const t = safe(f, text);
-        const w = f.font.widthOfTextAtSize(t, size);
-        const left = opts.align === "center" ? x - w / 2 : opts.align === "right" ? x - w : x;
-        // 文字の縦中心が指定位置に来るよう、ベースラインを少し下げる
-        this.page.drawText(t, { x: left, y: this.pageH - centerY - size * 0.34, size, font: f.font, color: toRgb(color) });
+    text(text: string | null | undefined, x: number, centerY: number, size: number, color: string, opts: { bold?: boolean; dia?: boolean; align?: "left" | "center" | "right" } = {}) {
+        const runs = this.runs(text ?? "", !!opts.bold, !!opts.dia);
+        const widths = runs.map((r) => r.font.font.widthOfTextAtSize(r.text, size));
+        const total = widths.reduce((a, b) => a + b, 0);
+        let left = opts.align === "center" ? x - total / 2 : opts.align === "right" ? x - total : x;
+        runs.forEach((r, i) => {
+            // 文字の縦中心が指定位置に来るよう、ベースラインを少し下げる
+            if (r.text) this.page.drawText(r.text, { x: left, y: this.pageH - centerY - size * 0.34, size, font: r.font.font, color: toRgb(color) });
+            left += widths[i];
+        });
     }
 
     /** 文字の幅を測る */
-    measure(text: string | null | undefined, size: number, bold = false): number {
-        const f = bold ? this.bold : this.regular;
-        return f.font.widthOfTextAtSize(safe(f, text), size);
+    measure(text: string | null | undefined, size: number, bold = false, dia = false): number {
+        return this.runs(text ?? "", bold, dia).reduce((sum, r) => sum + r.font.font.widthOfTextAtSize(r.text, size), 0);
     }
 
     /**
@@ -122,8 +150,8 @@ export class Canvas {
      * @param maxWidth 収めたい幅
      * @param minSize これより小さくしない
      */
-    fitSize(text: string | null | undefined, size: number, maxWidth: number, minSize: number, bold = false): number {
-        const w = this.measure(text, size, bold);
+    fitSize(text: string | null | undefined, size: number, maxWidth: number, minSize: number, bold = false, dia = false): number {
+        const w = this.measure(text, size, bold, dia);
         return w <= maxWidth ? size : Math.max(minSize, (size * maxWidth) / w);
     }
 }

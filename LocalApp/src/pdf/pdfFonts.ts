@@ -16,13 +16,14 @@ async function fetchFont(url: string): Promise<Uint8Array> {
 }
 
 /**
- * PDFに埋め込む日本語フォント(BIZ UDゴシック)を読み込みます。最初のPDF出力のときだけ通信し、以降は読み込み済みのものを使います。
+ * PDFに埋め込むフォント（日本語フォント＝BIZ UDゴシックと、時刻の数字用のDiaPro）を読み込みます。最初のPDF出力のときだけ通信し、以降は読み込み済みのものを使います。
  */
 export function loadPdfFonts(): Promise<PdfFonts> {
     if (!cache) {
         const base = `${import.meta.env.BASE_URL}pdf-font/`;
-        cache = Promise.all([fetchFont(`${base}BIZUDGothic-Regular.ttf`), fetchFont(`${base}BIZUDGothic-Bold.ttf`)])
-            .then(([regular, bold]) => ({ regular, bold }))
+        const dia = `${import.meta.env.BASE_URL}font/`;
+        cache = Promise.all([fetchFont(`${base}BIZUDGothic-Regular.ttf`), fetchFont(`${base}BIZUDGothic-Bold.ttf`), fetchFont(`${dia}DiaPro-Regular.ttf`), fetchFont(`${dia}DiaPro-Bold.ttf`)])
+            .then(([regular, bold, diaRegular, diaBold]) => ({ regular, bold, diaRegular, diaBold }))
             .catch((e) => {
                 cache = null; // 失敗したら、次回やり直せるようにする
                 throw e;
