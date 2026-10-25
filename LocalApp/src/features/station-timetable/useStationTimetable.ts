@@ -19,7 +19,7 @@ export type StationTimetableEntry = {
     isOrigin: boolean;
     /** この駅がこの列車の終着駅か */
     isTerminus: boolean;
-    /** 行き先（この列車の終着駅名の先頭1文字） */
+    /** 行き先の印（この列車の終着駅名の先頭1文字）。その方向で最も多い行き先は、印を付けないので空 */
     destChar: string;
     /** 行き先（この列車の終着駅名） */
     destName: string;
@@ -108,6 +108,19 @@ export function buildHourRows(trips: TripWithStopTimesDto[], stationId: number, 
         });
     }
 
+    // 最も多い行き先（同数なら先に出てきたもの）は、行き先の印を付けない
+    const destCounts = new Map<string, number>();
+    for (const e of entries) if (e.destName) destCounts.set(e.destName, (destCounts.get(e.destName) ?? 0) + 1);
+    let mainDest = "";
+    let mainCount = 0;
+    for (const [name, count] of destCounts) {
+        if (count > mainCount) {
+            mainDest = name;
+            mainCount = count;
+        }
+    }
+    for (const e of entries) if (e.destName === mainDest) e.destChar = "";
+
     entries.sort((a, b) => dayKey(a.time) - dayKey(b.time));
 
     const byHour = new Map<number, StationTimetableEntry[]>();
@@ -139,7 +152,16 @@ export function collectTrainTypes(hourGroups: StationTimetableHour[][]): TrainTy
 }
 
 /**
- * 行き先の頭文字と終着駅名の一覧を集めます（駅名ごとに1件）。
+ * 時刻の印を、塗りつぶさず色付きの文字だけで表す種別か（線を太く描く種別は塗りつぶした印にする）。
+ *
+ * @param trainType 列車種別
+ */
+export function isPlainBadge(trainType: TrainTypeDto): boolean {
+    return !trainType.lineBold;
+}
+
+/**
+ * 行き先の印と終着駅名の一覧を集めます（駅名ごとに1件。印を付けない行き先は含めない）。
  *
  * @param hourGroups 下り・上りの時間帯ごとの行一覧
  */
@@ -148,7 +170,7 @@ export function collectDestinations(hourGroups: StationTimetableHour[][]): { cha
     for (const hours of hourGroups) {
         for (const h of hours) {
             for (const e of h.entries) {
-                if (e.destName) seen.set(e.destName, { char: e.destChar, name: e.destName });
+                if (e.destName && e.destChar) seen.set(e.destName, { char: e.destChar, name: e.destName });
             }
         }
     }

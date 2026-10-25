@@ -46,6 +46,16 @@ function hasChar(f: TextFont, ch: string): boolean {
 }
 
 /**
+ * DiaProの字形で描いてよい文字か。DiaProの「(」「)」は、長い括弧の上下半分の形をした専用の字形なので、括弧は日本語フォントで描く。
+ *
+ * @param dia DiaProフォント
+ * @param ch 1文字
+ */
+function isDiaChar(dia: TextFont, ch: string): boolean {
+    return ch !== "(" && ch !== ")" && hasChar(dia, ch);
+}
+
+/**
  * フォントに無い文字を、代わりの文字に置き換えます（それも無ければ「?」）。
  *
  * @param f フォント
@@ -118,7 +128,7 @@ export class Canvas {
         const dm = bold ? this.fonts.diaBold : this.fonts.diaRegular;
         const out: { font: TextFont; text: string }[] = [];
         for (const ch of text ?? "") {
-            const f = hasChar(dm, ch) ? dm : jp;
+            const f = isDiaChar(dm, ch) ? dm : jp;
             const t = f === jp ? safe(jp, ch) : ch;
             const last = out[out.length - 1];
             if (last && last.font === f) last.text += t;
@@ -171,7 +181,7 @@ export class Canvas {
     rotatedText(text: string | null | undefined, x: number, y: number, size: number, color: string, angle: number, opts: { dia?: boolean } = {}) {
         const t0 = text ?? "";
         const dm = this.fonts.diaRegular;
-        const useDia = !!opts.dia && [...t0].every((ch) => hasChar(dm, ch));
+        const useDia = !!opts.dia && [...t0].every((ch) => isDiaChar(dm, ch));
         const f = useDia ? dm : this.fonts.regular;
         const t = useDia ? t0 : safe(f, t0);
         this.page.drawText(t, { x, y: this.pageH - y, size, font: f.font, color: toRgb(color), rotate: degrees((-angle * 180) / Math.PI) });

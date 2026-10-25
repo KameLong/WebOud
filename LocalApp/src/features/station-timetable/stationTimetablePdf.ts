@@ -2,7 +2,7 @@ import { readableTextColor } from "../../domain/colors.ts";
 import type { TrainTypeDto } from "../../domain/dto.ts";
 import type { FontSubsetter } from "../../shared/pdf/fontSubset.ts";
 import { Canvas, createPdfDocument, type PdfFonts } from "../../shared/pdf/pdfCommon.ts";
-import { collectDestinations, collectTrainTypes, type StationTimetableHour } from "./useStationTimetable.ts";
+import { collectDestinations, collectTrainTypes, isPlainBadge, type StationTimetableHour } from "./useStationTimetable.ts";
 
 export type { PdfFonts } from "../../shared/pdf/pdfCommon.ts";
 
@@ -14,8 +14,6 @@ export type StationTimetablePdfInput = {
     towards: string;
     /** 時間帯ごとの発車時刻（3時始まり・翌2時終わりの24行） */
     hours: StationTimetableHour[];
-    /** 文字のみで表す基準種別のID */
-    baseTypeId: number;
 };
 
 // ---- 用紙・配色（画面の駅時刻表に合わせる）----
@@ -37,22 +35,25 @@ const HOUR_W = 36;
 /** 外枠の太さ（画面の3px = 2.25pt） */
 const BORDER_W = 2.25;
 
-/** 時刻の印の大きさの候補（大きい順）。最も混み合う行が1行に収まる最大のものを全行で使う */
+/**
+ * 時刻の印の大きさの候補（大きい順）。最も混み合う行が1行に収まる最大のものを全行で使う。
+ * gapは印と印の間隔で、右端に重ねる始発・終着の印と行き先の文字の分も含む。
+ */
 const BADGE_SIZES = [
-    { fs: 12, w: 24, gap: 4 },
-    { fs: 10.5, w: 21, gap: 3 },
-    { fs: 9, w: 18.5, gap: 2 },
+    { fs: 12, w: 24, gap: 8 },
+    { fs: 10.5, w: 21, gap: 7 },
+    { fs: 9, w: 18.5, gap: 6 },
 ];
 
 /**
- * 時刻の印（種別色で塗った四角＋分）または色付き文字（基準種別）を描く。
+ * 時刻の印（種別色で塗った四角＋分）または色付き文字（線を太くしない種別）を描く。
  *
  * @param c 描画先
  * @param x 左端
  * @param cy 縦の中心
  * @param size 印の大きさ（文字サイズ・幅）
  * @param trainType 列車種別
- * @param plain 文字のみ（基準種別）か
+ * @param plain 文字のみで表すか（isPlainBadge）
  * @param label 表示する文字
  */
 function drawBadge(c: Canvas, x: number, cy: number, size: { fs: number; w: number }, trainType: TrainTypeDto, plain: boolean, label: string) {
@@ -122,7 +123,7 @@ function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number
                 return {
                     width: BADGE_LEGEND.w + 4 + c.measure(name, LEGEND_FS),
                     draw: (cv, x, cy) => {
-                        drawBadge(cv, x, cy, BADGE_LEGEND, t, t.id === input.baseTypeId, "00");
+                        drawBadge(cv, x, cy, BADGE_LEGEND, t, isPlainBadge(t), "00");
                         cv.text(name, x + BADGE_LEGEND.w + 4, cy, LEGEND_FS, "#000000");
                     },
                 };
@@ -145,7 +146,7 @@ function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number
                 }),
             });
         }
-        const symbols = ["● この駅が始発", "▲ この駅が終着", "(00) 終着のため到着時刻を表示"];
+        const symbols = ["● この駅が始発", "▽ この駅が終着", "(00) 終着のため到着時刻を表示"];
         rows.push({ title: "記号", items: symbols.map((s) => ({ width: c.measure(s, LEGEND_FS), draw: (cv, x, cy) => cv.text(s, x, cy, LEGEND_FS, "#000000") })) });
     }
     const lines = rows.map((r) => flowLines(r.items, maxW, 12));
@@ -186,7 +187,7 @@ function drawLegend(c: Canvas, legend: LegendLayout, sheetX: number, sheetW: num
  * @param stationLabel 「駅」を補った駅名
  */
 function collectUsedText(input: StationTimetablePdfInput, stationLabel: string): string {
-    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先印ゆき記号この駅が始発終着のため到着時刻を表示（名称未設定）", "➡▲●", stationLabel, input.towards];
+    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先印ゆき記号この駅が始発終着のため到着時刻を表示（名称未設定）", "➡▽●", stationLabel, input.towards];
     for (const t of collectTrainTypes([input.hours])) parts.push(t.name);
     for (const d of collectDestinations([input.hours])) parts.push(d.char, d.name);
     for (const h of input.hours) for (const e of h.entries) parts.push(e.destChar);
@@ -265,11 +266,15 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
                 const mm = Math.floor((e.time % 3600) / 60)
                     .toString()
                     .padStart(2, "0");
-                drawBadge(c, x, cy, size, e.trainType, e.trainType.id === input.baseTypeId, e.isArrivalOnly ? `(${mm})` : mm);
+                drawBadge(c, x, cy, size, e.trainType, isPlainBadge(e.trainType), e.isArrivalOnly ? `(${mm})` : mm);
+                // 始発・終着の印は右上、行き先は右下に、時刻の右端へ重ねて、種別の色で描く（画面と同じ配置）
                 const badgeTop = cy - (size.fs + 4) / 2;
-                if (e.destChar) c.text(e.destChar, x + 0.5, badgeTop - 3, 6.5, "#333333");
-                const marker = e.isOrigin && e.isTerminus ? "●▲" : e.isOrigin ? "●" : e.isTerminus ? "▲" : "";
-                if (marker) c.text(marker, x + size.w, badgeTop - 3, 5.5, "#333333", { align: "right" });
+                const badgeBottom = cy + (size.fs + 4) / 2;
+                const marker = e.isOrigin && e.isTerminus ? "●▽" : e.isOrigin ? "●" : e.isTerminus ? "▽" : "";
+                const markSize = size.fs * 0.5;
+                const destSize = size.fs * 0.6;
+                if (marker) c.text(marker, x + size.w - 2, badgeTop + 0.5 + markSize / 2, markSize, e.trainType.color);
+                if (e.destChar) c.text(e.destChar, x + size.w - 2.5, badgeBottom - destSize / 2, destSize, e.trainType.color);
             });
             y += rowH;
         });

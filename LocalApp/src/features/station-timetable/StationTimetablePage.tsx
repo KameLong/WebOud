@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Alert, Button, Container, NativeSelect } from "@mantine/core";
-import { collectDestinations, collectTrainTypes, useStationTimetable, type StationTimetableHour } from "./useStationTimetable.ts";
+import { collectDestinations, collectTrainTypes, isPlainBadge, useStationTimetable, type StationTimetableHour } from "./useStationTimetable.ts";
 import { readableTextColor } from "../../domain/colors.ts";
 import { usePdfExport } from "../../shared/pdf/usePdfExport.ts";
 import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../../shared/pdf/pdfFonts.ts";
@@ -18,10 +18,10 @@ const HOUR_CELL_COLOR = "#06406e";
 const STRIPE_COLOR = "#e4e4e4";
 
 /**
- * 時刻（分）の見た目。基準種別（最も下位の種別＝普通）は色付き文字のみ、それ以外は種別色で塗りつぶした印で表す。
+ * 時刻（分）の見た目。線を太くする種別は種別色で塗りつぶした印、それ以外は色付き文字のみで表す。
  *
  * @param trainType 列車種別
- * @param plain 文字のみで表す（基準種別）か
+ * @param plain 文字のみで表すか（isPlainBadge）
  * @param children 中身（分の数字）
  */
 function TimeBadge({ trainType, plain, children }: { trainType: TrainTypeDto; plain: boolean; children: ReactNode }) {
@@ -29,12 +29,12 @@ function TimeBadge({ trainType, plain, children }: { trainType: TrainTypeDto; pl
         <span
             style={{
                 display: "inline-block",
-                minWidth: 26,
+                minWidth: 25,
                 padding: "1px 3px",
                 textAlign: "center",
-                borderRadius: 3,
+                borderRadius: 1,
                 lineHeight: 1.3,
-                fontWeight: trainType.fontBold || !plain ? 700 : 400,
+                fontWeight: trainType.fontBold || !plain ? 700 : 600,
                 background: plain ? "transparent" : trainType.color,
                 color: plain ? trainType.color : readableTextColor(trainType.color),
             }}
@@ -50,9 +50,8 @@ function TimeBadge({ trainType, plain, children }: { trainType: TrainTypeDto; pl
  * @param hour 時間帯の時（0〜23。深夜0〜2時台は23時の次の行として扱う）
  * @param entries この時間に発車（終着のみの列車は着）する列車の一覧
  * @param striped 背景を灰色にするか
- * @param baseTypeId 文字のみで表す基準種別のID
  */
-function HourRow({ hour, entries, striped, baseTypeId }: StationTimetableHour & { striped: boolean; baseTypeId: number }) {
+function HourRow({ hour, entries, striped }: StationTimetableHour & { striped: boolean }) {
     return (
         <div className="tt-row" style={{ display: "flex", alignItems: "stretch", minHeight: 40, background: striped ? STRIPE_COLOR : "#fff" }}>
             <div
@@ -77,18 +76,21 @@ function HourRow({ hour, entries, striped, baseTypeId }: StationTimetableHour & 
                         .toString()
                         .padStart(2, "0");
                     const label = e.isArrivalOnly ? `(${mm})` : mm;
-                    const marker = e.isOrigin && e.isTerminus ? "●▲" : e.isOrigin ? "●" : e.isTerminus ? "▲" : "";
+                    const marker = e.isOrigin && e.isTerminus ? "●▽" : e.isOrigin ? "●" : e.isTerminus ? "▽" : "";
                     const title =
                         [e.trainType.name, e.trip.no, e.trip.name, e.destName && `${e.destName}行き`].filter(Boolean).join(" ") +
                         (e.isOrigin ? "（この駅が始発）" : "") +
                         (e.isTerminus ? "（この駅が終着）" : "");
+                    // 始発・終着の印と行き先は、時刻と同じ色（種別の色）で、時刻の右端に重ねて表示する
                     return (
-                        <span key={e.trip.id} title={title || undefined} style={{ position: "relative", display: "inline-block", whiteSpace: "nowrap", paddingTop: 8, paddingLeft: 8 }}>
-                            {e.destChar && <span style={{ position: "absolute", top: 0, left: 0, fontSize: 10, lineHeight: 1, color: "#333" }}>{e.destChar}</span>}
-                            <TimeBadge trainType={e.trainType} plain={e.trainType.id === baseTypeId}>
+                        <span key={e.trip.id} title={title || undefined} style={{ position: "relative", display: "inline-flex", paddingRight: 8, whiteSpace: "nowrap" }}>
+                            <TimeBadge trainType={e.trainType} plain={isPlainBadge(e.trainType)}>
                                 {label}
                             </TimeBadge>
-                            {marker && <span style={{ position: "absolute", top: 0, right: -2, fontSize: 8, lineHeight: 1, color: "#333" }}>{marker}</span>}
+                            <span style={{ position: "absolute", left: "calc(100% - 8px)", top: 0, color: e.trainType.color }}>
+                                {marker && <span style={{ position: "absolute", top: 1, left: -3, fontSize: 10, lineHeight: 1 }}>{marker}</span>}
+                                {e.destChar && <span style={{ position: "absolute", top: 13, left: -4, fontSize: 12, lineHeight: 1 }}>{e.destChar}</span>}
+                            </span>
                         </span>
                     );
                 })}
@@ -112,16 +114,15 @@ function LegendRow({ title, children }: { title: string; children: ReactNode }) 
  *
  * @param trainTypes 表示する種別一覧
  * @param destinations 行き先の頭文字と駅名の一覧
- * @param baseTypeId 文字のみで表す基準種別のID
  */
-function TimetableLegend({ trainTypes, destinations, baseTypeId }: { trainTypes: TrainTypeDto[]; destinations: { char: string; name: string }[]; baseTypeId: number }) {
+function TimetableLegend({ trainTypes, destinations }: { trainTypes: TrainTypeDto[]; destinations: { char: string; name: string }[] }) {
     if (trainTypes.length === 0) return null;
     return (
         <div className="tt-legend" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 10px", borderTop: `2px solid ${BRAND_COLOR}`, background: "#fff" }}>
             <LegendRow title="種別">
                 {[...trainTypes].reverse().map((t) => (
                     <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        <TimeBadge trainType={t} plain={t.id === baseTypeId}>
+                        <TimeBadge trainType={t} plain={isPlainBadge(t)}>
                             00
                         </TimeBadge>
                         {t.name || "（名称未設定）"}
@@ -139,7 +140,7 @@ function TimetableLegend({ trainTypes, destinations, baseTypeId }: { trainTypes:
             )}
             <LegendRow title="記号">
                 <span>● この駅が始発</span>
-                <span>▲ この駅が終着</span>
+                <span>▽ この駅が終着</span>
                 <span>(00) 終着のため到着時刻を表示</span>
             </LegendRow>
         </div>
@@ -152,20 +153,17 @@ function TimetableLegend({ trainTypes, destinations, baseTypeId }: { trainTypes:
  * @param stationName 駅名
  * @param towards 方面の駅名（その方向の終点側の駅）
  * @param hours 時間帯ごとの行
- * @param baseTypeId 文字のみで表す基準種別のID
  */
 function DirectionTable({
     stationName,
     towards,
     hours,
-    baseTypeId,
     exporting,
     onExportPdf,
 }: {
     stationName: string;
     towards: string;
     hours: StationTimetableHour[];
-    baseTypeId: number;
     /** PDFを作成中か */
     exporting: boolean;
     onExportPdf: () => void;
@@ -196,11 +194,11 @@ function DirectionTable({
             ) : (
                 <div className="tt-rows">
                     {hours.map((h, i) => (
-                        <HourRow key={h.hour} hour={h.hour} entries={h.entries} striped={i % 2 === 0} baseTypeId={baseTypeId} />
+                        <HourRow key={h.hour} hour={h.hour} entries={h.entries} striped={i % 2 === 0} />
                     ))}
                 </div>
             )}
-            <TimetableLegend trainTypes={collectTrainTypes([hours])} destinations={collectDestinations([hours])} baseTypeId={baseTypeId} />
+            <TimetableLegend trainTypes={collectTrainTypes([hours])} destinations={collectDestinations([hours])} />
         </div>
     );
 }
@@ -219,8 +217,6 @@ export function StationTimetablePage() {
     const pdf = usePdfExport();
 
     const { station, stations, down, up } = useStationTimetable(routeId, stationId);
-    // 最も下位（index最小）の種別は色付き文字のみで表し、それ以外は塗りつぶした印にする（上下で共通）
-    const baseTypeId = useMemo(() => collectTrainTypes([down, up])[0]?.id ?? -1, [down, up]);
     // 下りは駅リストの末尾側、上りは先頭側が方面
     const downTowards = stations[stations.length - 1]?.name ?? "";
     const upTowards = stations[0]?.name ?? "";
@@ -237,7 +233,7 @@ export function StationTimetablePage() {
             const { buildStationTimetablePdf } = await import("./stationTimetablePdf.ts");
             const fonts = await loadPdfFonts();
             const bytes = await buildStationTimetablePdf(
-                { stationName: station.name, towards: direction === "down" ? downTowards : upTowards, hours: direction === "down" ? down : up, baseTypeId },
+                { stationName: station.name, towards: direction === "down" ? downTowards : upTowards, hours: direction === "down" ? down : up },
                 fonts,
                 subsetFontInBrowser,
             );
@@ -279,8 +275,8 @@ export function StationTimetablePage() {
                     {pdf.error}
                 </Alert>
             )}
-            <DirectionTable stationName={station.name} towards={downTowards} hours={down} baseTypeId={baseTypeId} exporting={pdf.busyKey === "down"} onExportPdf={() => void exportPdf("down")} />
-            <DirectionTable stationName={station.name} towards={upTowards} hours={up} baseTypeId={baseTypeId} exporting={pdf.busyKey === "up"} onExportPdf={() => void exportPdf("up")} />
+            <DirectionTable stationName={station.name} towards={downTowards} hours={down} exporting={pdf.busyKey === "down"} onExportPdf={() => void exportPdf("down")} />
+            <DirectionTable stationName={station.name} towards={upTowards} hours={up} exporting={pdf.busyKey === "up"} onExportPdf={() => void exportPdf("up")} />
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="駅時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">
@@ -291,13 +287,13 @@ export function StationTimetablePage() {
                             "各表の見出し帯の「PDF出力」で、その方向の時刻表をA4縦1枚のPDFファイルとして保存できる（ブラウザの印刷機能を使わないので、端末による崩れがない。初回だけ日本語フォントを読み込むため通信が必要）",
                             "上部のプルダウンで別の駅へすぐに切り替えられる",
                             "括弧( )付きの数字は、この駅が終着で発車時刻が無いため、代わりに到着時刻を表示している",
-                            "最も下位の種別（普通など）は色付きの文字、それ以外の種別は種別の色で塗りつぶした印で表す。種別名・行先は各表の下の凡例（下り・上りで別々）を参照",
+                            "線を太くする設定の種別は種別の色で塗りつぶした印、それ以外の種別は色付きの文字で表す。種別名・行先は各表の下の凡例（下り・上りで別々）を参照",
                         ]}
                     />
                 </HelpSection>
                 <HelpSection title="凡例">
                     <HelpList
-                        items={["時刻の左上の1文字：その列車の行き先（終着駅名の頭文字）", "右上の●：この駅がその列車の始発駅", "右上の▲：この駅がその列車の終着駅"]}
+                        items={["時刻の右下の1文字：その列車の行き先（終着駅名の頭文字）。その方向で最も多い行き先は、印を付けない", "右上の●：この駅がその列車の始発駅", "右上の▽：この駅がその列車の終着駅", "始発・終着の印と行き先の文字は、時刻と同じ色（種別の色）で表示する"]}
                     />
                 </HelpSection>
             </HelpDialog>
