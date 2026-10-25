@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { isImeComposing } from "../../shared/lib/keyboard.ts";
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
 
 /**
  * 列車貼り付け時の時刻移動量（分・秒）を設定するダイアログです。
@@ -22,6 +24,8 @@ export function PasteMoveDialog(props: { open: boolean; value: number; onCancel:
  */
 function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSave: (seconds: number) => void }) {
     const { value, onCancel, onSave } = props;
+    const { t } = useT();
+    const c = useCommonT().t;
 
     const [minStr, setMinStr] = useState(() => `${value < 0 ? "-" : ""}${Math.floor(Math.abs(value) / 60)}`);
     const [secStr, setSecStr] = useState(() => String(Math.abs(value) % 60));
@@ -77,11 +81,11 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                     padding: 14,
                 }}
             >
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>貼り付け移動量</div>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>Ctrl+V のたびに、この量が累積で加算されます（0なら移動せず、そのまま貼り付けます。マイナスなら時刻を戻します）。コピー・切り取りのたびに0へ戻ります</div>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>{t("pasteTitle")}</div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>{t("pasteNote")}</div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "center" }}>
-                    <div style={{ fontSize: 12, color: "#444" }}>分</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{t("pasteMinutes")}</div>
                     <div style={{ display: "flex", gap: 6 }}>
                         <input
                             ref={minRef}
@@ -90,30 +94,30 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                             value={minStr}
                             onChange={(e) => setMinStr(e.target.value.replace(/[^\d-]/g, "").replace(/(?!^)-/g, ""))}
                             inputMode="text"
-                            placeholder="例: 1（戻すときは -1）"
+                            placeholder={t("pasteMinutesPlaceholder")}
                             style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8, flex: 1, minWidth: 0 }}
                         />
-                        <button type="button" onClick={toggleSign} title="プラス/マイナスを切り替え" style={{ padding: "4px 10px" }}>
+                        <button type="button" onClick={toggleSign} title={t("pasteSignTitle")} style={{ padding: "4px 10px" }}>
                             ±
                         </button>
                     </div>
 
-                    <div style={{ fontSize: 12, color: "#444" }}>秒</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{t("pasteSeconds")}</div>
                     <input
                         value={secStr}
                         onChange={(e) => setSecStr(e.target.value.replace(/[^\d]/g, ""))}
                         inputMode="numeric"
-                        placeholder="0〜59"
+                        placeholder={t("pasteSecondsPlaceholder")}
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
                     />
                 </div>
 
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
                     <button onClick={onCancel} style={{ padding: "8px 12px" }}>
-                        キャンセル
+                        {c("cancel")}
                     </button>
                     <button onClick={submit} style={{ padding: "8px 12px" }}>
-                        保存
+                        {c("save")}
                     </button>
                 </div>
             </div>

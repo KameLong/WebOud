@@ -32,6 +32,8 @@ import { HelpDialog, HelpSection, HelpShortcutTable } from "../../shared/ui/Help
 import { helpButtonStyle } from "../../shared/ui/helpButtonStyle.ts";
 import { MobileTimetableKeypad } from "./MobileTimetableKeypad.tsx";
 import { useIsMobile } from "../../shared/hooks/useIsMobile.ts";
+import { useT } from "./messages.ts";
+import { commonT, useCommonT } from "../../shared/i18n/common.ts";
 
 const keyEventQueue = new AsyncQueue<unknown>();
 
@@ -43,6 +45,8 @@ export default function RouteTimetablePage() {
     const [helpOpen, setHelpOpen] = useState(false);
     const [pdfOpen, setPdfOpen] = useState(false);
     const pdf = usePdfExport();
+    const { t: msg, table } = useT();
+    const cm = useCommonT().t;
 
     const fontSize = useFontSize();
     const metrics = useMemo(() => gridMetrics(fontSize), [fontSize]);
@@ -132,14 +136,14 @@ export default function RouteTimetablePage() {
     }, [traintypes]);
 
     /** 末尾の入力用プレースホルダ列を除いた、実在する列車 */
-    const realTrips = useMemo(() => trips.filter((t) => t.id !== -1), [trips]);
+    const realTrips = useMemo(() => trips.filter((trip) => trip.id !== -1), [trips]);
 
     if (stations.length === 0)
         return (
             <div style={{ padding: 12 }}>
-                駅が登録されていません。
+                {msg("noStations")}
                 <button onClick={() => nav_(`/route/${routeId}`)} style={{ marginLeft: 8 }}>
-                    路線編集へ戻る
+                    {msg("backToEdit")}
                 </button>
             </div>
         );
@@ -155,9 +159,9 @@ export default function RouteTimetablePage() {
             // PDFライブラリは大きいので、PDF出力を押したときに初めて読み込む
             const { buildRouteTimetablePdf } = await import("./pdf/routeTimetablePdf.ts");
             const fonts = await loadPdfFonts();
-            const routeName = getRoute(routeId)?.name ?? "路線";
+            const routeName = getRoute(routeId)?.name ?? commonT().t("routeFallbackName");
             const bytes = await buildRouteTimetablePdf({ routeName, direct, stations, trips: realTrips, trainTypeById, fontSize, orientation }, fonts, subsetFontInBrowser);
-            downloadBytes(bytes, `${routeName}_${direct === 1 ? "上り" : "下り"}時刻表.pdf`);
+            downloadBytes(bytes, msg("pdfFileName", { route: routeName, direction: cm(direct === 1 ? "up" : "down") }));
             setPdfOpen(false);
         });
 
@@ -387,23 +391,23 @@ export default function RouteTimetablePage() {
         <div style={{ height: "100%", padding: "10px" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", marginBottom: 6 }}>
                 <Switch
-                    label="連続入力"
+                    label={msg("continuousInput")}
                     size="sm"
                     checked={cont.state.enabled}
                     onChange={() => cont.toggle()}
                     // 狭い画面でラベルが縦に折れないようにする
                     styles={{ label: { whiteSpace: "nowrap" } }}
                     style={{ flexShrink: 0 }}
-                    title="数字2桁で時・分を順に確定し、入力後は自動で1段下へ進みます（Alt+Tでも切り替え可能）"
+                    title={msg("continuousInputTitle")}
                 />
-                <Button variant="default" size="compact-xs" style={{ flexShrink: 0 }} styles={{ label: { whiteSpace: "nowrap" } }} onClick={() => setPdfOpen(true)} title="この方向の時刻表を、A4のPDFファイルとして保存します（文字サイズと用紙の向きを選べます。複数ページのときも、どのページにも駅名欄を表示）">
-                    PDF出力
+                <Button variant="default" size="compact-xs" style={{ flexShrink: 0 }} styles={{ label: { whiteSpace: "nowrap" } }} onClick={() => setPdfOpen(true)} title={msg("pdfButtonTitle")}>
+                    {msg("pdfButton")}
                 </Button>
-                <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title="ヘルプ">
+                <button onClick={() => setHelpOpen(true)} style={helpButtonStyle} title={msg("help")}>
                     ？
                 </button>
             </div>
-            {pdf.error && <div className="rt-input-warning">PDFを作成できませんでした：{pdf.error}</div>}
+            {pdf.error && <div className="rt-input-warning">{msg("pdfFailed", { message: pdf.error })}</div>}
             <RouteTimetablePdfDialog open={pdfOpen} onClose={() => setPdfOpen(false)} stations={stations} direct={direct} tripCount={realTrips.length} busy={pdf.busy} onCreate={(o) => void exportPdf(o)} />
             {cont.state.warning && <div className="rt-input-warning">{cont.state.warning}</div>}
             <div
@@ -536,35 +540,14 @@ export default function RouteTimetablePage() {
                     scrollRef.current?.focus();
                 }}
             />
-            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="時刻表 - ヘルプ">
-                <HelpSection title="このページでできること">
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title={msg("helpTitle")}>
+                <HelpSection title={msg("helpDoSection")}>
                     <p style={{ fontSize: 13, color: "#666", margin: "0 0 8px" }}>
-                        駅ごとの着時刻・発時刻・番線をマス目で編集します。下り・上りの切り替えやダイヤグラムへの移動は、左のメニュー（スマホでは下部のメニューボタン）から行います（上りは駅の表示順が逆になります）。駅名をクリックするとその駅の時刻順に列車（列）が並び替わります。列車の見出しをダブルクリックすると列車のプロパティ（種別など）を編集できます。上部の「PDF出力」を押すと、文字サイズと用紙の向き（A4横・縦）を選ぶ画面が出て、この方向の時刻表をA4のPDFにして保存できます（列車や駅が多いときは複数ページになり、どのページにも駅名欄が付きます。A4に収まらないときは文字サイズを小さくしてください）。スマホでは物理キーボードが無いため、画面下部に数字入力とショートカット操作用のキーパッドを表示します。
+                        {msg("helpDoNote")}
                     </p>
                 </HelpSection>
-                <HelpSection title="キーボードショートカット">
-                    <HelpShortcutTable
-                        rows={[
-                            ["↑ / ↓ / ← / →", "カーソルを移動（左右で列車の列を移動）"],
-                            ["Shift+← / Shift+→", "列車の列を範囲選択"],
-                            ["Enter", "カーソル位置の時刻を編集（時刻は hmm / hhmm / hh:mm 形式。形式が不正な場合は警告を出して閉じない）"],
-                            ["0〜9（数字キー）", "入力した数字から時刻編集を開始"],
-                            ["Alt+T", "連続入力モードの切り替え（上部の「連続入力」スイッチでも切り替え可。数字2桁で時・分を順に確定し、入力後は自動で1段下へ）"],
-                            ["連続入力中の Enter / 矢印キー", "入力途中の数字を確定してから移動（1桁なら0埋め。不正な値は警告を出して移動しない）"],
-                            ["連続入力中の Backspace / Esc", "1文字削除 / 入力をやめて連続入力モードを終了"],
-                            ["Alt+L", "カーソル位置の時刻を1分進める"],
-                            ["Alt+J", "カーソル位置の時刻を1分戻す"],
-                            ["Alt+Shift+L / Alt+Shift+J", "カーソル位置の時刻と、それより下の駅の時刻（その列車）をまとめて1分進める／戻す"],
-                            ["Ctrl+Delete", "カーソル位置の時刻・番線を消去"],
-                            ["Ctrl+^", "カーソル位置を「経由なし」に設定"],
-                            ["Alt+-", "カーソル位置を「通過」に設定"],
-                            ["Delete", "選択中の列車（列）を削除"],
-                            ["Ctrl+Insert", "カーソル位置の手前に空の列車を挿入"],
-                            ["Ctrl+C / Ctrl+X", "選択中の列車をコピー／切り取り"],
-                            ["Ctrl+V", "コピーした列車をカーソル位置に貼り付け"],
-                            ["Shift+Enter", "貼り付け時の時刻移動量（分・秒）を設定（初期値は0分でそのまま貼り付け。マイナスで時刻を戻せる。コピー・切り取りのたびに0へ戻る）"],
-                        ]}
-                    />
+                <HelpSection title={msg("helpKeysSection")}>
+                    <HelpShortcutTable rows={table("helpKeys")} />
                 </HelpSection>
             </HelpDialog>
         </div>

@@ -4,6 +4,8 @@ import { cellHeight, type GridMetrics } from "./gridMetrics.ts";
 import { decodeShowStyle, getDirectStyle } from "../../domain/showStyle.ts";
 import { FitTextX } from "../../shared/ui/FitText.tsx";
 import { reorderTrips } from "../../store/timetableApi.ts";
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
 
 type Part = "arr" | "track" | "dep";
 
@@ -28,6 +30,8 @@ export function StationSidebar(props: {
     const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner, metrics } = props;
     const { FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } = metrics;
     const LABEL_WIDTH = LINE_HEIGHT;
+    const { t } = useT();
+    const c = useCommonT().t;
 
     /**
      * 指定駅の時刻順（発車優先、なければ到着）に列車を並び替える。時刻未設定の列車は末尾へ。確認ダイアログでキャンセルした場合は何もしない。
@@ -35,7 +39,7 @@ export function StationSidebar(props: {
      * @param station 並び替えの基準にする駅
      */
     function sortByStation(station: StationDto) {
-        if (!confirm(`${station.name}の時刻順に列車を並び替えますか？`)) return;
+        if (!confirm(t("sortByStationConfirm", { name: station.name }))) return;
 
         /**
          * 3:00より前の時刻を翌日扱いにします。
@@ -75,11 +79,11 @@ export function StationSidebar(props: {
     function buildPartsForStation(showStyle:number): Array<{ key: Part; label: string }> {
         const s = decodeShowStyle(showStyle);
         const parts: Array<{ key: Part; label: string }> = [];
-        if (s.showArr) parts.push({ key: "arr", label: "着" });
-        if (s.showTrack) parts.push({ key: "track", label: "番線" });
-        if (s.showDep) parts.push({ key: "dep", label: "発" });
+        if (s.showArr) parts.push({ key: "arr", label: c("arr") });
+        if (s.showTrack) parts.push({ key: "track", label: c("track") });
+        if (s.showDep) parts.push({ key: "dep", label: c("dep") });
 
-        if (parts.length === 0) parts.push({ key: "dep", label: "発" });
+        if (parts.length === 0) parts.push({ key: "dep", label: c("dep") });
 
         return parts;
     }
@@ -125,7 +129,7 @@ export function StationSidebar(props: {
                 }}
             >
                 <div style={{ width: STATION_NAME_WIDTH + LABEL_WIDTH - 4 }}>
-                    <FitTextX text={"列車種別"} />
+                    <FitTextX text={c("trainType")} />
                     <div
                         style={{
                             width: STATION_NAME_WIDTH + LABEL_WIDTH,
@@ -134,7 +138,7 @@ export function StationSidebar(props: {
                     >
                         {" "}
                     </div>
-                    <FitTextX text={"列車番号"} />
+                    <FitTextX text={c("trainNo")} />
                     <div
                         style={{
                             width: STATION_NAME_WIDTH + LABEL_WIDTH,
@@ -173,7 +177,7 @@ export function StationSidebar(props: {
                         >
                             <div
                                 onClick={() => sortByStation(st)}
-                                title={`${st.name}の時刻順に列車を並び替え`}
+                                title={t("sortByStationTitle", { name: st.name })}
                                 style={{
                                     flex: "1 1 auto",
                                     minWidth: 0,

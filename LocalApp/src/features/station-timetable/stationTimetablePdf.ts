@@ -3,6 +3,8 @@ import type { TrainTypeDto } from "../../domain/dto.ts";
 import type { FontSubsetter } from "../../shared/pdf/fontSubset.ts";
 import { Canvas, createPdfDocument, type PdfFonts } from "../../shared/pdf/pdfCommon.ts";
 import { collectDestinations, collectTrainTypes, isPlainBadge, type StationTimetableHour } from "./useStationTimetable.ts";
+import { translate } from "./messages.ts";
+import { labelStation } from "./stationLabel.ts";
 
 export type { PdfFonts } from "../../shared/pdf/pdfCommon.ts";
 
@@ -108,6 +110,7 @@ type LegendLayout = { rows: { title: string; items: LegendItem[] }[]; lines: { i
  * @param sheetW 用紙の枠の幅
  */
 function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number, sheetW: number): LegendLayout {
+    const { t } = translate();
     const trainTypes = collectTrainTypes([input.hours]);
     const destinations = collectDestinations([input.hours]);
     const left = sheetX + 10;
@@ -117,13 +120,13 @@ function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number
     const rows: LegendLayout["rows"] = [];
     if (trainTypes.length > 0) {
         rows.push({
-            title: "種別",
-            items: [...trainTypes].reverse().map((t) => {
-                const name = t.name || "（名称未設定）";
+            title: t("legendTypes"),
+            items: [...trainTypes].reverse().map((ty) => {
+                const name = ty.name || t("unnamed");
                 return {
                     width: BADGE_LEGEND.w + 4 + c.measure(name, LEGEND_FS),
                     draw: (cv, x, cy) => {
-                        drawBadge(cv, x, cy, BADGE_LEGEND, t, isPlainBadge(t), "00");
+                        drawBadge(cv, x, cy, BADGE_LEGEND, ty, isPlainBadge(ty), "00");
                         cv.text(name, x + BADGE_LEGEND.w + 4, cy, LEGEND_FS, "#000000");
                     },
                 };
@@ -131,23 +134,24 @@ function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number
         });
         if (destinations.length > 0) {
             rows.push({
-                title: "行先",
+                title: t("legendDest"),
                 items: destinations.map((d) => {
-                    const head = d.char || "無";
-                    const rest = `印 ${d.name}ゆき`;
-                    const hw = c.measure(head, LEGEND_FS, true);
+                    // 印のある行き先は、印だけ太字。印を付けない行き先は、文全体を通常の太さで
+                    const head = d.char;
+                    const rest = d.char ? t("destMarkedTail", { name: d.name }) : t("destUnmarked", { name: d.name });
+                    const hw = head ? c.measure(head, LEGEND_FS, true) : 0;
                     return {
                         width: hw + c.measure(rest, LEGEND_FS),
                         draw: (cv, x, cy) => {
-                            cv.text(head, x, cy, LEGEND_FS, "#000000", { bold: true });
+                            if (head) cv.text(head, x, cy, LEGEND_FS, "#000000", { bold: true });
                             cv.text(rest, x + hw, cy, LEGEND_FS, "#000000");
                         },
                     };
                 }),
             });
         }
-        const symbols = ["● この駅が始発", "▽ この駅が終着（発車時刻が無いため、到着時刻を表示）"];
-        rows.push({ title: "記号", items: symbols.map((s) => ({ width: c.measure(s, LEGEND_FS), draw: (cv, x, cy) => cv.text(s, x, cy, LEGEND_FS, "#000000") })) });
+        const symbols = [t("markOrigin"), t("markTerminus")];
+        rows.push({ title: t("legendMarks"), items: symbols.map((s) => ({ width: c.measure(s, LEGEND_FS), draw: (cv, x, cy) => cv.text(s, x, cy, LEGEND_FS, "#000000") })) });
     }
     const lines = rows.map((r) => flowLines(r.items, maxW, 12));
     const height = rows.length === 0 ? 0 : LEGEND_PAD * 2 + lines.reduce((sum, ls) => sum + ls.length * LEGEND_PITCH, 0) + LEGEND_ROW_GAP * (rows.length - 1);
@@ -187,7 +191,7 @@ function drawLegend(c: Canvas, legend: LegendLayout, sheetX: number, sheetW: num
  * @param stationLabel 「駅」を補った駅名
  */
 function collectUsedText(input: StationTimetablePdfInput, stationLabel: string): string {
-    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先無印ゆき記号この駅が始発終着発車時刻が無いため、到着時刻を表示（名称未設定）", "➡▽●", stationLabel, input.towards];
+    const parts = ["0123456789()（）:/ -", translate().allText(), "➡▽●", stationLabel, input.towards];
     for (const t of collectTrainTypes([input.hours])) parts.push(t.name);
     for (const d of collectDestinations([input.hours])) parts.push(d.char, d.name);
     for (const h of input.hours) for (const e of h.entries) parts.push(e.destChar);
@@ -205,8 +209,9 @@ function collectUsedText(input: StationTimetablePdfInput, stationLabel: string):
  * @returns PDFファイルの内容
  */
 export async function buildStationTimetablePdf(input: StationTimetablePdfInput, fonts: PdfFonts, subset: FontSubsetter): Promise<Uint8Array> {
-    const stationLabel = input.stationName.endsWith("駅") ? input.stationName : `${input.stationName}駅`;
-    const { doc, textFonts } = await createPdfDocument(`${stationLabel}発 ${input.towards}方面 発車時刻表`, fonts, subset, collectUsedText(input, stationLabel));
+    const { t } = translate();
+    const stationLabel = labelStation(input.stationName, t("stationSuffix"));
+    const { doc, textFonts } = await createPdfDocument(t("pdfDocTitle", { station: stationLabel, towards: input.towards }), fonts, subset, collectUsedText(input, stationLabel));
 
     const page = doc.addPage([PAGE_W, PAGE_H]);
     const c = new Canvas(page, textFonts);
@@ -219,8 +224,8 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
 
     // ---- 見出し帯 ----
     c.rect(sheetX, sheetY, sheetW, HEAD_H, BRAND);
-    const headTitle = `${stationLabel}発 ➡ ${input.towards}方面`;
-    const headRight = "発車時刻表";
+    const headTitle = t("headFrom", { station: stationLabel, towards: input.towards });
+    const headRight = t("headRight");
     const headRightW = c.measure(headRight, 13, true);
     // 右の「発車時刻表」と重ならないよう、長い見出しは文字サイズを小さくして収める
     const headMaxW = sheetW - 12 - 12 - headRightW - 12;
@@ -238,7 +243,7 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
     const hasAnyTrain = input.hours.some((h) => h.entries.length > 0);
 
     if (!hasAnyTrain) {
-        c.text("この駅に停車する列車はありません", sheetX + 16, bodyTop + 24, 12, "#666666");
+        c.text(t("noTrains"), sheetX + 16, bodyTop + 24, 12, "#666666");
     } else {
         const cellsX = sheetX + HOUR_W + 8;
         const cellsW = sheetX + sheetW - 8 - cellsX;

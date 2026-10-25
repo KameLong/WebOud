@@ -1,3 +1,4 @@
+import { useCommonT } from "../../shared/i18n/common.ts";
 import React from "react";
 import { Checkbox } from "@mantine/core";
 
@@ -44,7 +45,9 @@ function set(bits: number, flag: number, on: boolean) {
  * @param onChangeBits 変更後のビット値を受け取るコールバック
  * @param labels 各チェックボックスのラベル（着, 番線, 発）。スマホ幅でのみ表示する
  */
-export function ShowStyleChecks({ title, bits, disabled, onChangeBits, labels = ["着", "番線", "発"] }: Props) {
+export function ShowStyleChecks({ title, bits, disabled, onChangeBits, labels }: Props) {
+    const c = useCommonT().t;
+    const labelTexts = labels ?? [c("arr"), c("track"), c("dep")];
     const flags = [ARR, TRACK, DEP];
     return (
         <div className="show-style" style={{ display: "grid", gap: 4, padding: 6, borderRight: "1px solid #eee" }}>
@@ -57,9 +60,9 @@ export function ShowStyleChecks({ title, bits, disabled, onChangeBits, labels = 
                             disabled={disabled}
                             checked={has(bits, flag)}
                             onChange={(e) => onChangeBits?.(set(bits, flag, e.currentTarget.checked))}
-                            aria-label={labels[i]}
+                            aria-label={labelTexts[i]}
                         />
-                        <span className="show-style-label">{labels[i]}</span>
+                        <span className="show-style-label">{labelTexts[i]}</span>
                     </label>
                 ))}
             </div>

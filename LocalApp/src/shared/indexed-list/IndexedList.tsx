@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Checkbox } from "@mantine/core";
 import { clamp, lastSelectedId, selectMany, selectNearAfterRemove } from "./listSelection.ts";
 import { isImeComposing } from "../lib/keyboard.ts";
+import { translate, useT } from "./messages.ts";
 import { useListClipboard } from "./useListClipboard.ts";
 import { useListSelection } from "./useListSelection.ts";
 import { useStableRowHandlers, type RowHandlers } from "./useStableRowHandlers.ts";
@@ -66,7 +67,8 @@ type Props<TItem extends IndexedItemBase> = {
  * @param props checked:選択中か / onClick:クリック処理（RowRenderPropsのonSelectClickを渡す）
  */
 export function RowSelectHandle(props: { checked: boolean; onClick: (e: React.MouseEvent) => void }) {
-    return <Checkbox className="row-select-handle" size="sm" radius="xl" checked={props.checked} onChange={() => undefined} onClick={props.onClick} aria-label="この行を選択" />;
+    const { t } = useT();
+    return <Checkbox className="row-select-handle" size="sm" radius="xl" checked={props.checked} onChange={() => undefined} onClick={props.onClick} aria-label={t("selectRow")} />;
 }
 
 /**
@@ -152,7 +154,7 @@ export function IndexedList<TItem extends IndexedItemBase>(props: Props<TItem>) 
     async function deleteIds(ids: number[]) {
         if (ids.length === 0) return;
 
-        const ok = confirmDelete ? await confirmDelete(ids) : confirm(`${ids.length}件削除しますか？`);
+        const ok = confirmDelete ? await confirmDelete(ids) : confirm(translate().t("confirmDelete", { n: ids.length }));
         if (!ok) return;
 
         onRemove(ids);

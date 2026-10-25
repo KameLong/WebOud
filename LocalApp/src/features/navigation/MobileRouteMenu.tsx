@@ -1,3 +1,4 @@
+import { useT } from "./messages.ts";
 import { useRef, useState } from "react";
 import { RouteTreeList } from "./RouteTreeList.tsx";
 
@@ -11,6 +12,7 @@ const SWIPE_THRESHOLD = 28;
  */
 export function MobileRouteMenu() {
     const [open, setOpen] = useState(false);
+    const { t } = useT();
     const touchStartY = useRef<number | null>(null);
 
     /**
@@ -69,7 +71,7 @@ export function MobileRouteMenu() {
             <div className="mobile-menu-edge" onTouchStart={onEdgeTouchStart} onTouchMove={onEdgeTouchMove} onTouchEnd={onEdgeTouchEnd} />
 
             <button className="mobile-menu-fab" onClick={() => setOpen(true)}>
-                ☰ メニュー
+                {t("menu")}
             </button>
 
             <div className={`mobile-menu-scrim ${open ? "open" : ""}`} onClick={() => setOpen(false)} aria-hidden={!open}>

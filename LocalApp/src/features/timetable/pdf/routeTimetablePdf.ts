@@ -5,6 +5,9 @@ import { gridMetrics } from "../gridMetrics.ts";
 import type { FontSubsetter } from "../../../shared/pdf/fontSubset.ts";
 import { Canvas, createPdfDocument, type PdfFonts } from "../../../shared/pdf/pdfCommon.ts";
 import { MARGIN, planRouteTimetable, S, stationHeight, THICK, THIN, TITLE_H, type PdfOrientation, type RouteTimetablePlan, type StationRows } from "./routeTimetablePlan.ts";
+import { translate } from "./../messages.ts";
+import { commonT } from "../../../shared/i18n/common.ts";
+import { translate as pdfTranslate } from "../../../shared/pdf/messages.ts";
 
 /** 路線時刻表PDFの入力（画面の時刻表と同じ内容） */
 export type RouteTimetablePdfInput = {
@@ -74,12 +77,13 @@ function typeOf(input: RouteTimetablePdfInput, trip: TripWithStopTimesDto): Trai
  * @param p ページの値
  */
 function drawCorner({ c, plan, m, left, headTop }: PageCtx) {
+    const cm = commonT().t;
     const { fs, lineH, stationInnerW, headH } = plan;
     c.rect(left + THICK, headTop, stationInnerW, headH, "#fafafa");
     const justifyW = stationInnerW - m.FONT_SIZE * 0.4 * S;
     const justifyX = left + THICK + m.FONT_SIZE * 0.2 * S;
-    c.justifiedText("列車種別", justifyX, headTop + lineH / 2, justifyW, fs);
-    c.justifiedText("列車番号", justifyX, headTop + lineH + THIN + lineH / 2, justifyW, fs);
+    c.justifiedText(cm("trainType"), justifyX, headTop + lineH / 2, justifyW, fs);
+    c.justifiedText(cm("trainNo"), justifyX, headTop + lineH + THIN + lineH / 2, justifyW, fs);
 }
 
 /**
@@ -120,6 +124,7 @@ function drawTrainHeaders({ c, input, plan, m, cols, headTop, cellsLeft }: PageC
  * @param p ページの値
  */
 function drawBody({ c, input, plan, m, cols, rows, left, bodyTop, cellsLeft }: PageCtx) {
+    const cm = commonT().t;
     const { fs, lineH, colW, nameColW, labelW, stationInnerW, arrBorder } = plan;
     let y = bodyTop;
     for (const r of rows) {
@@ -132,7 +137,7 @@ function drawBody({ c, input, plan, m, cols, rows, left, bodyTop, cellsLeft }: P
         r.parts.forEach((part, pi) => {
             const ph = lineH + (part === "arr" && r.showArr && r.showDep ? arrBorder : 0);
             const cy = py + lineH / 2;
-            const label = part === "arr" ? "着" : part === "dep" ? "発" : "番線";
+            const label = cm(part === "arr" ? "arr" : part === "dep" ? "dep" : "track");
             c.text(label, left + THICK + stationInnerW - labelW / 2, cy, c.fitSize(label, fs, labelW, fs * 0.5), "#000000", { align: "center" });
             // 番線を表示する駅では、駅名欄の行の間に薄い灰色の区切り線（画面の#ddd）
             if (pi > 0 && r.parts.includes("track")) c.rect(left + THICK + nameColW, py, labelW, THIN, "#dddddd");
@@ -182,7 +187,9 @@ function drawRules({ c, plan, cols, left, top, headTop, bodyTop, tableBottom, ce
  */
 export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, fonts: PdfFonts, subset: FontSubsetter): Promise<Uint8Array> {
     const { stations, trips, direct } = input;
-    const title = `${input.routeName}　${direct === 1 ? "上り" : "下り"}時刻表`;
+    const { t, allText } = translate();
+    const cm = commonT().t;
+    const title = t("pdfTitle", { route: input.routeName, direction: cm(direct === 1 ? "up" : "down") });
 
     // 画面（StationSidebar / TrainColumn / TrainHeader / StopCell）と同じ寸法。単位はpt
     const fontSizePx = input.fontSize ?? 14;
@@ -192,7 +199,10 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
 
     const used = [
         "0123456789:()（）/ -",
-        "‥║⇂〇着番線発列車種別番号名ページ時刻表上下り｜",
+        "‥║⇂〇｜",
+        allText(),
+        commonT().allText(),
+        pdfTranslate().allText(),
         title,
         ...stations.map((s) => s.name),
         ...trips.flatMap((t) => [t.no, t.name]),
@@ -213,13 +223,13 @@ export async function buildRouteTimetablePdf(input: RouteTimetablePdfInput, font
 
             // タイトル行とページ番号
             c.text(title, MARGIN, MARGIN + TITLE_H / 2 - 2, 12, "#000000", { bold: true });
-            c.text(`${pageNo} / ${totalPages} ページ`, pageW - MARGIN, MARGIN + TITLE_H / 2 - 2, 9, "#555555", { align: "right" });
+            c.text(pdfTranslate().t("pageOf", { page: pageNo, total: totalPages }), pageW - MARGIN, MARGIN + TITLE_H / 2 - 2, 9, "#555555", { align: "right" });
 
             drawCorner(p);
             drawTrainHeaders(p);
             drawBody(p);
             drawRules(p);
-            if (trips.length === 0) c.text("この方向の列車はありません", p.cellsLeft + 12, bodyTop + 14, 10, "#666666");
+            if (trips.length === 0) c.text(t("pdfNoTrains"), p.cellsLeft + 12, bodyTop + 14, 10, "#666666");
         }
     }
 

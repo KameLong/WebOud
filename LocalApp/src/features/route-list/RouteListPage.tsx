@@ -15,7 +15,9 @@ import {
 } from "../../store/localStore.ts";
 import { RouteRenameDialog } from "./RouteRenameDialog.tsx";
 import { OudiaImportDialog } from "../oudia-import/OudiaImportDialog.tsx";
-import { loadSampleRoute, SAMPLE_ROUTE_NAME } from "../../store/sampleRoute.ts";
+import { loadSampleRoute } from "../../store/sampleRoute.ts";
+import { translate, useT } from "./messages.ts";
+import { formatDateTime } from "../../shared/i18n/languages.ts";
 import { HelpDialog, HelpList, HelpSection } from "../../shared/ui/HelpDialog.tsx";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
 
@@ -41,20 +43,12 @@ function downloadText(filename: string, text: string) {
  * @param names 同じ名前の路線の路線名
  */
 function confirmOverwrite(names: string[]): boolean {
-    return confirm(`同じ名前の路線がすでにあります：\n${names.map((n) => `・${n}`).join("\n")}\n\n上書きしますか？（キャンセルすると、取り込みを中止します）`);
-}
-
-/**
- * ミリ秒のタイムスタンプを日本語表記の日時にします。
- *
- * @param ms UNIX時間(ミリ秒)
- */
-function formatDate(ms: number) {
-    return new Date(ms).toLocaleString("ja-JP");
+    return confirm(translate().t("confirmOverwrite", { names: names.map((n) => `・${n}`).join("\n") }));
 }
 
 export default function RouteListPage() {
     const nav = useNavigate();
+    const { t, tl, lang } = useT();
     const routes = useSyncExternalStore(subscribe, listRoutes);
     const [newName, setNewName] = useState("");
     const [error, setError] = useState<string | null>(null);
@@ -76,7 +70,7 @@ export default function RouteListPage() {
         const name = newName.trim();
         if (!name) return;
         if (isRouteNameTaken(name)) {
-            setError(`「${name}」という名前の路線はすでにあります。別の名前にしてください`);
+            setError(t("nameTaken", { name }));
             return;
         }
         setError(null);
@@ -92,7 +86,7 @@ export default function RouteListPage() {
      * @param name 確認ダイアログに表示する路線名
      */
     function onDelete(id: number, name: string) {
-        if (!confirm(`「${name}」を削除しますか？この操作は取り消せません。`)) return;
+        if (!confirm(t("confirmDeleteRoute", { name }))) return;
         deleteRoute(id);
     }
 
@@ -156,7 +150,7 @@ export default function RouteListPage() {
      * @param file 選択されたJSONファイル
      */
     async function onImportAll(file: File) {
-        if (!confirm("既存の全データを置き換えます。よろしいですか？")) {
+        if (!confirm(t("confirmRestoreAll"))) {
             allFileReset.current?.();
             return;
         }
@@ -174,18 +168,18 @@ export default function RouteListPage() {
     return (
         <Container size="md" py="md" px="sm" style={{ overflow: "auto", height: "100%" }}>
             <Group justify="space-between" wrap="nowrap" mb="xs">
-                <Title order={2}>路線一覧</Title>
+                <Title order={2}>{t("title")}</Title>
                 <Group gap="xs" wrap="nowrap">
-                    <ActionIcon variant="light" radius="xl" onClick={() => nav("/settings")} aria-label="設定" title="設定">
+                    <ActionIcon variant="light" radius="xl" onClick={() => nav("/settings")} aria-label={t("settings")} title={t("settings")}>
                         ⚙
                     </ActionIcon>
-                    <ActionIcon variant="light" radius="xl" onClick={() => setHelpOpen(true)} aria-label="ヘルプ" title="ヘルプ">
+                    <ActionIcon variant="light" radius="xl" onClick={() => setHelpOpen(true)} aria-label={t("help")} title={t("help")}>
                         ？
                     </ActionIcon>
                 </Group>
             </Group>
             <Text size="xs" c="dimmed" mb="sm">
-                データはこの端末のブラウザ内（ローカルストレージ）にのみ保存されます。他の端末に移す場合は「エクスポート」でファイルを書き出し、その端末で「インポート」してください。
+                {t("storageNote")}
             </Text>
 
             <form onSubmit={onCreate}>
@@ -193,35 +187,35 @@ export default function RouteListPage() {
                     <TextInput
                         value={newName}
                         onChange={(e) => setNewName(e.currentTarget.value)}
-                        placeholder="新しい路線名（例：山手線）"
+                        placeholder={t("newNamePlaceholder")}
                         style={{ flex: 1 }}
-                        aria-label="新しい路線名"
+                        aria-label={t("newNameLabel")}
                     />
-                    <Button type="submit">＋ 新規作成</Button>
+                    <Button type="submit">{t("create")}</Button>
                 </Group>
             </form>
 
             <Group gap="xs" mb="md">
                 <Button variant="light" size="compact-sm" onClick={() => void onLoadSample()}>
-                    サンプルダイヤを読み込む（{SAMPLE_ROUTE_NAME}）
+                    {t("loadSample", { name: t("sampleName") })}
                 </Button>
                 <Button variant="light" size="compact-sm" onClick={() => setOudiaOpen(true)}>
-                    OuDiaファイルを取り込む
+                    {t("importOudia")}
                 </Button>
                 <Button variant="default" size="compact-sm" onClick={onExportAll}>
-                    全データをエクスポート
+                    {t("exportAll")}
                 </Button>
                 <FileButton resetRef={allFileReset} accept="application/json" onChange={(file) => file && onImportAll(file)}>
                     {(props) => (
                         <Button variant="default" size="compact-sm" {...props}>
-                            全データを復元（置換）
+                            {t("restoreAll")}
                         </Button>
                     )}
                 </FileButton>
                 <FileButton resetRef={routeFileReset} accept="application/json" onChange={(file) => file && onImportRoute(file)}>
                     {(props) => (
                         <Button variant="default" size="compact-sm" {...props}>
-                            路線をインポート
+                            {t("importRoute")}
                         </Button>
                     )}
                 </FileButton>
@@ -235,17 +229,17 @@ export default function RouteListPage() {
 
             {routes.length === 0 ? (
                 <Text c="dimmed" ta="center" p="xl" style={{ border: "1px dashed var(--mantine-color-gray-4)", borderRadius: 8 }}>
-                    路線がありません。上のフォームから新規作成してください。
+                    {t("empty")}
                 </Text>
             ) : (
                 <Table verticalSpacing={6} horizontalSpacing="xs" highlightOnHover fz="sm">
                     <Table.Thead>
                         <Table.Tr>
-                            <Table.Th>路線名</Table.Th>
-                            <Table.Th>駅数</Table.Th>
-                            <Table.Th visibleFrom="sm">種別数</Table.Th>
-                            <Table.Th>列車数</Table.Th>
-                            <Table.Th visibleFrom="sm">最終更新</Table.Th>
+                            <Table.Th>{t("colName")}</Table.Th>
+                            <Table.Th>{t("colStations")}</Table.Th>
+                            <Table.Th visibleFrom="sm">{t("colTypes")}</Table.Th>
+                            <Table.Th>{t("colTrips")}</Table.Th>
+                            <Table.Th visibleFrom="sm">{t("colUpdated")}</Table.Th>
                             <Table.Th />
                         </Table.Tr>
                     </Table.Thead>
@@ -258,34 +252,34 @@ export default function RouteListPage() {
                                 <Table.Td>{r.stationCount}</Table.Td>
                                 <Table.Td visibleFrom="sm">{r.trainTypeCount}</Table.Td>
                                 <Table.Td>{r.tripCount}</Table.Td>
-                                <Table.Td visibleFrom="sm">{formatDate(r.updatedAt)}</Table.Td>
+                                <Table.Td visibleFrom="sm">{formatDateTime(lang, r.updatedAt)}</Table.Td>
                                 <Table.Td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                                     <Group gap={4} justify="flex-end" wrap="nowrap" visibleFrom="sm">
                                         <Button variant="default" size="compact-xs" onClick={() => setRenaming({ id: r.id, name: r.name })}>
-                                            名前変更
+                                            {t("rename")}
                                         </Button>
                                         <Button variant="default" size="compact-xs" onClick={() => onExportRoute(r.id, r.name)}>
-                                            書き出し
+                                            {t("export")}
                                         </Button>
                                         <Button variant="default" size="compact-xs" onClick={() => onDuplicate(r.id)}>
-                                            複製
+                                            {t("duplicate")}
                                         </Button>
                                         <Button variant="default" color="red" c="red" size="compact-xs" onClick={() => onDelete(r.id, r.name)}>
-                                            削除
+                                            {t("remove")}
                                         </Button>
                                     </Group>
                                     <Menu position="bottom-end" withinPortal>
                                         <Menu.Target>
-                                            <ActionIcon variant="subtle" color="gray" hiddenFrom="sm" aria-label="操作">
+                                            <ActionIcon variant="subtle" color="gray" hiddenFrom="sm" aria-label={t("actions")}>
                                                 ⋮
                                             </ActionIcon>
                                         </Menu.Target>
                                         <Menu.Dropdown>
-                                            <Menu.Item onClick={() => setRenaming({ id: r.id, name: r.name })}>名前変更</Menu.Item>
-                                            <Menu.Item onClick={() => onExportRoute(r.id, r.name)}>書き出し</Menu.Item>
-                                            <Menu.Item onClick={() => onDuplicate(r.id)}>複製</Menu.Item>
+                                            <Menu.Item onClick={() => setRenaming({ id: r.id, name: r.name })}>{t("rename")}</Menu.Item>
+                                            <Menu.Item onClick={() => onExportRoute(r.id, r.name)}>{t("export")}</Menu.Item>
+                                            <Menu.Item onClick={() => onDuplicate(r.id)}>{t("duplicate")}</Menu.Item>
                                             <Menu.Item color="red" onClick={() => onDelete(r.id, r.name)}>
-                                                削除
+                                                {t("remove")}
                                             </Menu.Item>
                                         </Menu.Dropdown>
                                     </Menu>
@@ -298,24 +292,13 @@ export default function RouteListPage() {
 
             <RouteRenameDialog route={renaming} onClose={() => setRenaming(null)} />
             <OudiaImportDialog open={oudiaOpen} onClose={() => setOudiaOpen(false)} />
-            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="路線一覧 - ヘルプ">
-                <HelpSection title="このページでできること">
-                    <HelpList
-                        items={[
-                            "右上の歯車アイコンから設定画面（文字サイズなど）を開く",
-                            "新しい路線（ダイヤ）を名前を付けて作成する",
-                            `サンプルダイヤ（${SAMPLE_ROUTE_NAME}）を読み込んで試す`,
-                            "OuDiaのファイル(.oud)をファイルまたはURLから読み込んで、新しい路線として取り込む（取り込むダイヤと路線名を選べる）",
-                            "路線名をクリックして路線編集画面（駅・列車種別の編集）へ移動する。時刻表・ダイヤグラムは、路線編集画面などの左のメニュー（スマホでは下部のメニューボタン）から開く",
-                            "路線の名前を変える／書き出す／複製する／削除する（スマホでは各行の「⋮」メニューから。路線名は、ほかの路線と同じにはできません。削除は確認あり、取り消せません）",
-                            "路線単体、または全データをJSONファイルとして書き出す（バックアップ・他端末への移行用）",
-                            "書き出したJSONファイル（路線単体・全データのどちらも可）を読み込んで、路線を追加する。同じ名前の路線があるときは、確認のうえ上書きする。または、全データを置き換える",
-                        ]}
-                    />
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title={t("helpTitle")}>
+                <HelpSection title={t("helpDoSection")}>
+                    <HelpList items={tl("helpDoItems", { name: t("sampleName") })} />
                 </HelpSection>
-                <HelpSection title="データの保存について">
+                <HelpSection title={t("helpSaveSection")}>
                     <Text size="sm" c="dimmed">
-                        データはこの端末のブラウザ内（localStorage）にのみ保存されます。サーバーには送信されません。端末やブラウザを変える場合は「全データをエクスポート」でファイルに書き出し、新しい環境で「全データを復元」してください。
+                        {t("helpSaveNote")}
                     </Text>
                 </HelpSection>
             </HelpDialog>

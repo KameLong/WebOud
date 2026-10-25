@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { useT } from "./messages.ts";
 
 type KeyInit = { key: string; code: string; altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean };
 
@@ -72,6 +73,7 @@ function ShortcutButton(props: { label: string; init: KeyInit; onPress: (init: K
  */
 export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | null> }) {
     const { gridRef } = props;
+    const { t } = useT();
 
     function focusedOrGrid(): HTMLElement | null {
         return (document.activeElement as HTMLElement | null) ?? gridRef.current;
@@ -102,26 +104,26 @@ export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | 
             <DigitButton label="1" onPress={pressDigit} />
             <DigitButton label="2" onPress={pressDigit} />
             <DigitButton label="3" onPress={pressDigit} />
-            <ShortcutButton label={"+1分"} init={{ key: "l", code: "KeyL", altKey: true }} onPress={pressShortcut} />
-            <ShortcutButton label={"-1分"} init={{ key: "j", code: "KeyJ", altKey: true }} onPress={pressShortcut} />
+            <ShortcutButton label={t("plus1")} init={{ key: "l", code: "KeyL", altKey: true }} onPress={pressShortcut} />
+            <ShortcutButton label={t("minus1")} init={{ key: "j", code: "KeyJ", altKey: true }} onPress={pressShortcut} />
 
             <DigitButton label="4" onPress={pressDigit} />
             <DigitButton label="5" onPress={pressDigit} />
             <DigitButton label="6" onPress={pressDigit} />
             <div />
-            <ShortcutButton label="通過" init={{ key: "-", code: "Minus", altKey: true }} onPress={pressShortcut} />
+            <ShortcutButton label={t("pass")} init={{ key: "-", code: "Minus", altKey: true }} onPress={pressShortcut} />
 
             <DigitButton label="7" onPress={pressDigit} />
             <DigitButton label="8" onPress={pressDigit} />
             <DigitButton label="9" onPress={pressDigit} />
-            <ShortcutButton label="経由なし" init={{ key: "^", code: "Digit6", ctrlKey: true }} onPress={pressShortcut} />
-            <ShortcutButton label="消去" init={{ key: "Delete", code: "Delete", ctrlKey: true }} onPress={pressShortcut} />
+            <ShortcutButton label={t("noVia")} init={{ key: "^", code: "Digit6", ctrlKey: true }} onPress={pressShortcut} />
+            <ShortcutButton label={t("erase")} init={{ key: "Delete", code: "Delete", ctrlKey: true }} onPress={pressShortcut} />
 
-            <button onMouseDown={keepFocus} onClick={pressBackspace} style={keyStyle} title="バックスペース">
+            <button onMouseDown={keepFocus} onClick={pressBackspace} style={keyStyle} title={t("backspaceTitle")}>
                 ⌫
             </button>
             <DigitButton label="0" onPress={pressDigit} />
-            <button onMouseDown={keepFocus} onClick={pressEnter} style={keyStyle} title="1段下へ">
+            <button onMouseDown={keepFocus} onClick={pressEnter} style={keyStyle} title={t("nextRowTitle")}>
                 ↵
             </button>
             <div />

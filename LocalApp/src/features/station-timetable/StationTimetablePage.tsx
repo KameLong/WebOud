@@ -4,11 +4,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Alert, Button, Container, NativeSelect } from "@mantine/core";
 import { collectDestinations, collectTrainTypes, isPlainBadge, useStationTimetable, type StationTimetableHour } from "./useStationTimetable.ts";
 import { readableTextColor } from "../../domain/colors.ts";
+import { labelStation } from "./stationLabel.ts";
 import { usePdfExport } from "../../shared/pdf/usePdfExport.ts";
 import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../../shared/pdf/pdfFonts.ts";
 import { HelpDialog, HelpList, HelpSection } from "../../shared/ui/HelpDialog.tsx";
 import { helpButtonStyle } from "../../shared/ui/helpButtonStyle.ts";
 import type { TrainTypeDto } from "../../domain/dto.ts";
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
 
 /** 見出し帯・外枠の色 */
 const BRAND_COLOR = "#0a72be";
@@ -52,6 +55,7 @@ function TimeBadge({ trainType, plain, children }: { trainType: TrainTypeDto; pl
  * @param striped 背景を灰色にするか
  */
 function HourRow({ hour, entries, striped }: StationTimetableHour & { striped: boolean }) {
+    const { t } = useT();
     return (
         <div className="tt-row" style={{ display: "flex", alignItems: "stretch", minHeight: 40, background: striped ? STRIPE_COLOR : "#fff" }}>
             <div
@@ -77,10 +81,10 @@ function HourRow({ hour, entries, striped }: StationTimetableHour & { striped: b
                         .padStart(2, "0");
                     const marker = e.isOrigin && e.isTerminus ? "●▽" : e.isOrigin ? "●" : e.isTerminus ? "▽" : "";
                     const title =
-                        [e.trainType.name, e.trip.no, e.trip.name, e.destName && `${e.destName}行き`].filter(Boolean).join(" ") +
-                        (e.isOrigin ? "（この駅が始発）" : "") +
-                        (e.isTerminus ? "（この駅が終着）" : "") +
-                        (e.isArrivalOnly ? "（到着時刻を表示）" : "");
+                        [e.trainType.name, e.trip.no, e.trip.name, e.destName && t("tipDest", { name: e.destName })].filter(Boolean).join(" ") +
+                        (e.isOrigin ? t("tipOrigin") : "") +
+                        (e.isTerminus ? t("tipTerminus") : "") +
+                        (e.isArrivalOnly ? t("tipArrival") : "");
                     // 始発・終着の印と行き先は、時刻と同じ色（種別の色）で、時刻の右端に重ねて表示する
                     return (
                         <span key={e.trip.id} title={title || undefined} style={{ position: "relative", display: "inline-flex", paddingRight: 8, whiteSpace: "nowrap" }}>
@@ -116,31 +120,39 @@ function LegendRow({ title, children }: { title: string; children: ReactNode }) 
  * @param destinations 行き先の印と駅名の一覧（印が空のものは、印を付けない行き先で「無印」と表示する）
  */
 function TimetableLegend({ trainTypes, destinations }: { trainTypes: TrainTypeDto[]; destinations: { char: string; name: string }[] }) {
+    const { t } = useT();
     if (trainTypes.length === 0) return null;
     return (
         <div className="tt-legend" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 10px", borderTop: `2px solid ${BRAND_COLOR}`, background: "#fff" }}>
-            <LegendRow title="種別">
-                {[...trainTypes].reverse().map((t) => (
-                    <span key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        <TimeBadge trainType={t} plain={isPlainBadge(t)}>
+            <LegendRow title={t("legendTypes")}>
+                {[...trainTypes].reverse().map((ty) => (
+                    <span key={ty.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <TimeBadge trainType={ty} plain={isPlainBadge(ty)}>
                             00
                         </TimeBadge>
-                        {t.name || "（名称未設定）"}
+                        {ty.name || t("unnamed")}
                     </span>
                 ))}
             </LegendRow>
             {destinations.length > 0 && (
-                <LegendRow title="行先">
+                <LegendRow title={t("legendDest")}>
                     {destinations.map((d) => (
                         <span key={d.name}>
-                            <b>{d.char || "無"}</b>印 {d.name}ゆき
+                            {d.char ? (
+                                <>
+                                    <b>{d.char}</b>
+                                    {t("destMarkedTail", { name: d.name })}
+                                </>
+                            ) : (
+                                t("destUnmarked", { name: d.name })
+                            )}
                         </span>
                     ))}
                 </LegendRow>
             )}
-            <LegendRow title="記号">
-                <span>● この駅が始発</span>
-                <span>▽ この駅が終着</span>
+            <LegendRow title={t("legendMarks")}>
+                <span>{t("markOrigin")}</span>
+                <span>{t("markTerminusShort")}</span>
             </LegendRow>
         </div>
     );
@@ -167,13 +179,14 @@ function DirectionTable({
     exporting: boolean;
     onExportPdf: () => void;
 }) {
+    const { t } = useT();
     const hasAnyTrain = hours.some((h) => h.entries.length > 0);
-    const stationLabel = stationName.endsWith("駅") ? stationName : `${stationName}駅`;
+    const stationLabel = labelStation(stationName, t("stationSuffix"));
     return (
         <div className="tt-sheet" style={{ marginBottom: 24, border: `3px solid ${BRAND_COLOR}`, background: "#fff" }}>
             <div className="tt-head" style={{ background: BRAND_COLOR, color: "#fff", display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "2px 16px", padding: "8px 14px" }}>
                 <span style={{ fontSize: 22, fontWeight: 700 }}>
-                    {stationLabel}発 ➡ {towards}方面
+                    {t("headFrom", { station: stationLabel, towards })}
                 </span>
                 <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
                     <button
@@ -181,15 +194,15 @@ function DirectionTable({
                         onClick={onExportPdf}
                         disabled={exporting}
                         style={{ cursor: exporting ? "default" : "pointer", padding: "2px 10px", fontSize: 13, borderRadius: 4, border: "1px solid #fff", background: "transparent", color: "#fff", opacity: exporting ? 0.6 : 1 }}
-                        title="この方向の時刻表を、A4縦1枚のPDFファイルとして保存します"
+                        title={t("pdfButtonTitle")}
                     >
-                        {exporting ? "作成中…" : "PDF出力"}
+                        {exporting ? t("pdfBusy") : t("pdfButton")}
                     </button>
-                    <span style={{ fontSize: 18, fontWeight: 700 }}>発車時刻表</span>
+                    <span style={{ fontSize: 18, fontWeight: 700 }}>{t("headRight")}</span>
                 </span>
             </div>
             {!hasAnyTrain ? (
-                <div style={{ padding: 16, color: "#666", fontSize: 14 }}>この駅に停車する列車はありません</div>
+                <div style={{ padding: 16, color: "#666", fontSize: 14 }}>{t("noTrains")}</div>
             ) : (
                 <div className="tt-rows">
                     {hours.map((h, i) => (
@@ -211,6 +224,8 @@ export function StationTimetablePage() {
     const routeId = Number(params.routeId ?? 0);
     const stationId = Number(params.stationId ?? 0);
     const nav = useNavigate();
+    const { t, tl } = useT();
+    const cm = useCommonT().t;
     const [helpOpen, setHelpOpen] = useState(false);
     /** PDFを作成中の方向は pdf.busyKey（"down" / "up"）で分かる */
     const pdf = usePdfExport();
@@ -236,16 +251,16 @@ export function StationTimetablePage() {
                 fonts,
                 subsetFontInBrowser,
             );
-            downloadBytes(bytes, `駅時刻表_${station.name}_${direction === "down" ? "下り" : "上り"}.pdf`);
+            downloadBytes(bytes, t("pdfFileName", { station: station.name, direction: cm(direction === "down" ? "down" : "up") }));
         }, direction);
     }
 
     if (!station) {
         return (
             <Container size="md" py="md">
-                駅が見つかりません。
+                {t("stationNotFound")}
                 <Button variant="default" size="compact-sm" ml="xs" onClick={() => nav(`/route/${routeId}`)}>
-                    路線編集へ戻る
+                    {t("backToEdit")}
                 </Button>
             </Container>
         );
@@ -255,45 +270,34 @@ export function StationTimetablePage() {
         <Container size="md" py="md" style={{ height: "100%", overflow: "auto" }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
                 <Button variant="default" size="compact-sm" onClick={() => nav(`/route/${routeId}`)}>
-                    ← 路線編集へ
+                    {t("backToEditArrow")}
                 </Button>
                 <NativeSelect
                     value={String(stationId)}
                     onChange={(e) => nav(`/route/${routeId}/station/${e.currentTarget.value}`, { replace: true })}
                     data={stations.map((s) => ({ value: String(s.id), label: s.name }))}
-                    aria-label="駅を選択"
+                    aria-label={t("selectStation")}
                     style={{ flex: 1, maxWidth: 240 }}
                 />
-                <Button variant="light" size="compact-sm" onClick={() => setHelpOpen(true)} style={{ ...helpButtonStyle, marginLeft: "auto" }} title="ヘルプ">
+                <Button variant="light" size="compact-sm" onClick={() => setHelpOpen(true)} style={{ ...helpButtonStyle, marginLeft: "auto" }} title={t("help")}>
                     ？
                 </Button>
             </div>
 
             {pdf.error && (
-                <Alert color="red" mb="sm" title="PDFを作成できませんでした">
+                <Alert color="red" mb="sm" title={t("pdfFailedTitle")}>
                     {pdf.error}
                 </Alert>
             )}
             <DirectionTable stationName={station.name} towards={downTowards} hours={down} exporting={pdf.busyKey === "down"} onExportPdf={() => void exportPdf("down")} />
             <DirectionTable stationName={station.name} towards={upTowards} hours={up} exporting={pdf.busyKey === "up"} onExportPdf={() => void exportPdf("up")} />
 
-            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="駅時刻表 - ヘルプ">
-                <HelpSection title="このページでできること">
-                    <HelpList
-                        items={[
-                            "選択した駅に停車する列車の発車時刻を、方向（下り/上り）ごと・時間帯ごとに一覧表示する（表示専用、編集はできません）",
-                            "時間帯は午前3時始まり・翌午前2時終わりで固定表示（0〜2時台は23時の次に表示）",
-                            "各表の見出し帯の「PDF出力」で、その方向の時刻表をA4縦1枚のPDFファイルとして保存できる（ブラウザの印刷機能を使わないので、端末による崩れがない。初回だけ日本語フォントを読み込むため通信が必要）",
-                            "上部のプルダウンで別の駅へすぐに切り替えられる",
-                            "この駅が終着で発車時刻が無い列車は、代わりに到着時刻を表示している（時刻の右上の▽が目印。マウスを重ねると「到着時刻を表示」と出る）",
-                            "線を太くする設定の種別は種別の色で塗りつぶした印、それ以外の種別は色付きの文字で表す。種別名・行先は各表の下の凡例（下り・上りで別々）を参照",
-                        ]}
-                    />
+            <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title={t("helpTitle")}>
+                <HelpSection title={t("helpDoSection")}>
+                    <HelpList items={tl("helpDoItems")} />
                 </HelpSection>
-                <HelpSection title="凡例">
-                    <HelpList
-                        items={["時刻の右下の1文字：その列車の行き先（終着駅名の頭文字）。その方向で最も多い行き先は、印を付けない", "右上の●：この駅がその列車の始発駅", "右上の▽：この駅がその列車の終着駅", "始発・終着の印と行き先の文字は、時刻と同じ色（種別の色）で表示する"]}
-                    />
+                <HelpSection title={t("helpLegendSection")}>
+                    <HelpList items={tl("helpLegendItems")} />
                 </HelpSection>
             </HelpDialog>
         </Container>

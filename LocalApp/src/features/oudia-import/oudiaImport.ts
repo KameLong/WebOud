@@ -2,6 +2,7 @@ import { O_O } from "@route-builders/oud-operator";
 import type { StationDto, StopTimeDto, TrainTypeDto, TripWithStopTimesDto } from "../../domain/dto.ts";
 import { makeShowStyle, SHOW_ARR, SHOW_DEP } from "../../domain/showStyle.ts";
 import type { RouteRecord } from "../../store/types.ts";
+import { translate } from "./messages.ts";
 
 /** 読み込んだOuDiaファイルの概要（取り込みダイアログの表示用） */
 export type OudiaSummary = {
@@ -46,13 +47,13 @@ export function parseOudia(buffer: ArrayBuffer): ParsedOudia {
     try {
         oud = new O_O().fromOud(decodeOudiaLines(buffer));
     } catch {
-        throw new Error("OuDiaファイルとして読み込めませんでした。.oud形式のファイルを選んでください");
+        throw new Error(translate().t("notOud"));
     }
-    if (oud.stations.length === 0) throw new Error("駅が1つも見つかりませんでした");
+    if (oud.stations.length === 0) throw new Error(translate().t("noStations"));
     return {
         oud,
         summary: {
-            routeName: oud.name || "OuDiaから取り込んだ路線",
+            routeName: oud.name || translate().t("defaultRouteName"),
             stationCount: oud.stations.length,
             trainTypeCount: oud.trainTypes.length,
             diagrams: oud.diagrams.map((d) => ({ name: d.name, downCount: d.downStreaks.length, upCount: d.upStreaks.length })),

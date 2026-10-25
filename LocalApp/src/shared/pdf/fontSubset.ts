@@ -1,3 +1,4 @@
+import { translate } from "./messages.ts";
 /** フォントのうち、指定した文字だけを残した小さなフォントを作る関数 */
 export type FontSubsetter = (font: Uint8Array, text: string) => Promise<Uint8Array>;
 
@@ -55,7 +56,7 @@ export function createFontSubsetter(loadWasm: () => Promise<ArrayBuffer | Uint8A
         const heap = () => new Uint8Array(hb.memory.buffer);
 
         const input = hb.hb_subset_input_create_or_fail();
-        if (input === 0) throw new Error("フォントの絞り込みを開始できませんでした");
+        if (input === 0) throw new Error(translate().t("subsetStartFailed"));
 
         const fontPtr = hb.malloc(font.byteLength);
         heap().set(font, fontPtr);
@@ -81,7 +82,7 @@ export function createFontSubsetter(loadWasm: () => Promise<ArrayBuffer | Uint8A
         if (subset === 0) {
             hb.hb_face_destroy(face);
             hb.free(fontPtr);
-            throw new Error("フォントを必要な文字だけに絞れませんでした");
+            throw new Error(translate().t("subsetFailed"));
         }
 
         const result = hb.hb_face_reference_blob(subset);
@@ -92,7 +93,7 @@ export function createFontSubsetter(loadWasm: () => Promise<ArrayBuffer | Uint8A
         hb.hb_face_destroy(subset);
         hb.hb_face_destroy(face);
         hb.free(fontPtr);
-        if (out.length === 0) throw new Error("絞り込んだフォントが空でした");
+        if (out.length === 0) throw new Error(translate().t("subsetEmpty"));
         return out;
     };
 }

@@ -1,5 +1,7 @@
+import { translate } from "./messages.ts";
+import { commonT } from "../shared/i18n/common.ts";
 import type { RouteRecord, RouteSummary, StoreState } from "./types.ts";
-import { DEFAULT_TRAIN_TYPE } from "../domain/defaults.ts";
+import { defaultTrainType } from "../domain/defaults.ts";
 
 const STORAGE_KEY = "weboud.localapp.routes.v1";
 
@@ -27,7 +29,7 @@ export function withDefaultTrainType(route: RouteRecord): RouteRecord {
     return {
         ...route,
         counters: { ...route.counters, trainType: id + 1 },
-        trainTypes: [{ ...DEFAULT_TRAIN_TYPE, id, routeID: route.id, index: 0 }],
+        trainTypes: [{ ...defaultTrainType(), id, routeID: route.id, index: 0 }],
     };
 }
 
@@ -154,7 +156,7 @@ export function isRouteNameTaken(name: string, exceptId?: number): boolean {
  * @param name 重複した路線名
  */
 function duplicateNameError(name: string): Error {
-    return new Error(`「${name}」という名前の路線はすでにあります`);
+    return new Error(translate().t("duplicateName", { name }));
 }
 
 /**
@@ -213,7 +215,7 @@ export function duplicateRoute(id: number): RouteRecord | undefined {
     if (!src) return undefined;
     const newId = state.nextRouteId;
     // 「○○ のコピー」がすでにあるときは、「○○ のコピー 2」「…3」と番号を付ける
-    const base = `${src.name} のコピー`;
+    const base = commonT().t("copySuffix", { name: src.name });
     let name = base;
     for (let n = 2; isRouteNameTaken(name); n++) name = `${base} ${n}`;
     const copy: RouteRecord = {
@@ -273,7 +275,7 @@ function isRouteRecord(v: unknown): v is RouteRecord {
 export function importAllFromJson(json: string) {
     const parsed = JSON.parse(json) as unknown;
     if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as StoreState).routes)) {
-        throw new Error("不正なファイル形式です");
+        throw new Error(translate().t("invalidFile"));
     }
     setState({ ...(parsed as StoreState), routes: (parsed as StoreState).routes.map(withDefaultTrainType) });
 }
@@ -319,7 +321,7 @@ function withRouteId(route: RouteRecord, id: number): RouteRecord {
 function parseImportedRoutes(json: string): RouteRecord[] {
     const parsed = JSON.parse(json) as unknown;
     const list: unknown[] = isValidStoreState(parsed) ? parsed.routes : [parsed];
-    if (list.length === 0 || !list.every(isRouteRecord)) throw new Error("不正なファイル形式です");
+    if (list.length === 0 || !list.every(isRouteRecord)) throw new Error(translate().t("invalidFile"));
     const byName = new Map<string, RouteRecord>();
     for (const r of list) byName.set(r.name, r);
     return [...byName.values()];

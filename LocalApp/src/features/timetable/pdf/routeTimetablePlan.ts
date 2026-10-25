@@ -1,6 +1,7 @@
 import type { StationDto } from "../../../domain/dto.ts";
 import { ARR_BORDER_BOTTOM_WIDTH, gridMetrics } from "../gridMetrics.ts";
 import { decodeParts, decodeShowStyle, getDirectStyle } from "../../../domain/showStyle.ts";
+import { translate } from "../messages.ts";
 
 /** 用紙の向き（A4） */
 export type PdfOrientation = "landscape" | "portrait";
@@ -129,10 +130,10 @@ export function planRouteTimetable(stations: StationDto[], direct: number, tripC
     const colPages = Math.max(1, Math.ceil(tripCount / colsPerPage));
 
     const overflow: string[] = [];
-    if (rawCols < 1) overflow.push("列車の列が1列も用紙の幅に収まりません");
+    if (rawCols < 1) overflow.push(translate().t("planNoCol"));
     const tallest = Math.max(0, ...stationRows.map((r) => stationHeight(r, lineH)));
-    if (tallest > availBodyH) overflow.push("1駅分の高さが用紙の高さに収まりません");
-    if (frameH + TITLE_H + MARGIN * 2 > pageH) overflow.push("見出しが用紙の高さに収まりません");
+    if (tallest > availBodyH) overflow.push(translate().t("planTallStation"));
+    if (frameH + TITLE_H + MARGIN * 2 > pageH) overflow.push(translate().t("planHeader"));
 
     return {
         pageW,

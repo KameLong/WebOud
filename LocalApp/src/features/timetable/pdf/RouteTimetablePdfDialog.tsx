@@ -5,6 +5,9 @@ import { PdfOrientationControl } from "../../../shared/pdf/PdfOrientationControl
 import { useFontSize } from "../../../shared/hooks/useFontSize.ts";
 import { planRouteTimetable, type PdfOrientation } from "./routeTimetablePlan.ts";
 import { DEFAULT_FONT_SIZE, MAX_FONT_SIZE, MIN_FONT_SIZE, setFontSize } from "../../../store/settings.ts";
+import { useT } from "../messages.ts";
+import { useCommonT } from "../../../shared/i18n/common.ts";
+import { useT as usePdfT } from "../../../shared/pdf/messages.ts";
 
 /**
  * 路線時刻表をPDFにする前に、文字サイズと用紙の向きを決めるダイアログです。
@@ -33,21 +36,24 @@ export function RouteTimetablePdfDialog(props: {
  * @param props RouteTimetablePdfDialogと同じ
  */
 function RouteTimetablePdfBody({ onClose, stations, direct, tripCount, busy, onCreate }: Parameters<typeof RouteTimetablePdfDialog>[0]) {
+    const { t } = useT();
+    const c = useCommonT().t;
+    const pdfT = usePdfT();
     const fontSize = useFontSize();
     const [orientation, setOrientation] = useState<PdfOrientation>("landscape");
     const plan = useMemo(() => planRouteTimetable(stations, direct, tripCount, fontSize, orientation), [stations, direct, tripCount, fontSize, orientation]);
     const fits = plan.overflow.length === 0;
 
     return (
-        <Modal opened onClose={onClose} title="PDF出力（A4）" centered size="md" styles={{ title: { fontWeight: 700 } }}>
+        <Modal opened onClose={onClose} title={t("dlgTitle")} centered size="md" styles={{ title: { fontWeight: 700 } }}>
             <Stack gap="sm">
                 <Text size="sm" c="dimmed">
-                    この方向の時刻表を、A4用紙のPDFにします。画面と同じ寸法で描くので、文字サイズに合わせてページ数が変わります。
+                    {t("dlgIntro")}
                 </Text>
 
                 <Group gap="xs" wrap="nowrap" align="flex-end">
                     <NumberInput
-                        label="文字サイズ"
+                        label={t("dlgFontSize")}
                         value={fontSize}
                         onChange={(v) => setFontSize(typeof v === "number" ? v : Number(v))}
                         min={MIN_FONT_SIZE}
@@ -57,31 +63,33 @@ function RouteTimetablePdfBody({ onClose, stations, direct, tripCount, busy, onC
                         style={{ width: 140 }}
                     />
                     <Button variant="default" size="compact-sm" onClick={() => setFontSize(DEFAULT_FONT_SIZE)} disabled={fontSize === DEFAULT_FONT_SIZE}>
-                        既定に戻す（{DEFAULT_FONT_SIZE}px）
+                        {t("dlgResetFont", { size: DEFAULT_FONT_SIZE })}
                     </Button>
                 </Group>
                 <Text size="xs" c="dimmed">
-                    設定画面の「全体の文字サイズ」と共通の設定です。変更すると、画面の表示にも反映されます（{MIN_FONT_SIZE}〜{MAX_FONT_SIZE}px）。
+                    {t("dlgFontNote", { min: MIN_FONT_SIZE, max: MAX_FONT_SIZE })}
                 </Text>
 
                 <PdfOrientationControl value={orientation} onChange={setOrientation} />
 
                 {fits ? (
                     <Text size="sm">
-                        A4{orientation === "landscape" ? "横" : "縦"}で <b>{plan.totalPages} ページ</b>になります（列車の列 {plan.colPages} × 駅 {plan.stationChunks.length}）。どのページにも駅名欄を表示します。
+                        {t("dlgPagesA", { orientation: pdfT.t(orientation === "landscape" ? "landscapeShort" : "portraitShort") })}
+                        <b>{t("dlgPagesCount", { n: plan.totalPages })}</b>
+                        {t("dlgPagesB", { cols: plan.colPages, stations: plan.stationChunks.length })}
                     </Text>
                 ) : (
-                    <Alert color="red" title="A4に収まらない部分があります">
-                        {plan.overflow.join("。")}。文字サイズを小さくしてください。
+                    <Alert color="red" title={t("dlgOverflowTitle")}>
+                        {plan.overflow.join(c("sentenceJoin"))}{c("sentenceEnd")} {t("dlgOverflowTail")}
                     </Alert>
                 )}
 
                 <Group justify="flex-end" gap="xs">
                     <Button variant="default" onClick={onClose}>
-                        キャンセル
+                        {c("cancel")}
                     </Button>
                     <Button onClick={() => onCreate(orientation)} loading={busy} disabled={!fits}>
-                        PDFを作成
+                        {t("dlgCreate")}
                     </Button>
                 </Group>
             </Stack>
