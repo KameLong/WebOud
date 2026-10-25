@@ -146,7 +146,7 @@ function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number
                 }),
             });
         }
-        const symbols = ["● この駅が始発", "▽ この駅が終着", "(00) 終着のため到着時刻を表示"];
+        const symbols = ["● この駅が始発", "▽ この駅が終着（発車時刻が無いため、到着時刻を表示）"];
         rows.push({ title: "記号", items: symbols.map((s) => ({ width: c.measure(s, LEGEND_FS), draw: (cv, x, cy) => cv.text(s, x, cy, LEGEND_FS, "#000000") })) });
     }
     const lines = rows.map((r) => flowLines(r.items, maxW, 12));
@@ -187,7 +187,7 @@ function drawLegend(c: Canvas, legend: LegendLayout, sheetX: number, sheetW: num
  * @param stationLabel 「駅」を補った駅名
  */
 function collectUsedText(input: StationTimetablePdfInput, stationLabel: string): string {
-    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先印ゆき記号この駅が始発終着のため到着時刻を表示（名称未設定）", "➡▽●", stationLabel, input.towards];
+    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先印ゆき記号この駅が始発終着発車時刻が無いため到着時刻を表示（名称未設定）", "➡▽●", stationLabel, input.towards];
     for (const t of collectTrainTypes([input.hours])) parts.push(t.name);
     for (const d of collectDestinations([input.hours])) parts.push(d.char, d.name);
     for (const h of input.hours) for (const e of h.entries) parts.push(e.destChar);
@@ -266,7 +266,7 @@ export async function buildStationTimetablePdf(input: StationTimetablePdfInput, 
                 const mm = Math.floor((e.time % 3600) / 60)
                     .toString()
                     .padStart(2, "0");
-                drawBadge(c, x, cy, size, e.trainType, isPlainBadge(e.trainType), e.isArrivalOnly ? `(${mm})` : mm);
+                drawBadge(c, x, cy, size, e.trainType, isPlainBadge(e.trainType), mm);
                 // 始発・終着の印は右上、行き先は右下に、時刻の右端へ重ねて、種別の色で描く（画面と同じ配置）
                 const badgeTop = cy - (size.fs + 4) / 2;
                 const badgeBottom = cy + (size.fs + 4) / 2;

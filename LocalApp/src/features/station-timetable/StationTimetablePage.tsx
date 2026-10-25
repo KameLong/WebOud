@@ -75,17 +75,17 @@ function HourRow({ hour, entries, striped }: StationTimetableHour & { striped: b
                     const mm = Math.floor((e.time % 3600) / 60)
                         .toString()
                         .padStart(2, "0");
-                    const label = e.isArrivalOnly ? `(${mm})` : mm;
                     const marker = e.isOrigin && e.isTerminus ? "●▽" : e.isOrigin ? "●" : e.isTerminus ? "▽" : "";
                     const title =
                         [e.trainType.name, e.trip.no, e.trip.name, e.destName && `${e.destName}行き`].filter(Boolean).join(" ") +
                         (e.isOrigin ? "（この駅が始発）" : "") +
-                        (e.isTerminus ? "（この駅が終着）" : "");
+                        (e.isTerminus ? "（この駅が終着）" : "") +
+                        (e.isArrivalOnly ? "（到着時刻を表示）" : "");
                     // 始発・終着の印と行き先は、時刻と同じ色（種別の色）で、時刻の右端に重ねて表示する
                     return (
                         <span key={e.trip.id} title={title || undefined} style={{ position: "relative", display: "inline-flex", paddingRight: 8, whiteSpace: "nowrap" }}>
                             <TimeBadge trainType={e.trainType} plain={isPlainBadge(e.trainType)}>
-                                {label}
+                                {mm}
                             </TimeBadge>
                             <span style={{ position: "absolute", left: "calc(100% - 8px)", top: 0, color: e.trainType.color }}>
                                 {marker && <span style={{ position: "absolute", top: 1, left: -3, fontSize: 10, lineHeight: 1 }}>{marker}</span>}
@@ -141,7 +141,6 @@ function TimetableLegend({ trainTypes, destinations }: { trainTypes: TrainTypeDt
             <LegendRow title="記号">
                 <span>● この駅が始発</span>
                 <span>▽ この駅が終着</span>
-                <span>(00) 終着のため到着時刻を表示</span>
             </LegendRow>
         </div>
     );
@@ -286,7 +285,7 @@ export function StationTimetablePage() {
                             "時間帯は午前3時始まり・翌午前2時終わりで固定表示（0〜2時台は23時の次に表示）",
                             "各表の見出し帯の「PDF出力」で、その方向の時刻表をA4縦1枚のPDFファイルとして保存できる（ブラウザの印刷機能を使わないので、端末による崩れがない。初回だけ日本語フォントを読み込むため通信が必要）",
                             "上部のプルダウンで別の駅へすぐに切り替えられる",
-                            "括弧( )付きの数字は、この駅が終着で発車時刻が無いため、代わりに到着時刻を表示している",
+                            "この駅が終着で発車時刻が無い列車は、代わりに到着時刻を表示している（時刻の右上の▽が目印。マウスを重ねると「到着時刻を表示」と出る）",
                             "線を太くする設定の種別は種別の色で塗りつぶした印、それ以外の種別は色付きの文字で表す。種別名・行先は各表の下の凡例（下り・上りで別々）を参照",
                         ]}
                     />
