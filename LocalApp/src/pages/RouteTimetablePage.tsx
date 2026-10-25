@@ -21,13 +21,12 @@ import type { PdfOrientation } from "../pdf/routeTimetablePlan.ts";
 import { RouteTimetablePdfDialog } from "../components/RouteTimetablePdfDialog.tsx";
 import type { Cursor, KeyLike } from "../domain/types.ts";
 import { AsyncQueue } from "../Util.ts";
+import { FALLBACK_TRAIN_TYPE } from "../domain/defaults.ts";
+import { usePdfExport } from "../hooks/usePdfExport.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
 import { HelpDialog, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
 import { MobileTimetableKeypad } from "../components/MobileTimetableKeypad.tsx";
 import { useIsMobile } from "../hooks/useIsMobile.ts";
-
-/** 列車の種別が見つからないとき（プレースホルダ列など）に使う既定の種別。毎回同じ参照にして再描画を避ける */
-const FALLBACK_TRAIN_TYPE: TrainTypeDto = { color: "#000", shortName: "", routeID: 0, name: "", fontBold: false, lineStyle: 0, index: 0, lineBold: false, id: 0 };
 
 const keyEventQueue = new AsyncQueue<unknown>();
 
@@ -38,8 +37,7 @@ export default function RouteTimetablePage() {
     const nav_ = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
     const [pdfOpen, setPdfOpen] = useState(false);
-    const [pdfBusy, setPdfBusy] = useState(false);
-    const [pdfError, setPdfError] = useState<string | null>(null);
+    const pdf = usePdfExport();
 
     const fontSize = useFontSize();
     const metrics = useMemo(() => gridMetrics(fontSize), [fontSize]);
@@ -52,7 +50,7 @@ export default function RouteTimetablePage() {
 
     const scrollRef = useRef<HTMLDivElement | null>(null);
 
-    const { stations, trips, loading, error, traintypes } = useTimetableData(routeId, direct);
+    const { stations, trips, traintypes } = useTimetableData(routeId, direct);
     const { saveStopTime, insertEmptyTripAt, deleteTrips } = useStopTimeEditor({
         routeId,
         direct,
@@ -73,7 +71,7 @@ export default function RouteTimetablePage() {
 
     const [pasteMoveOpen, setPasteMoveOpen] = useState(false);
     const colsRef = useRef<HTMLDivElement | null>(null);
-    const columnsActive = !loading && !error && stations.length > 0;
+    const columnsActive = stations.length > 0;
     // 列の仮想化：表示範囲付近の列だけ描画する
     const colWindow = useColumnWindow(scrollRef, colsRef, trips.length, COLUMN_WIDTH, columnsActive);
     useAutoScrollCursor(scrollRef, nav.cursor, { colsRef, width: COLUMN_WIDTH, stickyLeft: STATION_NAME_WIDTH + LINE_HEIGHT });
@@ -128,8 +126,9 @@ export default function RouteTimetablePage() {
         return m;
     }, [traintypes]);
 
-    if (loading) return <div style={{ padding: 12 }}>loading...</div>;
-    if (error) return <div style={{ padding: 12, color: "crimson" }}>{error}</div>;
+    /** 末尾の入力用プレースホルダ列を除いた、実在する列車 */
+    const realTrips = useMemo(() => trips.filter((t) => t.id !== -1), [trips]);
+
     if (stations.length === 0)
         return (
             <div style={{ padding: 12 }}>
@@ -141,35 +140,27 @@ export default function RouteTimetablePage() {
         );
 
     /**
-     * 列車プロパティのダイアログを開きます。
-     *
-     * @param tripId 編集する列車ID
-     */
-    /**
      * この方向の時刻表をA4のPDFにして保存します（ブラウザの印刷機能は使わず、フォントを埋め込んだPDFを直接作る）。
      * 列車や駅が多いときはA4に収まるようページが分かれ、どのページにも駅名欄を表示します。
      *
      * @param orientation 用紙の向き（A4の横・縦）
      */
-    const exportPdf = async (orientation: PdfOrientation) => {
-        if (pdfBusy) return;
-        setPdfBusy(true);
-        setPdfError(null);
-        try {
+    const exportPdf = (orientation: PdfOrientation) =>
+        pdf.run(async () => {
             // PDFライブラリは大きいので、PDF出力を押したときに初めて読み込む
             const { buildRouteTimetablePdf } = await import("../pdf/routeTimetablePdf.ts");
             const fonts = await loadPdfFonts();
             const routeName = getRoute(routeId)?.name ?? "路線";
-            const bytes = await buildRouteTimetablePdf({ routeName, direct, stations, trips: trips.filter((t) => t.id !== -1), trainTypeById, fontSize, orientation }, fonts, subsetFontInBrowser);
+            const bytes = await buildRouteTimetablePdf({ routeName, direct, stations, trips: realTrips, trainTypeById, fontSize, orientation }, fonts, subsetFontInBrowser);
             downloadBytes(bytes, `${routeName}_${direct === 1 ? "上り" : "下り"}時刻表.pdf`);
             setPdfOpen(false);
-        } catch (e) {
-            setPdfError(e instanceof Error ? e.message : String(e));
-        } finally {
-            setPdfBusy(false);
-        }
-    };
+        });
 
+    /**
+     * 列車プロパティのダイアログを開きます。
+     *
+     * @param tripId 編集する列車ID
+     */
     const openTripProperty = (tripId: number) => {
         setTripPropTargetId(tripId);
         setTripPropOpen(true);
@@ -251,16 +242,10 @@ export default function RouteTimetablePage() {
             );
             return;
         }
-        if (e.altKey && e.code === "KeyL") {
+        if (e.altKey && (e.code === "KeyL" || e.code === "KeyJ")) {
             const cursor = nav.cursor;
             e.preventDefault();
-            shiftStopTime(routeId, trips[cursor.c].id, stations[cursor.r].id, cursor.part, 60);
-            return;
-        }
-        if (e.altKey && e.code === "KeyJ") {
-            const cursor = nav.cursor;
-            e.preventDefault();
-            shiftStopTime(routeId, trips[cursor.c].id, stations[cursor.r].id, cursor.part, -60);
+            shiftStopTime(routeId, trips[cursor.c].id, stations[cursor.r].id, cursor.part, e.code === "KeyL" ? 60 : -60);
             return;
         }
 
@@ -413,8 +398,8 @@ export default function RouteTimetablePage() {
                     ？
                 </button>
             </div>
-            {pdfError && <div className="rt-input-warning">PDFを作成できませんでした：{pdfError}</div>}
-            <RouteTimetablePdfDialog open={pdfOpen} onClose={() => setPdfOpen(false)} stations={stations} direct={direct} tripCount={trips.filter((t) => t.id !== -1).length} busy={pdfBusy} onCreate={(o) => void exportPdf(o)} />
+            {pdf.error && <div className="rt-input-warning">PDFを作成できませんでした：{pdf.error}</div>}
+            <RouteTimetablePdfDialog open={pdfOpen} onClose={() => setPdfOpen(false)} stations={stations} direct={direct} tripCount={realTrips.length} busy={pdf.busy} onCreate={(o) => void exportPdf(o)} />
             {cont.state.warning && <div className="rt-input-warning">{cont.state.warning}</div>}
             <div
                 ref={scrollRef}
@@ -431,10 +416,6 @@ export default function RouteTimetablePage() {
                         preventDefault: () => e.preventDefault(),
                         nativeEvent: e.nativeEvent,
                     };
-
-                    // デバッグ用：押されたキーの組み合わせをコンソールに表示
-                    const combo = [ev.ctrlKey && "Ctrl", ev.altKey && "Alt", ev.shiftKey && "Shift", ev.metaKey && "Meta", ev.key].filter(Boolean).join("+");
-                    console.log("[keydown]", combo, `(code: ${ev.code})`);
 
                     keyEventQueue.push(() => keyEvent(ev));
                 }}
@@ -542,7 +523,7 @@ export default function RouteTimetablePage() {
                     scrollRef.current?.focus();
                 }}
                 onSave={(trip) => {
-                    // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
+                    // trips の反映は、useTimetableData が購読しているストアの更新に任せる
                     putTrip(routeId, trip);
 
                     setTripPropOpen(false);

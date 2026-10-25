@@ -1,3 +1,4 @@
+import { FALLBACK_TRAIN_TYPE } from "../domain/defaults.ts";
 import { ariTimeStr, depTimeStr } from "../domain/stopTimeText.ts";
 import type { StationDto, TrainTypeDto, TripWithStopTimesDto } from "../domain/dto.ts";
 import { gridMetrics } from "../domain/utils.ts";
@@ -25,9 +26,6 @@ export type RouteTimetablePdfInput = {
 
 /** 罫線の色（画面の#333） */
 const LINE_COLOR = "#333333";
-
-/** 見出しの種別の既定値 */
-const FALLBACK_TYPE: TrainTypeDto = { id: 0, name: "", routeID: 0, index: 0, shortName: "", color: "#000000", fontBold: false, lineBold: false, lineStyle: 0 };
 
 /**
  * 配列を、1つあたりの上限(maxCount)を超えないように分けます。
@@ -67,7 +65,7 @@ type PageCtx = {
  * @param trip 列車
  */
 function typeOf(input: RouteTimetablePdfInput, trip: TripWithStopTimesDto): TrainTypeDto {
-    return input.trainTypeById.get(trip.trainTypeID) ?? FALLBACK_TYPE;
+    return input.trainTypeById.get(trip.trainTypeID) ?? FALLBACK_TRAIN_TYPE;
 }
 
 /**

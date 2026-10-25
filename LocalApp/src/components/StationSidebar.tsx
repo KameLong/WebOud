@@ -58,7 +58,7 @@ export function StationSidebar(props: {
         const real = trips.filter((t) => t.id !== -1);
         const sorted = [...real].sort((a, b) => sortKey(a) - sortKey(b));
 
-        // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
+        // trips の反映は、useTimetableData が購読しているストアの更新に任せる
         reorderTrips(
             routeId,
             direct,

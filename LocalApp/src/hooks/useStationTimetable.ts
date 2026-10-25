@@ -1,12 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { StationDto, TimeTableDto, TrainTypeDto, TripWithStopTimesDto } from "../domain/dto.ts";
-import { subscribe } from "../store/localStore.ts";
-import { getTimetable } from "../store/timetableApi.ts";
-
-const EMPTY_TIMETABLE: TimeTableDto = { stations: [], trainTypes: [], trips: [] };
-
-/** 種別が見つからないとき用の既定値 */
-const FALLBACK_TRAIN_TYPE: TrainTypeDto = { color: "#000", shortName: "", routeID: 0, name: "", fontBold: false, lineStyle: 0, index: 0, lineBold: false, id: 0 };
+import { useMemo } from "react";
+import type { StationDto, TrainTypeDto, TripWithStopTimesDto } from "../domain/dto.ts";
+import { FALLBACK_TRAIN_TYPE } from "../domain/defaults.ts";
+import { useTimetable } from "./useTimetableData.ts";
 
 /** 時刻表の1日は午前3時始まり・翌午前2時終わりとする（0〜2時台は前日の深夜帯として扱う） */
 const DAY_START_HOUR = 3;
@@ -167,19 +162,7 @@ export function collectDestinations(hourGroups: StationTimetableHour[][]): { cha
  * @param stationId 対象の駅ID
  */
 export function useStationTimetable(routeId: number, stationId: number) {
-    const [data, setData] = useState<TimeTableDto>(EMPTY_TIMETABLE);
-
-    const reload = useCallback(() => {
-        setData(getTimetable(routeId));
-    }, [routeId]);
-
-    useEffect(() => {
-        reload();
-        const unsubscribe = subscribe(reload);
-        return () => {
-            unsubscribe();
-        };
-    }, [reload]);
+    const data = useTimetable(routeId);
 
     const station = useMemo(() => data.stations.find((s) => s.id === stationId) ?? null, [data.stations, stationId]);
     const stations = useMemo(() => [...data.stations].sort((a, b) => a.index - b.index), [data.stations]);

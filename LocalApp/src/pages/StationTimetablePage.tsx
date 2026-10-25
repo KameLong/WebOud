@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Alert, Button, Container, NativeSelect } from "@mantine/core";
 import { collectDestinations, collectTrainTypes, useStationTimetable, type StationTimetableHour } from "../hooks/useStationTimetable.ts";
 import { readableTextColor } from "../domain/colors.ts";
+import { usePdfExport } from "../hooks/usePdfExport.ts";
 import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../pdf/pdfFonts.ts";
 import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
 import type { TrainTypeDto } from "../domain/dto.ts";
@@ -213,9 +214,8 @@ export function StationTimetablePage() {
     const stationId = Number(params.stationId ?? 0);
     const nav = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
-    /** PDFを作成中の方向。nullなら作成していない */
-    const [exporting, setExporting] = useState<"down" | "up" | null>(null);
-    const [exportError, setExportError] = useState<string | null>(null);
+    /** PDFを作成中の方向は pdf.busyKey（"down" / "up"）で分かる */
+    const pdf = usePdfExport();
 
     const { station, stations, down, up } = useStationTimetable(routeId, stationId);
     // 最も下位（index最小）の種別は色付き文字のみで表し、それ以外は塗りつぶした印にする（上下で共通）
@@ -229,11 +229,9 @@ export function StationTimetablePage() {
      *
      * @param direction down:下り / up:上り
      */
-    async function exportPdf(direction: "down" | "up") {
-        if (!station || exporting) return;
-        setExporting(direction);
-        setExportError(null);
-        try {
+    function exportPdf(direction: "down" | "up") {
+        if (!station) return;
+        return pdf.run(async () => {
             // PDFライブラリは大きいので、PDF出力を押したときに初めて読み込む
             const { buildStationTimetablePdf } = await import("../pdf/stationTimetablePdf.ts");
             const fonts = await loadPdfFonts();
@@ -243,11 +241,7 @@ export function StationTimetablePage() {
                 subsetFontInBrowser,
             );
             downloadBytes(bytes, `駅時刻表_${station.name}_${direction === "down" ? "下り" : "上り"}.pdf`);
-        } catch (e) {
-            setExportError(e instanceof Error ? e.message : String(e));
-        } finally {
-            setExporting(null);
-        }
+        }, direction);
     }
 
     if (!station) {
@@ -279,13 +273,13 @@ export function StationTimetablePage() {
                 </Button>
             </div>
 
-            {exportError && (
+            {pdf.error && (
                 <Alert color="red" mb="sm" title="PDFを作成できませんでした">
-                    {exportError}
+                    {pdf.error}
                 </Alert>
             )}
-            <DirectionTable stationName={station.name} towards={downTowards} hours={down} baseTypeId={baseTypeId} exporting={exporting === "down"} onExportPdf={() => void exportPdf("down")} />
-            <DirectionTable stationName={station.name} towards={upTowards} hours={up} baseTypeId={baseTypeId} exporting={exporting === "up"} onExportPdf={() => void exportPdf("up")} />
+            <DirectionTable stationName={station.name} towards={downTowards} hours={down} baseTypeId={baseTypeId} exporting={pdf.busyKey === "down"} onExportPdf={() => void exportPdf("down")} />
+            <DirectionTable stationName={station.name} towards={upTowards} hours={up} baseTypeId={baseTypeId} exporting={pdf.busyKey === "up"} onExportPdf={() => void exportPdf("up")} />
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="駅時刻表 - ヘルプ">
                 <HelpSection title="このページでできること">

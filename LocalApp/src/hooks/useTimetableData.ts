@@ -1,73 +1,41 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { StopTimeDto, TripWithStopTimesDto, StationDto, TrainTypeDto } from "../domain/dto.ts";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import type { StopTimeDto, TimeTableDto, TripWithStopTimesDto, StationDto, TrainTypeDto } from "../domain/dto.ts";
 import { ensureTailPlaceholder } from "../domain/utils.ts";
 import { getErrorMessage } from "../Util.ts";
 import * as timetableApi from "../store/timetableApi.ts";
-import { subscribe } from "../store/localStore.ts";
+import { getRoute, subscribe } from "../store/localStore.ts";
+
+const EMPTY_TIMETABLE: TimeTableDto = { stations: [], trainTypes: [], trips: [] };
 
 /**
- * 路線の時刻表データを読み込み、ストア更新に追従して再読込します。
+ * 路線の駅・列車種別・列車（保存されているままの順）を返します。ストアの更新（他のタブ・同じタブの他ページでの編集を含む）に追従します。
+ * 路線が無いときは、空の時刻表を返します。
+ *
+ * @param routeId 路線ID
+ */
+export function useTimetable(routeId: number) {
+    const route = useSyncExternalStore(subscribe, () => getRoute(routeId));
+    return route ?? EMPTY_TIMETABLE;
+}
+
+/**
+ * 路線の時刻表データを、1方向分の表示用に整えて返します。ストアの更新に追従します。
  *
  * @param routeId 路線ID
  * @param direct 0:下り 1:上り（上りは駅順を逆にし、末尾にプレースホルダ列車を付ける）
  */
 export function useTimetableData(routeId: number, direct: number) {
-    const [stations, setStations] = useState<StationDto[]>([]);
-    const [trips, setTrips] = useState<TripWithStopTimesDto[]>([]);
-    const [traintypes, setTraintypes] = useState<TrainTypeDto[]>([]);
+    const data = useTimetable(routeId);
 
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const stations: StationDto[] = useMemo(() => {
+        const sorted = [...data.stations].sort((a, b) => a.index - b.index);
+        // 上り(direct===1)は実際の走行方向に合わせて駅の並びを逆転させる
+        return direct === 1 ? sorted.reverse() : sorted;
+    }, [data.stations, direct]);
+    const trips: TripWithStopTimesDto[] = useMemo(() => ensureTailPlaceholder(data.trips.filter((t) => t.direct === direct), routeId, direct), [data.trips, routeId, direct]);
+    const traintypes: TrainTypeDto[] = data.trainTypes;
 
-    const reload = useCallback(() => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = timetableApi.getTimetable(routeId);
-
-            const sortedStations = [...data.stations].sort((a, b) => a.index - b.index);
-            // 上り(direct===1)は実際の走行方向に合わせて駅の並びを逆転させる
-            if (direct === 1) sortedStations.reverse();
-            const directTrips = data.trips.filter((t) => t.direct === direct);
-            const normalizedTrips = ensureTailPlaceholder(directTrips, routeId, direct);
-
-            setStations(sortedStations);
-            setTrips(normalizedTrips);
-            setTraintypes(data.trainTypes);
-        } catch (e: unknown) {
-            setError(getErrorMessage(e));
-        } finally {
-            setLoading(false);
-        }
-    }, [routeId, direct]);
-
-    useEffect(() => {
-        reload();
-        // 他のタブ/ウィンドウでの編集や、同じタブ内の他ページ（駅・種別編集など）での
-        // 変更も即座に反映する
-        const unsubscribe = subscribe(reload);
-        return () => {
-            unsubscribe();
-        };
-    }, [reload]);
-
-    const tripById = useMemo(() => {
-        const m = new Map<number, TripWithStopTimesDto>();
-        for (const t of trips) m.set(t.id, t);
-        return m;
-    }, [trips]);
-
-    return {
-        stations,
-        trips,
-        setStations,
-        setTrips,
-        traintypes,
-        loading,
-        error,
-        reload,
-        tripById,
-    };
+    return { stations, trips, traintypes };
 }
 
 /**
@@ -83,9 +51,7 @@ export function useStopTimeEditor(params: { routeId: number; direct: number }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // trips の反映は useTimetableData 側の store 購読(reload)に任せる。
-    // ここで setTrips を直接呼ぶと、reload による更新と二重に適用されて
-    // 列車が重複してしまうため呼ばない。
+    // trips の反映は、useTimetableData が購読しているストアの更新に任せる（ここでは state を持たない）。
     const changeStopTime = useCallback(
         /**
          * @param stopTime 保存する時刻

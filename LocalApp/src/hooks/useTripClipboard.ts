@@ -104,7 +104,7 @@ export function useTripClipboard(params: {
         // 切り取った瞬間にも、貼り付け移動量を0(そのまま貼り付け)に戻す
         setPasteMove(0);
 
-        // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
+        // trips の反映は、useTimetableData が購読しているストアの更新に任せる
         const ids = picked.map((t) => t.id);
         deleteTripsFromStore(routeId, ids);
 
@@ -142,7 +142,7 @@ export function useTripClipboard(params: {
         // カーソル列の直前に挿入する（カーソルが末尾の空列にあるときは末尾に追加）
         const result = addTripBlock(routeId, newTrips, insertPosForCursor);
         if (Array.isArray(result)) {
-            // trips state への反映は useTimetableData 側の store 購読(reload)に任せる
+            // trips の反映は、useTimetableData が購読しているストアの更新に任せる
             onAfterMutate?.(insertPosForCursor + pastedCount);
             return true;
         }
