@@ -161,7 +161,7 @@ export function isPlainBadge(trainType: TrainTypeDto): boolean {
 }
 
 /**
- * 行き先の印と終着駅名の一覧を集めます（駅名ごとに1件。印を付けない行き先は含めない）。
+ * 行き先の印と終着駅名の一覧を集めます（駅名ごとに1件）。印を付けない行き先（最も多い行き先）は、印(char)を空にして先頭に置きます。
  *
  * @param hourGroups 下り・上りの時間帯ごとの行一覧
  */
@@ -170,11 +170,12 @@ export function collectDestinations(hourGroups: StationTimetableHour[][]): { cha
     for (const hours of hourGroups) {
         for (const h of hours) {
             for (const e of h.entries) {
-                if (e.destName && e.destChar) seen.set(e.destName, { char: e.destChar, name: e.destName });
+                if (e.destName) seen.set(e.destName, { char: e.destChar, name: e.destName });
             }
         }
     }
-    return [...seen.values()];
+    // 印の無い行き先を先頭にし、残りは出てきた順
+    return [...seen.values()].sort((a, b) => Number(a.char !== "") - Number(b.char !== ""));
 }
 
 /**

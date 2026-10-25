@@ -113,7 +113,7 @@ function LegendRow({ title, children }: { title: string; children: ReactNode }) 
  * 種別（印の見本＋種別名）と行き先の凡例を、項目を横に並べてコンパクトに表示します。
  *
  * @param trainTypes 表示する種別一覧
- * @param destinations 行き先の頭文字と駅名の一覧
+ * @param destinations 行き先の印と駅名の一覧（印が空のものは、印を付けない行き先で「無印」と表示する）
  */
 function TimetableLegend({ trainTypes, destinations }: { trainTypes: TrainTypeDto[]; destinations: { char: string; name: string }[] }) {
     if (trainTypes.length === 0) return null;
@@ -133,7 +133,7 @@ function TimetableLegend({ trainTypes, destinations }: { trainTypes: TrainTypeDt
                 <LegendRow title="行先">
                     {destinations.map((d) => (
                         <span key={d.name}>
-                            <b>{d.char}</b>印 {d.name}ゆき
+                            <b>{d.char || "無"}</b>印 {d.name}ゆき
                         </span>
                     ))}
                 </LegendRow>

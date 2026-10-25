@@ -133,7 +133,7 @@ function layoutLegend(c: Canvas, input: StationTimetablePdfInput, sheetX: number
             rows.push({
                 title: "行先",
                 items: destinations.map((d) => {
-                    const head = `${d.char}`;
+                    const head = d.char || "無";
                     const rest = `印 ${d.name}ゆき`;
                     const hw = c.measure(head, LEGEND_FS, true);
                     return {
@@ -187,7 +187,7 @@ function drawLegend(c: Canvas, legend: LegendLayout, sheetX: number, sheetW: num
  * @param stationLabel 「駅」を補った駅名
  */
 function collectUsedText(input: StationTimetablePdfInput, stationLabel: string): string {
-    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先印ゆき記号この駅が始発終着発車時刻が無いため到着時刻を表示（名称未設定）", "➡▽●", stationLabel, input.towards];
+    const parts = ["0123456789()（）:/ -", "発車時刻表方面種別行先無印ゆき記号この駅が始発終着発車時刻が無いため、到着時刻を表示（名称未設定）", "➡▽●", stationLabel, input.towards];
     for (const t of collectTrainTypes([input.hours])) parts.push(t.name);
     for (const d of collectDestinations([input.hours])) parts.push(d.char, d.name);
     for (const h of input.hours) for (const e of h.entries) parts.push(e.destChar);
