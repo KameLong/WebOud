@@ -2,7 +2,7 @@ import StationListEditor from "./StationListEditor.tsx";
 import { useNavigate, useParams } from "react-router-dom";
 import TrainTypeListEditor from "./TrainTypeListEditor.tsx";
 import { useState, useSyncExternalStore } from "react";
-import { getRoute, renameRoute, subscribe } from "../../store/localStore.ts";
+import { getRoute, isRouteNameTaken, renameRoute, subscribe } from "../../store/localStore.ts";
 import { ActionIcon, Box, Button, Container, Group, Stack, Text, TextInput, Title } from "@mantine/core";
 import { HelpDialog, HelpList, HelpSection, HelpShortcutTable } from "../../shared/ui/HelpDialog.tsx";
 
@@ -11,6 +11,8 @@ export function RoutePage() {
     const routeId: number = Number(urlParams.routeId);
     const nav = useNavigate();
     const [helpOpen, setHelpOpen] = useState(false);
+    /** 編集中の路線名。nullのときは保存済みの路線名を表示する */
+    const [nameDraft, setNameDraft] = useState<string | null>(null);
 
     const route = useSyncExternalStore(subscribe, () => getRoute(routeId));
 
@@ -39,8 +41,15 @@ export function RoutePage() {
                             </ActionIcon>
                         </Group>
                         <TextInput
-                            value={route.name}
-                            onChange={(e) => renameRoute(routeId, e.currentTarget.value)}
+                            value={nameDraft ?? route.name}
+                            onChange={(e) => {
+                                const v = e.currentTarget.value;
+                                setNameDraft(v);
+                                // 空の名前や、ほかの路線と同じ名前は保存しない（入力欄を離れたときに元の名前へ戻す）
+                                if (v.trim() !== "" && !isRouteNameTaken(v.trim(), routeId)) renameRoute(routeId, v.trim());
+                            }}
+                            onBlur={() => setNameDraft(null)}
+                            error={nameDraft !== null && nameDraft.trim() !== "" && isRouteNameTaken(nameDraft.trim(), routeId) ? "同じ名前の路線がすでにあります" : undefined}
                             aria-label="路線名"
                             variant="unstyled"
                             styles={{ input: { fontSize: "1.5rem", fontWeight: 700, height: "auto", paddingInline: 4 } }}

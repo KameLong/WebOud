@@ -96,9 +96,14 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
     function onImport() {
         if (!parsed) return;
         const name = routeName.trim() || parsed.summary.routeName;
-        const route = addRoute((id) => oudiaToRouteRecord(parsed, diagramIndex, name, id));
-        onClose();
-        nav(`/route/${route.id}`);
+        try {
+            const route = addRoute((id) => oudiaToRouteRecord(parsed, diagramIndex, name, id));
+            onClose();
+            nav(`/route/${route.id}`);
+        } catch (e) {
+            // 同じ名前の路線がある場合など。ダイアログを閉じずに、路線名を直してもらう
+            setError(getErrorMessage(e));
+        }
     }
 
     const summary = parsed?.summary;

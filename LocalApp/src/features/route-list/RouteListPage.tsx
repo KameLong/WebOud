@@ -8,10 +8,12 @@ import {
     exportAllAsJson,
     exportRouteAsJson,
     importAllFromJson,
-    importRouteFromJson,
+    importRoutesFromJson,
+    isRouteNameTaken,
     listRoutes,
     subscribe,
 } from "../../store/localStore.ts";
+import { RouteRenameDialog } from "./RouteRenameDialog.tsx";
 import { OudiaImportDialog } from "../oudia-import/OudiaImportDialog.tsx";
 import { loadSampleRoute, SAMPLE_ROUTE_NAME } from "../../store/sampleRoute.ts";
 import { HelpDialog, HelpList, HelpSection } from "../../shared/ui/HelpDialog.tsx";
@@ -34,6 +36,15 @@ function downloadText(filename: string, text: string) {
 }
 
 /**
+ * 同じ名前の路線を上書きしてよいかを、利用者に確認します。
+ *
+ * @param names 同じ名前の路線の路線名
+ */
+function confirmOverwrite(names: string[]): boolean {
+    return confirm(`同じ名前の路線がすでにあります：\n${names.map((n) => `・${n}`).join("\n")}\n\n上書きしますか？（キャンセルすると、取り込みを中止します）`);
+}
+
+/**
  * ミリ秒のタイムスタンプを日本語表記の日時にします。
  *
  * @param ms UNIX時間(ミリ秒)
@@ -52,6 +63,8 @@ export default function RouteListPage() {
     const allFileReset = useRef<() => void>(null);
     const [helpOpen, setHelpOpen] = useState(false);
     const [oudiaOpen, setOudiaOpen] = useState(false);
+    /** 名前を変えている路線（nullなら変更ダイアログは閉じている） */
+    const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
 
     /**
      * 路線を新規作成して編集画面へ移動します。
@@ -62,6 +75,11 @@ export default function RouteListPage() {
         e.preventDefault();
         const name = newName.trim();
         if (!name) return;
+        if (isRouteNameTaken(name)) {
+            setError(`「${name}」という名前の路線はすでにあります。別の名前にしてください`);
+            return;
+        }
+        setError(null);
         const created = createRoute(name);
         setNewName("");
         nav(`/route/${created.id}`);
@@ -91,8 +109,8 @@ export default function RouteListPage() {
     async function onLoadSample() {
         setError(null);
         try {
-            const created = await loadSampleRoute();
-            nav(`/route/${created.id}`);
+            const created = await loadSampleRoute(confirmOverwrite);
+            if (created) nav(`/route/${created.id}`);
         } catch (e) {
             setError(getErrorMessage(e));
         }
@@ -115,7 +133,8 @@ export default function RouteListPage() {
     }
 
     /**
-     * JSONファイルから路線を追加します。
+     * JSONファイルから路線を追加します（路線のエクスポート・全データのエクスポートのどちらのファイルも読める）。
+     * 同じ名前の路線があるときは、確認のうえ上書きします。
      *
      * @param file 選択されたJSONファイル
      */
@@ -123,7 +142,7 @@ export default function RouteListPage() {
         setError(null);
         try {
             const text = await file.text();
-            importRouteFromJson(text);
+            importRoutesFromJson(text, confirmOverwrite);
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
@@ -242,6 +261,9 @@ export default function RouteListPage() {
                                 <Table.Td visibleFrom="sm">{formatDate(r.updatedAt)}</Table.Td>
                                 <Table.Td style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                                     <Group gap={4} justify="flex-end" wrap="nowrap" visibleFrom="sm">
+                                        <Button variant="default" size="compact-xs" onClick={() => setRenaming({ id: r.id, name: r.name })}>
+                                            名前変更
+                                        </Button>
                                         <Button variant="default" size="compact-xs" onClick={() => onExportRoute(r.id, r.name)}>
                                             書き出し
                                         </Button>
@@ -259,6 +281,7 @@ export default function RouteListPage() {
                                             </ActionIcon>
                                         </Menu.Target>
                                         <Menu.Dropdown>
+                                            <Menu.Item onClick={() => setRenaming({ id: r.id, name: r.name })}>名前変更</Menu.Item>
                                             <Menu.Item onClick={() => onExportRoute(r.id, r.name)}>書き出し</Menu.Item>
                                             <Menu.Item onClick={() => onDuplicate(r.id)}>複製</Menu.Item>
                                             <Menu.Item color="red" onClick={() => onDelete(r.id, r.name)}>
@@ -273,6 +296,7 @@ export default function RouteListPage() {
                 </Table>
             )}
 
+            <RouteRenameDialog route={renaming} onClose={() => setRenaming(null)} />
             <OudiaImportDialog open={oudiaOpen} onClose={() => setOudiaOpen(false)} />
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title="路線一覧 - ヘルプ">
                 <HelpSection title="このページでできること">
@@ -283,9 +307,9 @@ export default function RouteListPage() {
                             `サンプルダイヤ（${SAMPLE_ROUTE_NAME}）を読み込んで試す`,
                             "OuDiaのファイル(.oud)をファイルまたはURLから読み込んで、新しい路線として取り込む（取り込むダイヤと路線名を選べる）",
                             "路線名をクリックして路線編集画面（駅・列車種別の編集）へ移動する。時刻表・ダイヤグラムは、路線編集画面などの左のメニュー（スマホでは下部のメニューボタン）から開く",
-                            "路線を書き出す／複製する／削除する（スマホでは各行の「⋮」メニューから。削除は確認あり、取り消せません）",
+                            "路線の名前を変える／書き出す／複製する／削除する（スマホでは各行の「⋮」メニューから。路線名は、ほかの路線と同じにはできません。削除は確認あり、取り消せません）",
                             "路線単体、または全データをJSONファイルとして書き出す（バックアップ・他端末への移行用）",
-                            "書き出したJSONファイルを読み込んで、路線を追加する、または全データを置き換える",
+                            "書き出したJSONファイル（路線単体・全データのどちらも可）を読み込んで、路線を追加する。同じ名前の路線があるときは、確認のうえ上書きする。または、全データを置き換える",
                         ]}
                     />
                 </HelpSection>

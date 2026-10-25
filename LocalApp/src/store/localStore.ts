@@ -139,12 +139,32 @@ export function getRoute(id: number): RouteRecord | undefined {
 }
 
 /**
- * 空の路線を作成します。
+ * 同じ名前の路線があるかを返します（路線名は路線を区別する名前として使う）。
+ *
+ * @param name 調べる路線名
+ * @param exceptId この路線は調べない（自分自身の名前を変えるとき）
+ */
+export function isRouteNameTaken(name: string, exceptId?: number): boolean {
+    return state.routes.some((r) => r.name === name && r.id !== exceptId);
+}
+
+/**
+ * 同じ名前の路線があるときのエラー。
+ *
+ * @param name 重複した路線名
+ */
+function duplicateNameError(name: string): Error {
+    return new Error(`「${name}」という名前の路線はすでにあります`);
+}
+
+/**
+ * 空の路線を作成します。同じ名前の路線があるときはエラーにします。
  *
  * @param name 路線名
  * @param addDefaultTrainType trueなら標準の列車種別(普通)を最初から追加する
  */
 export function createRoute(name: string, addDefaultTrainType = true): RouteRecord {
+    if (isRouteNameTaken(name)) throw duplicateNameError(name);
     const id = state.nextRouteId;
     const base: RouteRecord = {
         id,
@@ -161,12 +181,13 @@ export function createRoute(name: string, addDefaultTrainType = true): RouteReco
 }
 
 /**
- * 路線名を変更します。
+ * 路線名を変更します。同じ名前の別の路線があるときはエラーにします。
  *
  * @param id 対象の路線ID
  * @param name 新しい路線名
  */
 export function renameRoute(id: number, name: string) {
+    if (isRouteNameTaken(name, id)) throw duplicateNameError(name);
     setState({
         ...state,
         routes: state.routes.map((r) => (r.id === id ? { ...r, name, updatedAt: Date.now() } : r)),
@@ -191,10 +212,14 @@ export function duplicateRoute(id: number): RouteRecord | undefined {
     const src = getRoute(id);
     if (!src) return undefined;
     const newId = state.nextRouteId;
+    // 「○○ のコピー」がすでにあるときは、「○○ のコピー 2」「…3」と番号を付ける
+    const base = `${src.name} のコピー`;
+    let name = base;
+    for (let n = 2; isRouteNameTaken(name); n++) name = `${base} ${n}`;
     const copy: RouteRecord = {
         ...src,
         id: newId,
-        name: `${src.name} のコピー`,
+        name,
         updatedAt: Date.now(),
     };
     setState({ ...state, nextRouteId: newId + 1, routes: [...state.routes, copy] });
@@ -261,23 +286,68 @@ export function importAllFromJson(json: string) {
  */
 export function addRoute(build: (id: number) => RouteRecord): RouteRecord {
     const newId = state.nextRouteId;
-    const route = withDefaultTrainType({ ...build(newId), id: newId, updatedAt: Date.now() });
+    const built = build(newId);
+    if (isRouteNameTaken(built.name)) throw duplicateNameError(built.name);
+    const route = withDefaultTrainType({ ...built, id: newId, updatedAt: Date.now() });
     setState({ ...state, nextRouteId: newId + 1, routes: [...state.routes, route] });
     return route;
 }
 
 /**
- * 1路線分のJSONを読み込み、新しい路線として追加します
+ * 路線のデータを、指定の路線IDのものにします（駅・種別・列車が持つ路線IDも合わせる）。
  *
- * @param json exportRouteAsJsonで書き出したJSON文字列
+ * @param route 取り込む路線
+ * @param id 新しい路線ID
  */
-export function importRouteFromJson(json: string): RouteRecord {
+function withRouteId(route: RouteRecord, id: number): RouteRecord {
+    return {
+        ...route,
+        id,
+        updatedAt: Date.now(),
+        stations: route.stations.map((x) => ({ ...x, routeID: id })),
+        trainTypes: route.trainTypes.map((x) => ({ ...x, routeID: id })),
+        trips: route.trips.map((x) => ({ ...x, routeID: id })),
+    };
+}
+
+/**
+ * 取り込むJSONから路線を取り出します。「路線のエクスポート」（1路線分）と「全データのエクスポート」（全路線）の
+ * どちらの形式も読めます。同じ名前の路線が複数あるときは、後のものだけを取り込みます。
+ *
+ * @param json JSON文字列
+ */
+function parseImportedRoutes(json: string): RouteRecord[] {
     const parsed = JSON.parse(json) as unknown;
-    if (!isRouteRecord(parsed)) {
-        throw new Error("不正なファイル形式です");
-    }
-    const newId = state.nextRouteId;
-    const imported: RouteRecord = withDefaultTrainType({ ...parsed, id: newId, updatedAt: Date.now() });
-    setState({ ...state, nextRouteId: newId + 1, routes: [...state.routes, imported] });
+    const list: unknown[] = isValidStoreState(parsed) ? parsed.routes : [parsed];
+    if (list.length === 0 || !list.every(isRouteRecord)) throw new Error("不正なファイル形式です");
+    const byName = new Map<string, RouteRecord>();
+    for (const r of list) byName.set(r.name, r);
+    return [...byName.values()];
+}
+
+/**
+ * 路線のJSON（1路線分・全データのどちらの形式でも可）を読み込み、路線として追加します。
+ * 路線名が同じ路線がすでにあるときは、confirmOverwriteで確認し、了承されたら中身を置き換えます（路線IDは変わらない）。
+ * 了承されなければ、何も取り込みません。
+ *
+ * @param json exportRouteAsJson / exportAllAsJson で書き出したJSON文字列
+ * @param confirmOverwrite 同じ名前の路線があるとき、その路線名の一覧を受け取り、上書きしてよいかを返す関数
+ * @returns 取り込んだ路線。取り込みを取りやめたときはnull
+ */
+export function importRoutesFromJson(json: string, confirmOverwrite: (names: string[]) => boolean): RouteRecord[] | null {
+    const incoming = parseImportedRoutes(json);
+    const conflicts = incoming.filter((r) => isRouteNameTaken(r.name)).map((r) => r.name);
+    if (conflicts.length > 0 && !confirmOverwrite(conflicts)) return null;
+
+    let nextId = state.nextRouteId;
+    const routes = [...state.routes];
+    const imported = incoming.map((r) => {
+        const index = routes.findIndex((x) => x.name === r.name);
+        const route = withDefaultTrainType(withRouteId(r, index >= 0 ? routes[index].id : nextId++));
+        if (index >= 0) routes[index] = route;
+        else routes.push(route);
+        return route;
+    });
+    setState({ ...state, nextRouteId: nextId, routes });
     return imported;
 }
