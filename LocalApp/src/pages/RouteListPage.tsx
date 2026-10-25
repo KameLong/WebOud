@@ -15,6 +15,7 @@ import {
 import { OudiaImportDialog } from "../components/OudiaImportDialog.tsx";
 import { createSampleRoute } from "../sampleData.ts";
 import { HelpDialog, HelpList, HelpSection } from "../components/HelpDialog.tsx";
+import { getErrorMessage } from "../Util.ts";
 
 /**
  * テキストをファイルとしてダウンロードさせます。
@@ -118,7 +119,7 @@ export default function RouteListPage() {
             const text = await file.text();
             importRouteFromJson(text);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(getErrorMessage(e));
         } finally {
             routeFileReset.current?.();
         }
@@ -139,7 +140,7 @@ export default function RouteListPage() {
             const text = await file.text();
             importAllFromJson(text);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(getErrorMessage(e));
         } finally {
             allFileReset.current?.();
         }

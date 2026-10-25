@@ -1,7 +1,5 @@
 import type { KeyLike, Part } from "./types.ts";
-import type { TripWithStopTimesDto } from "./dto.ts";
-import type { StopTimeDto } from "./dto.ts";
-import type { StationDto } from "./dto.ts";
+import type { StationDto, StopTimeDto, TripWithStopTimesDto } from "./dto.ts";
 
 export const ARR_BORDER_BOTTOM_WIDTH = 1;
 
@@ -31,9 +29,6 @@ export function gridMetrics(fontSize: number): GridMetrics {
     };
 }
 
-/** ======================
- * utils
- * ====================== */
 /**
  * aからbまで（両端含む）の整数集合を返します。
  *
@@ -124,21 +119,9 @@ export function decodeParts(stationShowStyle: number, direct: number): Part[] {
  * @param lineHeight 1行分の高さ(px)（gridMetricsのLINE_HEIGHT）
  */
 export function cellHeight(style: number, lineHeight: number) {
-    const showStyle = decodeShowStyle(style);
-    let result = 0;
-    if (showStyle.showArr) {
-        result += lineHeight;
-    }
-    if (showStyle.showTrack) {
-        result += lineHeight;
-    }
-    if (showStyle.showDep) {
-        result += lineHeight;
-    }
-    if (showStyle.showDep && showStyle.showArr) {
-        result += ARR_BORDER_BOTTOM_WIDTH;
-    }
-    return result;
+    const { showArr, showTrack, showDep } = decodeShowStyle(style);
+    const lines = Number(showArr) + Number(showTrack) + Number(showDep);
+    return lineHeight * lines + (showArr && showDep ? ARR_BORDER_BOTTOM_WIDTH : 0);
 }
 
 /**

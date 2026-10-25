@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isImeComposing } from "../domain/utils.ts";
 import type { TripDto } from "../domain/dto.ts";
 
@@ -7,51 +7,43 @@ export type TrainTypeOption = {
     name: string;
 };
 
-/**
- * 列車番号・種別・列車名を編集するダイアログです。
- *
- * @param props open:表示中か / title:見出し(省略可) / trainTypes:選択肢の種別 / initial:編集対象 / onCancel:閉じる / onSave:保存
- */
-export function TrainPropertyDialog(props: {
+type Props = {
     open: boolean;
     title?: string;
     trainTypes: TrainTypeOption[];
     initial: TripDto | undefined;
     onCancel: () => void;
     onSave: (v: TripDto) => void;
-}) {
-    const { open, title, trainTypes, initial, onCancel, onSave } = props;
+};
 
-    const [no, setNo] = useState("");
-    const [trainTypeID, setTrainTypeID] = useState<number>(0);
-    const [name, setName] = useState("");
+/**
+ * 列車番号・種別・列車名を編集するダイアログです。開くたびに、編集対象の列車の値から入力欄を作り直します。
+ *
+ * @param props open:表示中か / title:見出し(省略可) / trainTypes:選択肢の種別 / initial:編集対象 / onCancel:閉じる / onSave:保存
+ */
+export function TrainPropertyDialog(props: Props) {
+    if (!props.open || !props.initial) return null;
+    return <TrainPropertyBody key={props.initial.id} {...props} initial={props.initial} />;
+}
+
+/**
+ * ダイアログの本体（入力欄の状態を持つ）。
+ *
+ * @param props TrainPropertyDialogと同じ（initialは必須）
+ */
+function TrainPropertyBody({ title, trainTypes, initial, onCancel, onSave }: Props & { initial: TripDto }) {
+    const [no, setNo] = useState(initial.no ?? "");
+    const [trainTypeID, setTrainTypeID] = useState<number>(initial.trainTypeID ?? trainTypes[0]?.id ?? 0);
+    const [name, setName] = useState(initial.name ?? "");
 
     const noRef = useRef<HTMLInputElement | null>(null);
 
-    const fallbackTrainTypeID = useMemo(() => {
-        return trainTypes.length ? trainTypes[0].id : 0;
-    }, [trainTypes]);
-
     useEffect(() => {
-        if (!open) return;
-        if (!initial) return;
-        setNo(initial.no ?? "");
-        setTrainTypeID(initial.trainTypeID ?? fallbackTrainTypeID);
-        setName(initial.name ?? "");
-
         requestAnimationFrame(() => noRef.current?.focus());
-    }, [open, initial, fallbackTrainTypeID]);
-
-    if (!open) return null;
+    }, []);
 
     function submit() {
-        if (!initial) return;
-        onSave({
-            ...initial,
-            no,
-            trainTypeID,
-            name,
-        });
+        onSave({ ...initial, no, trainTypeID, name });
     }
 
     return (

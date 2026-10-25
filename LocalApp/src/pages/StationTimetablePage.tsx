@@ -6,7 +6,8 @@ import { collectDestinations, collectTrainTypes, useStationTimetable, type Stati
 import { readableTextColor } from "../domain/colors.ts";
 import { usePdfExport } from "../hooks/usePdfExport.ts";
 import { downloadBytes, loadPdfFonts, subsetFontInBrowser } from "../pdf/pdfFonts.ts";
-import { HelpDialog, HelpList, HelpSection, helpButtonStyle } from "../components/HelpDialog.tsx";
+import { HelpDialog, HelpList, HelpSection } from "../components/HelpDialog.tsx";
+import { helpButtonStyle } from "../components/helpButtonStyle.ts";
 import type { TrainTypeDto } from "../domain/dto.ts";
 
 /** 見出し帯・外枠の色 */

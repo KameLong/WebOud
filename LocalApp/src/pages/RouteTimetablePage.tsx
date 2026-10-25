@@ -24,7 +24,8 @@ import { AsyncQueue } from "../Util.ts";
 import { FALLBACK_TRAIN_TYPE } from "../domain/defaults.ts";
 import { usePdfExport } from "../hooks/usePdfExport.ts";
 import { useContinuousTimeInput } from "../hooks/useContinuousTimeInput.ts";
-import { HelpDialog, HelpSection, HelpShortcutTable, helpButtonStyle } from "../components/HelpDialog.tsx";
+import { HelpDialog, HelpSection, HelpShortcutTable } from "../components/HelpDialog.tsx";
+import { helpButtonStyle } from "../components/helpButtonStyle.ts";
 import { MobileTimetableKeypad } from "../components/MobileTimetableKeypad.tsx";
 import { useIsMobile } from "../hooks/useIsMobile.ts";
 

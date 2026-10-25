@@ -222,14 +222,6 @@ function TrainTypeHeaderComponent() {
 }
 
 /**
- * 列車種別一覧の1行を描画します。
- *
- * @param item 表示する種別
- * @param isSelected 選択中か
- * @param onMouseDown 行のmousedownハンドラ（選択処理）
- * @param update 行の値を更新する関数（未保存変更として記録される）
- */
-/**
  * 種別名の入力欄と、削除ボタン（ゴミ箱アイコン）。行の選択状態が変わっても再描画されないよう分離している。
  *
  * @param props item:種別 / update:種別の値を更新する関数 / remove:この種別を削除する関数
@@ -300,6 +292,14 @@ const TrainTypeFields = React.memo(function TrainTypeFields({ item, update }: Pi
     );
 });
 
+/**
+ * 列車種別一覧の1行を描画します。
+ *
+ * @param item 表示する種別
+ * @param isSelected 選択中か
+ * @param onMouseDown 行のmousedownハンドラ（選択処理）
+ * @param update 行の値を更新する関数（未保存変更として記録される）
+ */
 const TrainTypeRowComponent = React.memo(function TrainTypeRowComponent({ item, isSelected, onMouseDown, onSelectClick, update, remove }: RowRenderProps<TrainTypeDto>) {
     return (
         <div

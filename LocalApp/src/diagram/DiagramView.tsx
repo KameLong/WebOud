@@ -280,7 +280,7 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
         return () => {
             window.removeEventListener("resize", resizeEvent);
         };
-    }, [render]);
+    }, [render, SCALE]);
     useEffect(() => {
         if (!ref.current) {
             return;
@@ -292,7 +292,7 @@ export function DiagramView({ routeStations, downLines, upLines }: DiagramViewPr
             requestAnimationFrame(() => render(new DiagramTransformC(transform.x, transform.y, transform.xScale, transform.yScale, SCALE)));
         };
         requestAnimationFrame(() => render(new DiagramTransformC(transform.x, transform.y, transform.xScale, transform.yScale, SCALE)));
-    }, [render]);
+    }, [render, SCALE]);
 
     return (
         <div ref={ref} style={{ background: "white", position: "relative", height: "100%", overflowX: "auto", overflowY: "auto" }}>

@@ -69,11 +69,3 @@ export function HelpShortcutTable(props: { rows: [string, string][] }) {
         </Table>
     );
 }
-
-export const helpButtonStyle: React.CSSProperties = {
-    width: 28,
-    height: 28,
-    borderRadius: "50%",
-    padding: 0,
-    fontWeight: 700,
-};

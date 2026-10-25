@@ -132,14 +132,6 @@ function StationHeaderComponent() {
 }
 
 /**
- * 駅一覧の1行を描画します。
- *
- * @param item 表示する駅
- * @param isSelected 選択中か
- * @param onMouseDown 行のmousedownハンドラ（選択処理）
- * @param update 行の値を更新する関数（未保存変更として記録される）
- */
-/**
  * 駅と駅の間の「駅を挿入」ボタン。行の選択状態が変わっても再描画されないよう分離している。
  *
  * @param props name:駅名（ボタンのラベル用） / insertBefore:この駅の手前に挿入する処理
@@ -221,6 +213,14 @@ const StationBlocks = React.memo(function StationBlocks({ showStyle, update }: {
     );
 });
 
+/**
+ * 駅一覧の1行を描画します。
+ *
+ * @param item 表示する駅
+ * @param isSelected 選択中か
+ * @param onMouseDown 行のmousedownハンドラ（選択処理）
+ * @param update 行の値を更新する関数（未保存変更として記録される）
+ */
 const StationRowComponent = React.memo(function StationRowComponent({ item, isSelected, onMouseDown, onSelectClick, update, remove, insertBefore }: RowRenderProps<StationDto>) {
     return (
         <>

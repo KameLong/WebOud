@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Alert, Button, FileButton, Group, Modal, NativeSelect, Stack, Text, TextInput } from "@mantine/core";
 import { oudiaToRouteRecord, parseOudia, type ParsedOudia } from "../oudia/oudiaImport.ts";
 import { addRoute } from "../store/localStore.ts";
+import { getErrorMessage } from "../Util.ts";
 
 /**
  * OuDiaファイル(.oud)を読み込み、新しい路線として取り込むダイアログです。
@@ -87,7 +88,7 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
             setRouteName(result.summary.routeName);
             setDiagramIndex(0);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(getErrorMessage(e));
         }
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getRoute, listRoutes, subscribe } from "../store/localStore.ts";
 
@@ -37,11 +37,12 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
 
     const [openIds, setOpenIds] = useState<Set<number>>(() => new Set(activeRouteId != null ? [activeRouteId] : []));
 
-    // 表示中の路線は常に展開しておく
-    useEffect(() => {
-        if (activeRouteId == null) return;
-        setOpenIds((prev) => (prev.has(activeRouteId) ? prev : new Set(prev).add(activeRouteId)));
-    }, [activeRouteId]);
+    // 表示中の路線が変わったときは、その路線を展開する（自分で閉じた路線は、表示中の路線が変わるまで閉じたままにする）
+    const [shownRouteId, setShownRouteId] = useState(activeRouteId);
+    if (shownRouteId !== activeRouteId) {
+        setShownRouteId(activeRouteId);
+        if (activeRouteId != null && !openIds.has(activeRouteId)) setOpenIds(new Set(openIds).add(activeRouteId));
+    }
 
     /**
      * 路線の開閉を切り替えます。
