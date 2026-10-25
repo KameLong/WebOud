@@ -28,7 +28,7 @@ src/
   main.tsx            エントリ
   app/                アプリ全体（ルーティング・テーマ・全体CSS）
   domain/             画面に依存しないデータの型と計算（駅の表示形式・時刻・列車・色など）
-  store/              localStorageへの保存、路線データの操作API、データ取得フック、サンプルダイヤ
+  store/              localStorageへの保存、路線データの操作API、データ取得フック、サンプルダイヤの読み込み（`public/sample/sample.weboud.json`）
   shared/
     lib/              エラー処理・キー入力・直列実行キュー
     ui/               ヘルプ・ゴミ箱アイコン・均等割付の文字など共通の部品

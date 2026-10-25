@@ -43,6 +43,16 @@ export default defineConfig({
                             cacheableResponse: { statuses: [0, 200] },
                         },
                     },
+                    {
+                        // サンプルダイヤ（約1.4MB）。最初から保存せず、一度読み込んだあとはオフラインでも使えるようにする
+                        urlPattern: ({ url }) => url.pathname.includes("/sample/"),
+                        handler: "CacheFirst",
+                        options: {
+                            cacheName: "sample-data",
+                            expiration: { maxEntries: 4 },
+                            cacheableResponse: { statuses: [0, 200] },
+                        },
+                    },
                 ],
             },
             devOptions: {
