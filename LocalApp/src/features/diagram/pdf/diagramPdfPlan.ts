@@ -1,3 +1,4 @@
+import { translate } from "../messages.ts";
 import type { DiagramStation } from "../DiagramData.ts";
 import { pageSize, type PdfOrientation } from "../../timetable/pdf/routeTimetablePlan.ts";
 
@@ -93,9 +94,9 @@ export function planDiagramPdf(stations: DiagramStation[], options: DiagramPdfOp
     const pagesX = Math.ceil(DIAGRAM_SPAN_HOURS / hours);
 
     const overflow: string[] = [];
-    if (plotW < 60) overflow.push("余白が大きすぎて、横の描画領域がありません");
-    if (plotH < 60) overflow.push("余白が大きすぎて、縦の描画領域がありません");
-    if (stations.length < 2) overflow.push("駅が2つ以上ありません");
+    if (plotW < 60) overflow.push(translate().t("planMarginW"));
+    if (plotH < 60) overflow.push(translate().t("planMarginH"));
+    if (stations.length < 2) overflow.push(translate().t("planStations"));
 
     return {
         pageW,

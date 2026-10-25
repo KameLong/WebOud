@@ -2,19 +2,20 @@ import fontkit from "@pdf-lib/fontkit";
 import { clip, degrees, endPath, PDFDocument, popGraphicsState, pushGraphicsState, rectangle, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { parseHexColor } from "../../domain/colors.ts";
 import type { FontSubsetter } from "./fontSubset.ts";
+import { hasCjk } from "../lib/text.ts";
 
-/** PDFに埋め込む日本語フォントのデータ */
+/** PDFに埋め込むフォントのデータ */
 export type PdfFonts = {
-    /** 日本語フォント（標準・太字） */
-    regular: Uint8Array;
-    bold: Uint8Array;
+    /** 本文のフォント（標準・太字）。優先する順に並べ、先頭のフォントに無い文字は、後ろのフォントで描く */
+    regular: Uint8Array[];
+    bold: Uint8Array[];
     /** 時刻の数字に使うDiaProフォント（標準・太字） */
     diaRegular: Uint8Array;
     diaBold: Uint8Array;
 };
 
 /** PDFで使うフォント一式 */
-export type PdfTextFonts = { regular: TextFont; bold: TextFont; diaRegular: TextFont; diaBold: TextFont };
+export type PdfTextFonts = { regular: TextFont[]; bold: TextFont[]; diaRegular: TextFont; diaBold: TextFont };
 
 /** フォントに無い文字を置き換える先（それも無ければ「?」） */
 const FALLBACK_CHARS: Record<string, string> = { "➡": "→", "▲": "△", "●": "○", "⇂": "↓", "║": "｜" };
@@ -56,39 +57,49 @@ function isDiaChar(dia: TextFont, ch: string): boolean {
 }
 
 /**
- * フォントに無い文字を、代わりの文字に置き換えます（それも無ければ「?」）。
+ * 1文字を描くフォントと、実際に描く文字を決めます。優先順のフォントのうち、その文字を持つ最初のフォントで描きます。
+ * どれにも無い文字は、代わりの文字（FALLBACK_CHARS）に、それも無ければ「?」に置き換えます。
  *
- * @param f フォント
- * @param text 文字列（undefined/nullは空文字列として扱う）
+ * @param chain 優先順のフォント（1つ以上）
+ * @param ch 1文字
  */
-export function safe(f: TextFont, text: string | null | undefined): string {
-    // 古いデータなどで列車番号・列車名が無い(undefined)ことがあるので、空文字列として扱う
-    return [...(text ?? "")]
-        .map((ch) => {
-            if (hasChar(f, ch)) return ch;
-            const alt = FALLBACK_CHARS[ch];
-            return alt && hasChar(f, alt) ? alt : "?";
-        })
-        .join("");
+function pickChar(chain: TextFont[], ch: string): { font: TextFont; ch: string } {
+    for (const f of chain) if (hasChar(f, ch)) return { font: f, ch };
+    const alt = FALLBACK_CHARS[ch];
+    if (alt) for (const f of chain) if (hasChar(f, alt)) return { font: f, ch: alt };
+    return { font: chain[0], ch: "?" };
 }
 
 /**
- * PDFに日本語フォント（標準・太字）を埋め込みます。フォントは、PDFで使う文字だけに絞ってから埋め込みます
- * （pdf-lib自身のサブセット化は文字が欠けるため使わない）。
+ * PDFにフォント（本文の標準・太字、DiaPro）を埋め込みます。フォントは、PDFで使う文字だけに絞ってから埋め込みます
+ * （pdf-lib自身のサブセット化は文字が欠けるため使わない）。同じフォントが複数の並びに入っているときは、1回だけ埋め込みます。
  *
  * @param doc PDF文書
- * @param fonts フォントのデータ（日本語フォントとDiaPro）
+ * @param fonts フォントのデータ
  * @param subset フォントを必要な文字だけに絞る関数
  * @param used PDFに描く可能性のある文字
  */
 async function embedTextFonts(doc: PDFDocument, fonts: PdfFonts, subset: FontSubsetter, used: string): Promise<PdfTextFonts> {
     doc.registerFontkit(fontkit);
     const text = used + FALLBACK_TARGET_CHARS;
-    const embed = async (bytes: Uint8Array): Promise<TextFont> => {
-        const font = await doc.embedFont(await subset(bytes, text), { subset: false });
-        return { font, chars: new Set(font.getCharacterSet()) };
+    const embedded = new Map<Uint8Array, Promise<TextFont>>();
+    const embed = (bytes: Uint8Array): Promise<TextFont> => {
+        let p = embedded.get(bytes);
+        if (!p) {
+            p = (async () => {
+                const font = await doc.embedFont(await subset(bytes, text), { subset: false });
+                return { font, chars: new Set(font.getCharacterSet()) };
+            })();
+            embedded.set(bytes, p);
+        }
+        return p;
     };
-    return { regular: await embed(fonts.regular), bold: await embed(fonts.bold), diaRegular: await embed(fonts.diaRegular), diaBold: await embed(fonts.diaBold) };
+    return {
+        regular: await Promise.all(fonts.regular.map(embed)),
+        bold: await Promise.all(fonts.bold.map(embed)),
+        diaRegular: await embed(fonts.diaRegular),
+        diaBold: await embed(fonts.diaBold),
+    };
 }
 
 /**
@@ -120,19 +131,17 @@ export class Canvas {
 
     /**
      * 文字列を、フォントごとの連続した部分（run）に分ける。dia指定のときは、DiaProにある文字はDiaPro、
-     * 無い文字（「〇」「:」「（」など）は日本語フォントで描く。
+     * 無い文字（「〇」「:」「（」など）は本文のフォントで描く。本文のフォントは、優先順に、その文字を持つものを使う。
      */
     private runs(text: string, bold: boolean, dia: boolean): { font: TextFont; text: string }[] {
-        const jp = bold ? this.fonts.bold : this.fonts.regular;
-        if (!dia) return [{ font: jp, text: safe(jp, text) }];
+        const chain = bold ? this.fonts.bold : this.fonts.regular;
         const dm = bold ? this.fonts.diaBold : this.fonts.diaRegular;
         const out: { font: TextFont; text: string }[] = [];
         for (const ch of text ?? "") {
-            const f = isDiaChar(dm, ch) ? dm : jp;
-            const t = f === jp ? safe(jp, ch) : ch;
+            const picked = dia && isDiaChar(dm, ch) ? { font: dm, ch } : pickChar(chain, ch);
             const last = out[out.length - 1];
-            if (last && last.font === f) last.text += t;
-            else out.push({ font: f, text: t });
+            if (last && last.font === picked.font) last.text += picked.ch;
+            else out.push({ font: picked.font, text: picked.ch });
         }
         return out;
     }
@@ -182,8 +191,11 @@ export class Canvas {
         const t0 = text ?? "";
         const dm = this.fonts.diaRegular;
         const useDia = !!opts.dia && [...t0].every((ch) => isDiaChar(dm, ch));
-        const f = useDia ? dm : this.fonts.regular;
-        const t = useDia ? t0 : safe(f, t0);
+        // 1回の描画で描くので、全文字を持つ最初のフォントを使う（無ければ、先頭のフォントで、無い文字を置き換えて描く）
+        const chain = this.fonts.regular;
+        const whole = chain.find((f) => [...t0].every((ch) => hasChar(f, ch)));
+        const f = useDia ? dm : (whole ?? chain[0]);
+        const t = useDia || whole ? t0 : [...t0].map((ch) => pickChar([f], ch).ch).join("");
         this.page.drawText(t, { x, y: this.pageH - y, size, font: f.font, color: toRgb(color), rotate: degrees((-angle * 180) / Math.PI) });
     }
 
@@ -221,6 +233,11 @@ export class Canvas {
         const chars = [...(text ?? "")];
         if (chars.length === 0) return;
         const fit = this.fitSize(text, size, width, size * 0.4);
+        if (!hasCjk(text ?? "")) {
+            // 英語など：文字の間隔は広げず、左寄せで、はみ出すときだけ文字を小さくする
+            this.text(text, x, centerY, fit, "#000000");
+            return;
+        }
         const total = chars.reduce((sum, ch) => sum + this.measure(ch, fit), 0);
         const gap = chars.length > 1 ? Math.max(0, (width - total) / (chars.length - 1)) : 0;
         let cx = x;

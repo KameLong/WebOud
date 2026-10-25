@@ -14,6 +14,8 @@ import {
     type DiagramPdfOptions,
     type DiagramPdfPlan,
 } from "./diagramPdfPlan.ts";
+import { translate } from "../messages.ts";
+import { translate as pdfTranslate } from "../../../shared/pdf/messages.ts";
 
 /** ダイヤグラムPDFの入力（画面のダイヤグラムと同じ内容） */
 export type DiagramPdfInput = {
@@ -122,12 +124,14 @@ export async function buildDiagramPdf(input: DiagramPdfInput, fonts: PdfFonts, s
     const { stations } = input;
     const plan = planDiagramPdf(stations, options);
     const { pageW, pageH, margin, stationColW, plotW, plotH, yScale, xScale, hours, pagesX, slices, totalPages } = plan;
-    const title = `${input.routeName}　ダイヤグラム`;
+    const { t, allText } = translate();
+    const pdfT = pdfTranslate().t;
+    const title = t("pdfTitle", { route: input.routeName });
     const firstTime = stations[0]?.stationTime ?? 0;
     const lastTime = stations[stations.length - 1]?.stationTime ?? firstTime;
     const allLines = [...input.downLines, ...input.upLines];
 
-    const used = ["0123456789:()（）/ -ページ時刻", title, ...stations.map((s) => s.station.name), ...allLines.map((l) => l.number)].join("");
+    const used = ["0123456789:()（）/ -", allText(), pdfTranslate().allText(), title, ...stations.map((s) => s.station.name), ...allLines.map((l) => l.number)].join("");
     const { doc, textFonts } = await createPdfDocument(title, fonts, subset, used);
 
     const labelStep = LABEL_STEPS.find((step) => step * xScale >= LABEL_MIN_GAP) ?? 3600;
@@ -150,8 +154,8 @@ export async function buildDiagramPdf(input: DiagramPdfInput, fonts: PdfFonts, s
 
             // タイトル行とページ番号（時間の範囲つき）
             c.text(title, margin, margin + TITLE_H / 2, 11, "#000000", { bold: true });
-            const sliceNote = slices > 1 ? `（縦 ${slice + 1}/${slices}）` : "";
-            c.text(`${hm(t0)}-${hm(t1)}${sliceNote}　${pageNo} / ${totalPages} ページ`, pageW - margin, margin + TITLE_H / 2, 9, "#555555", { align: "right" });
+            const sliceNote = slices > 1 ? t("pdfSliceNote", { n: slice + 1, total: slices }) : "";
+            c.text(`${hm(t0)}-${hm(t1)}${sliceNote}  ${pdfT("pageOf", { page: pageNo, total: totalPages })}`, pageW - margin, margin + TITLE_H / 2, 9, "#555555", { align: "right" });
 
             // 時刻の目盛り（上端）
             for (let t = Math.ceil(t0 / labelStep) * labelStep; t <= t1; t += labelStep) {

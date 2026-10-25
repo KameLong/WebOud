@@ -1,3 +1,6 @@
+import { useT } from "../messages.ts";
+import { useCommonT } from "../../../shared/i18n/common.ts";
+import { useT as usePdfT } from "../../../shared/pdf/messages.ts";
 import { useMemo, useState } from "react";
 import { Alert, Button, Group, Modal, NumberInput, Stack, Text } from "@mantine/core";
 import { PdfOrientationControl } from "../../../shared/pdf/PdfOrientationControl.tsx";
@@ -24,6 +27,9 @@ export function DiagramPdfDialog(props: { open: boolean; onClose: () => void; st
  * @param props DiagramPdfDialogと同じ
  */
 function DiagramPdfBody({ onClose, stations, busy, onCreate }: Parameters<typeof DiagramPdfDialog>[0]) {
+    const { t } = useT();
+    const c = useCommonT().t;
+    const pdfT = usePdfT();
     const [orientation, setOrientation] = useState<PdfOrientation>("landscape");
     const [marginMm, setMarginMm] = useState<number>(DEFAULT_MARGIN_MM);
     const [hoursPerPage, setHoursPerPage] = useState<number>(DEFAULT_HOURS_PER_PAGE);
@@ -35,28 +41,28 @@ function DiagramPdfBody({ onClose, stations, busy, onCreate }: Parameters<typeof
     const fits = plan.overflow.length === 0;
 
     return (
-        <Modal opened onClose={onClose} title="ダイヤグラムのPDF出力（A4）" centered size="md" styles={{ title: { fontWeight: 700 } }}>
+        <Modal opened onClose={onClose} title={t("dlgTitle")} centered size="md" styles={{ title: { fontWeight: 700 } }}>
             <Stack gap="sm">
                 <Text size="sm" c="dimmed">
-                    ダイヤグラムを、A4用紙のPDFにします。横は午前3時から翌午前3時までを、1ページに入れる時間ごとに分けます。どのページにも駅名欄を表示します。
+                    {t("dlgIntro")}
                 </Text>
 
                 <PdfOrientationControl value={orientation} onChange={setOrientation} />
 
                 <Group gap="sm" align="flex-end" wrap="wrap">
-                    <NumberInput label="余白" value={marginMm} onChange={(v) => setMarginMm(Math.max(0, Number(v) || 0))} min={0} max={40} step={1} suffix=" mm" style={{ width: 110 }} />
+                    <NumberInput label={t("margin")} value={marginMm} onChange={(v) => setMarginMm(Math.max(0, Number(v) || 0))} min={0} max={40} step={1} suffix=" mm" style={{ width: 110 }} />
                     <NumberInput
-                        label="1ページの時間（横）"
+                        label={t("hoursPerPage")}
                         value={hoursPerPage}
                         onChange={(v) => setHoursPerPage(Math.min(24, Math.max(1, Math.round(Number(v) || DEFAULT_HOURS_PER_PAGE))))}
                         min={1}
                         max={24}
                         step={1}
-                        suffix=" 時間"
+                        suffix={t("hoursSuffix")}
                         style={{ width: 150 }}
                     />
                     <NumberInput
-                        label="高さ（縦）"
+                        label={t("height")}
                         value={heightMm ?? plan.fitHeightMm}
                         onChange={(v) => setHeightMm(v === "" ? null : Math.max(20, Number(v) || 20))}
                         min={20}
@@ -65,29 +71,31 @@ function DiagramPdfBody({ onClose, stations, busy, onCreate }: Parameters<typeof
                         style={{ width: 120 }}
                     />
                     <Button variant="default" size="compact-sm" onClick={() => setHeightMm(null)} disabled={heightMm == null}>
-                        用紙に合わせる
+                        {t("fitPaper")}
                     </Button>
                 </Group>
                 <Text size="xs" c="dimmed">
-                    高さが用紙に入らないときは、縦にもページを分けます。
+                    {t("splitNote")}
                 </Text>
 
                 {fits ? (
                     <Text size="sm">
-                        A4{orientation === "landscape" ? "横" : "縦"}で <b>{plan.totalPages} ページ</b>になります（時間 {plan.pagesX} × 縦 {plan.slices}）。
+                        {t("pagesA", { orientation: pdfT.t(orientation === "landscape" ? "landscapeShort" : "portraitShort") })}
+                        <b>{t("pagesCount", { n: plan.totalPages })}</b>
+                        {t("pagesB", { x: plan.pagesX, y: plan.slices })}
                     </Text>
                 ) : (
-                    <Alert color="red" title="PDFを作れません">
-                        {plan.overflow.join("。")}。
+                    <Alert color="red" title={t("cannotMake")}>
+                        {plan.overflow.join(c("sentenceJoin"))}{c("sentenceEnd")}
                     </Alert>
                 )}
 
                 <Group justify="flex-end" gap="xs">
                     <Button variant="default" onClick={onClose}>
-                        キャンセル
+                        {c("cancel")}
                     </Button>
                     <Button onClick={() => onCreate(options)} loading={busy} disabled={!fits}>
-                        PDFを作成
+                        {t("create")}
                     </Button>
                 </Group>
             </Stack>

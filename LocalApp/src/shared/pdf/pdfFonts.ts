@@ -1,8 +1,12 @@
+import { translate } from "./messages.ts";
 import hbSubsetWasmUrl from "harfbuzzjs/dist/harfbuzz-subset.wasm?url";
 import { createFontSubsetter } from "./fontSubset.ts";
 import type { PdfFonts } from "./pdfCommon.ts";
+import type { Lang } from "../i18n/languages.ts";
+import { getLanguage } from "../../store/settings.ts";
 
-let cache: Promise<PdfFonts> | null = null;
+/** 言語ごとの読み込み結果（一度読み込んだフォントは使い回す） */
+const cache = new Map<Lang, Promise<PdfFonts>>();
 
 /**
  * 指定のURLのフォントファイルを読み込みます。
@@ -11,25 +15,44 @@ let cache: Promise<PdfFonts> | null = null;
  */
 async function fetchFont(url: string): Promise<Uint8Array> {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`フォントを読み込めませんでした (${res.status}): ${url}`);
+    if (!res.ok) throw new Error(translate().t("fontLoadFailed", { status: res.status, url }));
     return new Uint8Array(await res.arrayBuffer());
 }
 
 /**
- * PDFに埋め込むフォント（日本語フォント＝BIZ UDゴシックと、時刻の数字用のDiaPro）を読み込みます。最初のPDF出力のときだけ通信し、以降は読み込み済みのものを使います。
+ * PDFに埋め込むフォントを読み込みます。本文のフォントは言語ごとに違い、日本語・Englishは BIZ UDゴシック、
+ * 繁體中文は Noto Sans TC（無い文字は BIZ UDゴシックで補う）です。時刻の数字には、どの言語でもDiaProを使います。
+ * 最初のPDF出力のときだけ通信し、以降は読み込み済みのものを使います。
+ *
+ * @param lang PDFの言語（表示言語）
  */
-export function loadPdfFonts(): Promise<PdfFonts> {
-    if (!cache) {
+export function loadPdfFonts(lang: Lang = getLanguage()): Promise<PdfFonts> {
+    let loading = cache.get(lang);
+    if (!loading) {
         const base = `${import.meta.env.BASE_URL}pdf-font/`;
         const dia = `${import.meta.env.BASE_URL}font/`;
-        cache = Promise.all([fetchFont(`${base}BIZUDGothic-Regular.ttf`), fetchFont(`${base}BIZUDGothic-Bold.ttf`), fetchFont(`${dia}DiaPro-Regular.ttf`), fetchFont(`${dia}DiaPro-Bold.ttf`)])
-            .then(([regular, bold, diaRegular, diaBold]) => ({ regular, bold, diaRegular, diaBold }))
+        const names = lang === "zh-TW" ? ["NotoSansTC-Regular.ttf", "NotoSansTC-Bold.ttf"] : [];
+        loading = Promise.all([
+            fetchFont(`${base}BIZUDGothic-Regular.ttf`),
+            fetchFont(`${base}BIZUDGothic-Bold.ttf`),
+            fetchFont(`${dia}DiaPro-Regular.ttf`),
+            fetchFont(`${dia}DiaPro-Bold.ttf`),
+            ...names.map((n) => fetchFont(`${base}${n}`)),
+        ])
+            .then(([jpRegular, jpBold, diaRegular, diaBold, tcRegular, tcBold]) => ({
+                // 繁體中文の太字は、Noto Sans TC Boldに無い文字を、Regular、BIZ UDゴシックの順で補う
+                regular: tcRegular ? [tcRegular, jpRegular] : [jpRegular],
+                bold: tcBold ? [tcBold, tcRegular, jpBold] : [jpBold],
+                diaRegular,
+                diaBold,
+            }))
             .catch((e) => {
-                cache = null; // 失敗したら、次回やり直せるようにする
+                cache.delete(lang); // 失敗したら、次回やり直せるようにする
                 throw e;
             });
+        cache.set(lang, loading);
     }
-    return cache;
+    return loading;
 }
 
 /**
@@ -37,7 +60,7 @@ export function loadPdfFonts(): Promise<PdfFonts> {
  */
 export const subsetFontInBrowser = createFontSubsetter(async () => {
     const res = await fetch(hbSubsetWasmUrl);
-    if (!res.ok) throw new Error(`フォント処理用のファイルを読み込めませんでした (${res.status})`);
+    if (!res.ok) throw new Error(translate().t("wasmLoadFailed", { status: res.status }));
     return res.arrayBuffer();
 });
 

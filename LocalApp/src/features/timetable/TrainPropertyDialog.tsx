@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { isImeComposing } from "../../shared/lib/keyboard.ts";
 import type { TripDto } from "../../domain/dto.ts";
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
 
 export type TrainTypeOption = {
     id: number;
@@ -32,6 +34,8 @@ export function TrainPropertyDialog(props: Props) {
  * @param props TrainPropertyDialogと同じ（initialは必須）
  */
 function TrainPropertyBody({ title, trainTypes, initial, onCancel, onSave }: Props & { initial: TripDto }) {
+    const { t } = useT();
+    const c = useCommonT().t;
     const [no, setNo] = useState(initial.no ?? "");
     const [trainTypeID, setTrainTypeID] = useState<number>(initial.trainTypeID ?? trainTypes[0]?.id ?? 0);
     const [name, setName] = useState(initial.name ?? "");
@@ -82,26 +86,26 @@ function TrainPropertyBody({ title, trainTypes, initial, onCancel, onSave }: Pro
                     padding: 14,
                 }}
             >
-                <div style={{ fontWeight: 700, marginBottom: 10 }}>{title ?? "列車のプロパティ"}</div>
+                <div style={{ fontWeight: 700, marginBottom: 10 }}>{title ?? t("propTitle")}</div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 8, alignItems: "center" }}>
-                    <div style={{ fontSize: 12, color: "#444" }}>列車番号</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{c("trainNo")}</div>
                     <input
                         ref={noRef}
                         value={no}
                         onChange={(e) => setNo(e.target.value)}
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
-                        placeholder="例: 123"
+                        placeholder={t("propNoPlaceholder")}
                     />
 
-                    <div style={{ fontSize: 12, color: "#444" }}>列車種別</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{c("trainType")}</div>
                     <select
                         value={trainTypeID}
                         onChange={(e) => setTrainTypeID(Number(e.target.value))}
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
                     >
                         {trainTypes.length === 0 ? (
-                            <option value={0}>(種別なし)</option>
+                            <option value={0}>{t("propNoTypes")}</option>
                         ) : (
                             trainTypes.map((tt) => (
                                 <option key={tt.id} value={tt.id}>
@@ -111,18 +115,18 @@ function TrainPropertyBody({ title, trainTypes, initial, onCancel, onSave }: Pro
                         )}
                     </select>
 
-                    <div style={{ fontSize: 12, color: "#444" }}>列車名</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{c("trainName")}</div>
                     <input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
-                        placeholder="任意"
+                        placeholder={t("propNamePlaceholder")}
                     />
                 </div>
 
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
                     <button onClick={onCancel} style={{ padding: "8px 12px" }}>
-                        キャンセル
+                        {c("cancel")}
                     </button>
                     <button onClick={submit} style={{ padding: "8px 12px" }}>
                         OK

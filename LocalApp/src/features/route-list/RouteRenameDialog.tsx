@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Button, Group, Modal, Stack, TextInput } from "@mantine/core";
 import { isImeComposing } from "../../shared/lib/keyboard.ts";
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
+import { translate as translateStore } from "../../store/messages.ts";
 import { isRouteNameTaken, renameRoute } from "../../store/localStore.ts";
 
 /**
@@ -19,9 +22,11 @@ export function RouteRenameDialog(props: { route: { id: number; name: string } |
  * @param props route:名前を変える路線 / onClose:閉じる
  */
 function RouteRenameBody({ route, onClose }: { route: { id: number; name: string }; onClose: () => void }) {
+    const { t } = useT();
+    const c = useCommonT().t;
     const [name, setName] = useState(route.name);
     const trimmed = name.trim();
-    const error = trimmed === "" ? "路線名を入力してください" : isRouteNameTaken(trimmed, route.id) ? `「${trimmed}」という名前の路線はすでにあります` : null;
+    const error = trimmed === "" ? t("renameEmpty") : isRouteNameTaken(trimmed, route.id) ? translateStore().t("duplicateName", { name: trimmed }) : null;
 
     /** 路線名を変更して閉じる（名前が正しくないときは何もしない） */
     function save() {
@@ -31,11 +36,11 @@ function RouteRenameBody({ route, onClose }: { route: { id: number; name: string
     }
 
     return (
-        <Modal opened onClose={onClose} title="路線名の変更" centered size="sm" styles={{ title: { fontWeight: 700 } }}>
+        <Modal opened onClose={onClose} title={t("renameTitle")} centered size="sm" styles={{ title: { fontWeight: 700 } }}>
             <Stack gap="sm">
                 <TextInput
                     data-autofocus
-                    label="路線名"
+                    label={t("renameLabel")}
                     value={name}
                     onChange={(e) => setName(e.currentTarget.value)}
                     error={error}
@@ -49,10 +54,10 @@ function RouteRenameBody({ route, onClose }: { route: { id: number; name: string
                 />
                 <Group justify="flex-end" gap="xs">
                     <Button variant="default" onClick={onClose}>
-                        キャンセル
+                        {c("cancel")}
                     </Button>
                     <Button onClick={save} disabled={!!error}>
-                        変更
+                        {c("change")}
                     </Button>
                 </Group>
             </Stack>

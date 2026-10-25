@@ -1,3 +1,4 @@
+import { useT } from "./messages.ts";
 import { useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getRoute, listRoutes, subscribe } from "../../store/localStore.ts";
@@ -31,6 +32,7 @@ function parseActive(pathname: string): { routeId: number | null; page: ActivePa
 export function RouteTreeList(props: { onNavigate?: () => void }) {
     const { onNavigate } = props;
     const nav = useNavigate();
+    const { t } = useT();
     const location = useLocation();
     const routes = useSyncExternalStore(subscribe, listRoutes);
     const { routeId: activeRouteId, page: activePage } = parseActive(location.pathname);
@@ -74,7 +76,7 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
                 onClick={() => go("/")}
                 style={{ padding: "10px 12px", borderBottom: "1px solid #ddd", cursor: "pointer", fontWeight: 600, fontSize: 13, color: "#0f5b8a" }}
             >
-                ← 路線一覧
+                {t("routeList")}
             </div>
 
             <div
@@ -88,7 +90,7 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
                     fontWeight: location.pathname === "/settings" ? 700 : 400,
                 }}
             >
-                ⚙ 設定
+                {t("settings")}
             </div>
 
             <div style={{ padding: "4px 0" }}>
@@ -136,12 +138,12 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
                                     const firstStation = stations.length ? [...stations].sort((a, b) => a.index - b.index)[0] : undefined;
                                     return (
                                         <div>
-                                            <TreeItem label="路線編集" active={isActiveRoute && activePage === "edit"} onClick={() => go(`/route/${r.id}`)} />
-                                            <TreeItem label="下り時刻表" active={isActiveRoute && activePage === "down"} onClick={() => go(`/route/${r.id}/timetable/0`)} />
-                                            <TreeItem label="上り時刻表" active={isActiveRoute && activePage === "up"} onClick={() => go(`/route/${r.id}/timetable/1`)} />
-                                            <TreeItem label="ダイヤグラム" active={isActiveRoute && activePage === "diagram"} onClick={() => go(`/route/${r.id}/diagram`)} />
+                                            <TreeItem label={t("edit")} active={isActiveRoute && activePage === "edit"} onClick={() => go(`/route/${r.id}`)} />
+                                            <TreeItem label={t("downTimetable")} active={isActiveRoute && activePage === "down"} onClick={() => go(`/route/${r.id}/timetable/0`)} />
+                                            <TreeItem label={t("upTimetable")} active={isActiveRoute && activePage === "up"} onClick={() => go(`/route/${r.id}/timetable/1`)} />
+                                            <TreeItem label={t("diagram")} active={isActiveRoute && activePage === "diagram"} onClick={() => go(`/route/${r.id}/diagram`)} />
                                             {firstStation && (
-                                                <TreeItem label="駅時刻表" active={isActiveRoute && activePage === "station"} onClick={() => go(`/route/${r.id}/station/${firstStation.id}`)} />
+                                                <TreeItem label={t("stationTimetable")} active={isActiveRoute && activePage === "station"} onClick={() => go(`/route/${r.id}/station/${firstStation.id}`)} />
                                             )}
                                         </div>
                                     );

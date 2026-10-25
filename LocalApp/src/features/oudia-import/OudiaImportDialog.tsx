@@ -1,3 +1,5 @@
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Alert, Button, FileButton, Group, Modal, NativeSelect, Stack, Text, TextInput } from "@mantine/core";
@@ -25,6 +27,8 @@ export function OudiaImportDialog(props: { open: boolean; onClose: () => void })
  */
 function OudiaImportBody({ onClose }: { onClose: () => void }) {
     const nav = useNavigate();
+    const { t } = useT();
+    const c = useCommonT().t;
     const [fileName, setFileName] = useState("");
     const [parsed, setParsed] = useState<ParsedOudia | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -51,11 +55,11 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
         try {
             parsedUrl = new URL(target);
         } catch {
-            setError("URLの形式が正しくありません");
+            setError(t("urlInvalid"));
             return;
         }
         if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-            setError("http:// または https:// のURLを指定してください");
+            setError(t("urlScheme"));
             return;
         }
         setLoadingUrl(true);
@@ -64,9 +68,9 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
             try {
                 res = await fetch(parsedUrl);
             } catch {
-                throw new Error("URLからファイルを取得できませんでした（ネットワークエラー、または配信元が他サイトからの読み込みを許可していません）");
+                throw new Error(t("urlNetwork"));
             }
-            if (!res.ok) throw new Error(`URLからファイルを取得できませんでした（HTTP ${res.status}）`);
+            if (!res.ok) throw new Error(t("urlHttp", { status: res.status }));
             return res.arrayBuffer();
         });
         setLoadingUrl(false);
@@ -108,28 +112,28 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
 
     const summary = parsed?.summary;
     return (
-        <Modal opened onClose={onClose} title="OuDiaファイルを取り込む" centered size="md" styles={{ title: { fontWeight: 700 } }}>
+        <Modal opened onClose={onClose} title={t("title")} centered size="md" styles={{ title: { fontWeight: 700 } }}>
             <Stack gap="sm">
                 <Text size="sm" c="dimmed">
-                    OuDiaのファイル(.oud)を、ファイル選択またはURL指定で読み込んで、新しい路線として追加します。既存の路線は変更されません。
+                    {t("intro")}
                 </Text>
 
                 <Group gap="xs" wrap="nowrap">
                     <FileButton accept=".oud,.txt" onChange={onPickFile}>
                         {(p) => (
                             <Button variant="default" {...p}>
-                                ファイルを選ぶ
+                                {t("pickFile")}
                             </Button>
                         )}
                     </FileButton>
                     <Text size="sm" truncate>
-                        {fileName || "未選択"}
+                        {fileName || t("noFile")}
                     </Text>
                 </Group>
 
                 <Group gap="xs" wrap="nowrap" align="flex-end">
                     <TextInput
-                        label="またはURLから読み込む"
+                        label={t("urlLabel")}
                         placeholder="https://example.com/file.oud"
                         value={url}
                         onChange={(e) => setUrl(e.currentTarget.value)}
@@ -139,7 +143,7 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
                         style={{ flex: 1 }}
                     />
                     <Button variant="default" onClick={() => void onLoadUrl()} loading={loadingUrl} disabled={!url.trim()}>
-                        読み込む
+                        {t("load")}
                     </Button>
                 </Group>
 
@@ -148,36 +152,36 @@ function OudiaImportBody({ onClose }: { onClose: () => void }) {
                 {summary && (
                     <>
                         <Text size="sm">
-                            駅 {summary.stationCount} 件 ／ 列車種別 {summary.trainTypeCount} 件 ／ ダイヤ {summary.diagrams.length} 件
+                            {t("summary", { stations: summary.stationCount, types: summary.trainTypeCount, diagrams: summary.diagrams.length })}
                         </Text>
-                        <TextInput label="路線名" value={routeName} onChange={(e) => setRouteName(e.currentTarget.value)} />
+                        <TextInput label={t("routeName")} value={routeName} onChange={(e) => setRouteName(e.currentTarget.value)} />
                         {summary.diagrams.length > 0 ? (
                             <NativeSelect
-                                label="取り込むダイヤ"
+                                label={t("diagramLabel")}
                                 value={String(diagramIndex)}
                                 onChange={(e) => setDiagramIndex(Number(e.currentTarget.value))}
                                 data={summary.diagrams.map((d, i) => ({
                                     value: String(i),
-                                    label: `${d.name || `ダイヤ${i + 1}`}（下り ${d.downCount} 本 / 上り ${d.upCount} 本）`,
+                                    label: t("diagramOption", { name: d.name || t("diagramDefault", { n: i + 1 }), down: d.downCount, up: d.upCount }),
                                 }))}
                             />
                         ) : (
                             <Text size="sm" c="dimmed">
-                                ダイヤ（列車）が無いため、駅と列車種別だけを取り込みます。
+                                {t("noDiagram")}
                             </Text>
                         )}
                         <Text size="xs" c="dimmed">
-                            このアプリでは1つの路線に1つのダイヤだけを持てます。別のダイヤも取り込みたい場合は、もう一度この操作でダイヤを選んで取り込んでください（別の路線になります）。
+                            {t("oneDiagramNote")}
                         </Text>
                     </>
                 )}
 
                 <Group justify="flex-end" gap="xs">
                     <Button variant="default" onClick={onClose}>
-                        キャンセル
+                        {c("cancel")}
                     </Button>
                     <Button onClick={onImport} disabled={!parsed}>
-                        取り込む
+                        {t("doImport")}
                     </Button>
                 </Group>
             </Stack>

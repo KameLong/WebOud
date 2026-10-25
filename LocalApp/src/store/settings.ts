@@ -1,3 +1,5 @@
+import { DEFAULT_LANGUAGE, isLang, type Lang } from "../shared/i18n/languages.ts";
+
 const STORAGE_KEY = "weboud.localapp.settings.v1";
 
 /** 全体の文字サイズ(px)の既定値 */
@@ -8,10 +10,12 @@ export const MAX_FONT_SIZE = 32;
 export type Settings = {
     /** 全体の文字サイズ(px)。時刻表グリッドなどのレイアウトもこの値を基準に拡大縮小する */
     fontSize: number;
+    /** 表示言語。ブラウザの言語設定では切り替えず、設定画面で選んだものを使う */
+    language: Lang;
 };
 
 function defaultSettings(): Settings {
-    return { fontSize: DEFAULT_FONT_SIZE };
+    return { fontSize: DEFAULT_FONT_SIZE, language: DEFAULT_LANGUAGE };
 }
 
 /**
@@ -30,7 +34,7 @@ function clampFontSize(v: number): number {
  * @param saved 形式を確認済みの保存値
  */
 function normalize(saved: Settings): Settings {
-    return { ...defaultSettings(), ...saved, fontSize: clampFontSize(saved.fontSize) };
+    return { ...defaultSettings(), ...saved, fontSize: clampFontSize(saved.fontSize), language: isLang(saved.language) ? saved.language : DEFAULT_LANGUAGE };
 }
 
 function isValidSettings(v: unknown): v is Settings {
@@ -91,6 +95,20 @@ if (typeof window !== "undefined") {
 
 export function getFontSize(): number {
     return state.fontSize;
+}
+
+export function getLanguage(): Lang {
+    return state.language;
+}
+
+/**
+ * 表示言語を変更し、保存します。
+ *
+ * @param language 新しい表示言語
+ */
+export function setLanguage(language: Lang) {
+    state = { ...state, language };
+    persist();
 }
 
 /**

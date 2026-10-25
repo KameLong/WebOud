@@ -1,6 +1,8 @@
 import { ActionIcon, Button, Checkbox, ColorPicker, ColorSwatch, Group, Modal, NativeSelect, Popover, Radio, Stack, Text, TextInput } from "@mantine/core";
 import React, { useRef, useState, useSyncExternalStore } from "react";
-import { DEFAULT_TRAIN_TYPE } from "../../domain/defaults.ts";
+import { defaultTrainType } from "../../domain/defaults.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
+import { translate, useT } from "./messages.ts";
 import { isImeComposing } from "../../shared/lib/keyboard.ts";
 import { TrashIcon } from "../../shared/ui/TrashIcon.tsx";
 import { IndexedList, RowSelectHandle, type RowRenderProps } from "../../shared/indexed-list/IndexedList.tsx";
@@ -23,6 +25,8 @@ type DeleteChoice = { kind: "cancel" } | { kind: "deleteTrips" } | { kind: "reas
  */
 function DeleteTrainTypeDialog(props: { tripCount: number; candidates: TrainTypeDto[]; onChoose: (c: DeleteChoice) => void }) {
     const { tripCount, candidates, onChoose } = props;
+    const { t } = useT();
+    const c = useCommonT().t;
     const [mode, setMode] = useState<"deleteTrips" | "reassign">("deleteTrips");
     const [toId, setToId] = useState<number>(candidates[0]?.id ?? 0);
 
@@ -35,15 +39,15 @@ function DeleteTrainTypeDialog(props: { tripCount: number; candidates: TrainType
     }
 
     return (
-        <Modal opened onClose={() => onChoose({ kind: "cancel" })} title="使用中の種別を削除します" centered size="sm" styles={{ title: { fontWeight: 700 } }}>
+        <Modal opened onClose={() => onChoose({ kind: "cancel" })} title={t("ttDeleteTitle")} centered size="sm" styles={{ title: { fontWeight: 700 } }}>
             <Stack gap="sm">
                 <Text size="sm" c="red">
-                    この種別を使っている列車が {tripCount} 本あります。どう処理しますか？
+                    {t("ttDeleteUsed", { n: tripCount })}
                 </Text>
                 <Radio.Group value={mode} onChange={(v) => setMode(v as "deleteTrips" | "reassign")}>
                     <Stack gap="xs">
-                        <Radio value="deleteTrips" label="種別を削除し、該当列車もすべて削除する" />
-                        <Radio value="reassign" disabled={!canReassign} label="種別を削除し、該当列車を別の種別に変更する" />
+                        <Radio value="deleteTrips" label={t("ttDeleteWithTrips")} />
+                        <Radio value="reassign" disabled={!canReassign} label={t("ttDeleteReassign")} />
                     </Stack>
                 </Radio.Group>
                 {mode === "reassign" && canReassign && (
@@ -51,20 +55,20 @@ function DeleteTrainTypeDialog(props: { tripCount: number; candidates: TrainType
                         value={String(toId)}
                         onChange={(e) => setToId(Number(e.currentTarget.value))}
                         data={candidates.map((t) => ({ value: String(t.id), label: t.name }))}
-                        aria-label="変更先の種別"
+                        aria-label={t("ttReassignTo")}
                     />
                 )}
                 {!canReassign && (
                     <Text size="xs" c="dimmed">
-                        変更先の種別がありません
+                        {t("ttNoReassignTarget")}
                     </Text>
                 )}
                 <Group justify="flex-end" gap="xs">
                     <Button variant="default" onClick={() => onChoose({ kind: "cancel" })}>
-                        キャンセル
+                        {c("cancel")}
                     </Button>
                     <Button color="red" onClick={submit}>
-                        削除する
+                        {t("ttDoDelete")}
                     </Button>
                 </Group>
             </Stack>
@@ -78,11 +82,12 @@ function DeleteTrainTypeDialog(props: { tripCount: number; candidates: TrainType
  * @param props color:現在の色(#RRGGBB) / onCommit:確定した色を受け取るコールバック
  */
 function ColorCell(props: { color: string; onCommit: (color: string) => void }) {
+    const { t } = useT();
     const color = props.color || "#000000";
     return (
         <Popover withArrow shadow="md" position="bottom" withinPortal>
             <Popover.Target>
-                <ColorSwatch component="button" type="button" color={color} size={22} style={{ cursor: "pointer" }} aria-label="色を選択" />
+                <ColorSwatch component="button" type="button" color={color} size={22} style={{ cursor: "pointer" }} aria-label={t("ttPickColor")} />
             </Popover.Target>
             <Popover.Dropdown p="xs">
                 <ColorPicker
@@ -152,6 +157,7 @@ const styles: Record<string, React.CSSProperties> = {
  * @param itemCount 現在の種別数（末尾に追加するときの挿入位置）
  */
 function AppendTrainTypeRow({ routeId, itemCount }: { routeId: number; itemCount: number }) {
+    const { t } = useT();
     const [newName, setNewName] = useState("");
     const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -179,8 +185,8 @@ function AppendTrainTypeRow({ routeId, itemCount }: { routeId: number; itemCount
                     ref={inputRef}
                     style={{ width: "100%" }}
                     value={newName}
-                    placeholder="種別名を入力して Enter"
-                    aria-label="種別名"
+                    placeholder={t("ttNewNamePlaceholder")}
+                    aria-label={t("ttName")}
                     onChange={(e) => setNewName(e.currentTarget.value)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !isImeComposing(e)) {
@@ -203,18 +209,19 @@ function AppendTrainTypeRow({ routeId, itemCount }: { routeId: number; itemCount
 }
 
 function TrainTypeHeaderComponent() {
+    const { t } = useT();
     return (
         <div className="tt-header" style={{ display: "flex", border: "1px solid #ddd" }}>
             <div style={{ ...styles.row, ...styles.headRow }}>
                 <div className="tt-name" style={{ ...styles.cell, ...styles.nameCell }}>
-                    種別名
+                    {t("ttName")}
                 </div>
                 <div className="tt-fields">
-                    <div style={{ ...styles.cell, ...styles.shortCell }}>略称</div>
-                    <div style={{ ...styles.cell, ...styles.colorCell }}>色</div>
-                    <div style={{ ...styles.cell, ...styles.chkCell }}>太字</div>
-                    <div style={{ ...styles.cell, ...styles.chkCell }}>線太</div>
-                    <div style={{ ...styles.cell, ...styles.styleCell }}>線種</div>
+                    <div style={{ ...styles.cell, ...styles.shortCell }}>{t("ttShort")}</div>
+                    <div style={{ ...styles.cell, ...styles.colorCell }}>{t("ttColor")}</div>
+                    <div style={{ ...styles.cell, ...styles.chkCell }}>{t("ttBold")}</div>
+                    <div style={{ ...styles.cell, ...styles.chkCell }}>{t("ttLineBold")}</div>
+                    <div style={{ ...styles.cell, ...styles.styleCell }}>{t("ttLineStyle")}</div>
                 </div>
             </div>
         </div>
@@ -227,9 +234,10 @@ function TrainTypeHeaderComponent() {
  * @param props item:種別 / update:種別の値を更新する関数 / remove:この種別を削除する関数
  */
 const TrainTypeNameField = React.memo(function TrainTypeNameField({ item, update, remove }: Pick<RowRenderProps<TrainTypeDto>, "item" | "update" | "remove">) {
+    const { t } = useT();
     return (
         <>
-            <TextInput size="xs" style={{ flex: 1, minWidth: 0 }} value={item.name} aria-label="種別名" onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
+            <TextInput size="xs" style={{ flex: 1, minWidth: 0 }} value={item.name} aria-label={t("ttName")} onChange={(e) => update((x) => ({ ...x, name: e.currentTarget.value }))} />
             {/* 種別名の右側に削除ボタン（キーボードのDeleteや操作バーからも削除できる） */}
             <ActionIcon
                 className="tt-delete"
@@ -237,8 +245,8 @@ const TrainTypeNameField = React.memo(function TrainTypeNameField({ item, update
                 color="red"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={remove}
-                aria-label={`${item.name}を削除`}
-                title="この種別を削除"
+                aria-label={t("ttDeleteOne", { name: item.name })}
+                title={t("ttDeleteOneTitle")}
             >
                 <TrashIcon size={16} />
             </ActionIcon>
@@ -252,39 +260,40 @@ const TrainTypeNameField = React.memo(function TrainTypeNameField({ item, update
  * @param props item:種別 / update:種別の値を更新する関数
  */
 const TrainTypeFields = React.memo(function TrainTypeFields({ item, update }: Pick<RowRenderProps<TrainTypeDto>, "item" | "update">) {
+    const { t } = useT();
     return (
         <div className="tt-fields">
             <div className="tt-field tt-field-short" style={{ ...styles.cell, ...styles.shortCell }}>
-                <span className="tt-label">略称</span>
-                <TextInput size="xs" value={item.shortName} aria-label="略称" onChange={(e) => update((x) => ({ ...x, shortName: e.currentTarget.value }))} />
+                <span className="tt-label">{t("ttShort")}</span>
+                <TextInput size="xs" value={item.shortName} aria-label={t("ttShort")} onChange={(e) => update((x) => ({ ...x, shortName: e.currentTarget.value }))} />
             </div>
 
             <div className="tt-field tt-field-color" style={{ ...styles.cell, ...styles.colorCell }}>
-                <span className="tt-label">色</span>
+                <span className="tt-label">{t("ttColor")}</span>
                 <ColorCell color={item.color} onCommit={(color) => update((x) => ({ ...x, color }))} />
             </div>
 
             <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
-                <span className="tt-label">太字</span>
-                <Checkbox size="md" checked={item.fontBold} aria-label="太字" onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
+                <span className="tt-label">{t("ttBold")}</span>
+                <Checkbox size="md" checked={item.fontBold} aria-label={t("ttBold")} onChange={(e) => update((x) => ({ ...x, fontBold: e.currentTarget.checked }))} />
             </label>
 
             <label className="tt-field" style={{ ...styles.cell, ...styles.chkCell }}>
-                <span className="tt-label">線太</span>
-                <Checkbox size="md" checked={item.lineBold} aria-label="線太" onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
+                <span className="tt-label">{t("ttLineBold")}</span>
+                <Checkbox size="md" checked={item.lineBold} aria-label={t("ttLineBold")} onChange={(e) => update((x) => ({ ...x, lineBold: e.currentTarget.checked }))} />
             </label>
 
             <div className="tt-field" style={{ ...styles.cell, ...styles.styleCell }}>
-                <span className="tt-label">線種</span>
+                <span className="tt-label">{t("ttLineStyle")}</span>
                 <NativeSelect
                     size="xs"
                     value={String(item.lineStyle ?? 0)}
-                    aria-label="線種"
+                    aria-label={t("ttLineStyle")}
                     onChange={(e) => update((x) => ({ ...x, lineStyle: Number(e.currentTarget.value) }))}
                     data={[
-                        { value: "0", label: "実線" },
-                        { value: "1", label: "破線" },
-                        { value: "2", label: "点線" },
+                        { value: "0", label: t("ttSolid") },
+                        { value: "1", label: t("ttDashed") },
+                        { value: "2", label: t("ttDotted") },
                     ]}
                 />
             </div>
@@ -328,6 +337,7 @@ const TrainTypeRowComponent = React.memo(function TrainTypeRowComponent({ item, 
  * @param routeId 編集する路線ID
  */
 export default function TrainTypeListEditor({ routeId }: { routeId: number }) {
+    const { t } = useT();
     const items = useSyncExternalStore(subscribe, () => getRoute(routeId)?.trainTypes ?? EMPTY_TYPES);
 
     const [deleteAsk, setDeleteAsk] = useState<{
@@ -345,14 +355,14 @@ export default function TrainTypeListEditor({ routeId }: { routeId: number }) {
         const idSet = new Set(ids);
         const route = getRoute(routeId);
         const tripCount = (route?.trips ?? []).filter((t) => idSet.has(t.trainTypeID)).length;
-        if (tripCount === 0) return confirm(`${ids.length}件削除しますか？`);
+        if (tripCount === 0) return confirm(translate().t("ttConfirmDelete", { n: ids.length }));
 
         // 付け替え先。すべての種別を削除する場合は、残る種別が無いので、標準の種別(普通)を新しく作ってそこへ付け替える
         const remaining = items.filter((t) => !idSet.has(t.id));
         const candidates: TrainTypeDto[] =
             remaining.length > 0
                 ? remaining
-                : [{ ...DEFAULT_TRAIN_TYPE, id: NEW_DEFAULT_ID, routeID: routeId, index: 0, name: `${DEFAULT_TRAIN_TYPE.name}（標準の種別を新しく作成）` }];
+                : [{ ...defaultTrainType(), id: NEW_DEFAULT_ID, routeID: routeId, index: 0, name: t("ttNewDefault", { name: defaultTrainType().name }) }];
         const choice = await new Promise<DeleteChoice>((resolve) => setDeleteAsk({ tripCount, candidates, resolve }));
         setDeleteAsk(null);
 
@@ -361,7 +371,7 @@ export default function TrainTypeListEditor({ routeId }: { routeId: number }) {
             let toId = choice.toId;
             if (toId === NEW_DEFAULT_ID) {
                 // 先に標準の種別を作っておく（削除後に自動で作られるものとは別に、付け替え先として必要なため）
-                toId = timetableApi.insertTrainTypes(routeId, items.length, [{ ...DEFAULT_TRAIN_TYPE, routeID: routeId, index: items.length }])[0].id;
+                toId = timetableApi.insertTrainTypes(routeId, items.length, [{ ...defaultTrainType(), routeID: routeId, index: items.length }])[0].id;
             }
             timetableApi.reassignTrainType(routeId, ids, toId);
         } else {

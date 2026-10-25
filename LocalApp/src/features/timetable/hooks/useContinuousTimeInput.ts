@@ -6,6 +6,7 @@ import { getLastTimeFormStopTimes, makeStopTimeList } from "../../../domain/trip
 import { isDigitKey } from "../../../shared/lib/keyboard.ts";
 import type { TripWithStopTimesDto } from "../../../domain/dto.ts";
 import type { StationDto } from "../../../domain/dto.ts";
+import { translate } from "../messages.ts";
 
 type NavLike = {
     cursor: Cursor;
@@ -121,7 +122,7 @@ export function useContinuousTimeInput(opts: Options) {
             if (lastTime === -1) {
                 const hh = Number(s);
                 if (Number.isNaN(hh) || hh < 0 || hh > 25) {
-                    setWarning(`「${s}」は時刻として入力できません（0〜25で入力してください）`);
+                    setWarning(translate().t("warnHour", { s }));
                     return false;
                 }
                 setWarning(null);
@@ -132,7 +133,7 @@ export function useContinuousTimeInput(opts: Options) {
 
             const mm = Number(s);
             if (Number.isNaN(mm) || mm < 0 || mm > 59) {
-                setWarning(`「${s}」は分として入力できません（0〜59で入力してください）`);
+                setWarning(translate().t("warnMinute", { s }));
                 return false;
             }
             setWarning(null);

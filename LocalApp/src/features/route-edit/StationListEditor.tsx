@@ -1,3 +1,5 @@
+import { useCommonT } from "../../shared/i18n/common.ts";
+import { useT } from "./messages.ts";
 import { ActionIcon, TextInput } from "@mantine/core";
 import React, { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
@@ -73,6 +75,7 @@ const styles: Record<string, React.CSSProperties> = {
  */
 function AppendComponent(props: { newName: string; setNewName: (v: string) => void; error: boolean; inputRef: React.RefObject<HTMLInputElement | null>; onAppend: () => void }) {
     const { newName, setNewName, error, inputRef, onAppend } = props;
+    const { t } = useT();
 
     return (
         <div className="station-row station-append-row" style={{ ...styles.row, background: "#f0fff4" }}>
@@ -80,10 +83,10 @@ function AppendComponent(props: { newName: string; setNewName: (v: string) => vo
                 <TextInput
                     ref={inputRef}
                     value={newName}
-                    placeholder="新しい駅名 (Enter / ＋で挿入)"
-                    title="駅名を入力してEnterで末尾に追加。行間の＋ボタンでその位置に挿入"
-                    aria-label="新しい駅名"
-                    error={error ? "駅名を入力してください" : undefined}
+                    placeholder={t("stNewPlaceholder")}
+                    title={t("stNewTitle")}
+                    aria-label={t("stNewLabel")}
+                    error={error ? t("stNewError") : undefined}
                     onChange={(e) => setNewName(e.currentTarget.value)}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !isImeComposing(e)) {
@@ -103,27 +106,29 @@ function AppendComponent(props: { newName: string; setNewName: (v: string) => vo
 }
 
 function StationHeaderComponent() {
+    const { t } = useT();
+    const c = useCommonT().t;
     return (
         <div className="station-header" style={{ display: "flex", border: "1px solid #ddd" }}>
             <div className="station-row" style={{ ...styles.row, ...styles.headRow }}>
                 <div className="station-name" style={{ ...styles.cell, ...styles.nameCell }}>
-                    駅名
+                    {t("stName")}
                 </div>
                 <div className="station-blocks">
                     <div style={{ ...styles.cell, ...styles.blockCell }}>
-                        <div style={styles.blockTitle}>下り</div>
+                        <div style={styles.blockTitle}>{t("stDown")}</div>
                         <div className="station-check-head" style={styles.checkGridHead}>
-                            <span>着</span>
-                            <span>番線</span>
-                            <span>発</span>
+                            <span>{c("arr")}</span>
+                            <span>{c("track")}</span>
+                            <span>{c("dep")}</span>
                         </div>
                     </div>
                     <div style={{ ...styles.cell, ...styles.blockCell }}>
-                        <div style={styles.blockTitle}>上り</div>
+                        <div style={styles.blockTitle}>{t("stUp")}</div>
                         <div className="station-check-head" style={styles.checkGridHead}>
-                            <span>着</span>
-                            <span>番線</span>
-                            <span>発</span>
+                            <span>{c("arr")}</span>
+                            <span>{c("track")}</span>
+                            <span>{c("dep")}</span>
                         </div>
                     </div>
                 </div>
@@ -138,9 +143,10 @@ function StationHeaderComponent() {
  * @param props name:駅名（ボタンのラベル用） / insertBefore:この駅の手前に挿入する処理
  */
 const InsertStrip = React.memo(function InsertStrip({ name, insertBefore }: { name: string; insertBefore: () => void }) {
+    const { t } = useT();
     return (
         <div className="station-insert">
-            <ActionIcon variant="light" size="sm" radius="xl" onClick={insertBefore} aria-label={`${name}の手前に駅を挿入`} title="ここに駅を挿入">
+            <ActionIcon variant="light" size="sm" radius="xl" onClick={insertBefore} aria-label={t("stInsertBefore", { name })} title={t("stInsertTitle")}>
                 ＋
             </ActionIcon>
         </div>
@@ -157,14 +163,15 @@ const StationNameField = React.memo(function StationNameField({ item, update, re
     // 編集中の文字列。nullのときは保存済みの駅名を表示する
     const [draft, setDraft] = useState<string | null>(null);
     const nav = useNavigate();
+    const { t } = useT();
     return (
         <>
             <div style={{ flex: 1, minWidth: 0 }}>
                 <TextInput
                     size="xs"
                     value={draft ?? item.name}
-                    placeholder="駅名"
-                    aria-label="駅名"
+                    placeholder={t("stName")}
+                    aria-label={t("stName")}
                     onChange={(e) => {
                         const v = e.currentTarget.value;
                         setDraft(v);
@@ -177,8 +184,8 @@ const StationNameField = React.memo(function StationNameField({ item, update, re
                 variant="subtle"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={() => nav(`/route/${item.routeID}/station/${item.id}`)}
-                aria-label={`${item.name}の時刻表を見る`}
-                title="この駅の時刻表を見る"
+                aria-label={t("stViewTimetable", { name: item.name })}
+                title={t("stViewTimetableTitle")}
             >
                 🕒
             </ActionIcon>
@@ -189,8 +196,8 @@ const StationNameField = React.memo(function StationNameField({ item, update, re
                 color="red"
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={remove}
-                aria-label={`${item.name}を削除`}
-                title="この駅を削除"
+                aria-label={t("stDeleteOne", { name: item.name })}
+                title={t("stDeleteOneTitle")}
             >
                 <TrashIcon size={16} />
             </ActionIcon>
@@ -204,12 +211,13 @@ const StationNameField = React.memo(function StationNameField({ item, update, re
  * @param props showStyle:駅の表示スタイル(下り・上り) / update:駅の値を更新する関数
  */
 const StationBlocks = React.memo(function StationBlocks({ showStyle, update }: { showStyle: number; update: RowRenderProps<StationDto>["update"] }) {
+    const { t } = useT();
     const changeDown = useCallback((bits: number) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 0, bits) })), [update]);
     const changeUp = useCallback((bits: number) => update((x) => ({ ...x, showStyle: setDirectStyle(x.showStyle, 1, bits) })), [update]);
     return (
         <div className="station-blocks">
-            <ShowStyleChecks title="下り" bits={getDirectStyle(showStyle, 0)} onChangeBits={changeDown} />
-            <ShowStyleChecks title="上り" bits={getDirectStyle(showStyle, 1)} onChangeBits={changeUp} />
+            <ShowStyleChecks title={t("stDown")} bits={getDirectStyle(showStyle, 0)} onChangeBits={changeDown} />
+            <ShowStyleChecks title={t("stUp")} bits={getDirectStyle(showStyle, 1)} onChangeBits={changeUp} />
         </div>
     );
 });

@@ -4,6 +4,8 @@ import { isImeComposing } from "../../shared/lib/keyboard.ts";
 import type { StopTimeDto } from "../../domain/dto.ts";
 import { isValidTimeStr, timeInt2Str, timeStr2Int } from "../../domain/time.ts";
 import type { Part } from "../../domain/showStyle.ts";
+import { useT } from "./messages.ts";
+import { useCommonT } from "../../shared/i18n/common.ts";
 
 /** キーパッドのボタンのスタイル */
 const padKeyStyle: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 600, padding: 0, minWidth: 0 };
@@ -15,6 +17,7 @@ const padKeyStyle: React.CSSProperties = { display: "flex", alignItems: "center"
  * @param props onDigit:数字 / onBackspace:1文字削除 / onClear:入力中の欄を空にする / onSwitch:着と発を切り替える / onOk:決定 / okDisabled:決定を押せないか
  */
 function TimePad(props: { onDigit: (d: string) => void; onBackspace: () => void; onClear: () => void; onSwitch: () => void; onOk: () => void; okDisabled: boolean }) {
+    const { t } = useT();
     const keepFocus = (e: React.MouseEvent) => e.preventDefault();
     const digit = (d: string) => (
         <button key={d} onMouseDown={keepFocus} onClick={() => props.onDigit(d)} style={padKeyStyle}>
@@ -41,20 +44,20 @@ function TimePad(props: { onDigit: (d: string) => void; onBackspace: () => void;
             }}
         >
             {["1", "2", "3"].map(digit)}
-            <button onMouseDown={keepFocus} onClick={props.onBackspace} style={padKeyStyle} title="1文字削除">
+            <button onMouseDown={keepFocus} onClick={props.onBackspace} style={padKeyStyle} title={t("padBackspaceTitle")}>
                 ⌫
             </button>
             {["4", "5", "6"].map(digit)}
             <button onMouseDown={keepFocus} onClick={props.onClear} style={{ ...padKeyStyle, fontSize: 14 }}>
-                消去
+                {t("padClear")}
             </button>
             {["7", "8", "9"].map(digit)}
-            <button onMouseDown={keepFocus} onClick={props.onSwitch} style={{ ...padKeyStyle, fontSize: 13 }} title="着と発を切り替え">
-                着⇄発
+            <button onMouseDown={keepFocus} onClick={props.onSwitch} style={{ ...padKeyStyle, fontSize: 13 }} title={t("padSwitchTitle")}>
+                {t("padSwitch")}
             </button>
             {digit("0")}
             <button onMouseDown={keepFocus} onClick={props.onOk} disabled={props.okDisabled} style={{ ...padKeyStyle, gridColumn: "span 3", fontSize: 16 }}>
-                決定
+                {t("padOk")}
             </button>
         </div>
     );
@@ -77,6 +80,8 @@ export function StopTimeEditDialog(props: {
     onSave: (v: StopTimeDto) => void;
 }) {
     const { state, stationName, trainNo, initial, onCancel, onSave, cursorPart } = props;
+    const { t } = useT();
+    const c = useCommonT().t;
 
     const [ariStr, setAriStr] = useState("");
     const [depStr, setDepStr] = useState("");
@@ -172,7 +177,7 @@ export function StopTimeEditDialog(props: {
             return;
         }
         if (!isValidTimeStr(ariStr) || !isValidTimeStr(depStr)) {
-            setWarning("時刻は hmm / hhmm / hh:mm 形式（時0〜23・分0〜59）で入力してください");
+            setWarning(t("editWarning"));
             return;
         }
         setWarning("");
@@ -228,13 +233,13 @@ export function StopTimeEditDialog(props: {
                     }
                 }}
             >
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>時刻編集</div>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>{t("editTitle")}</div>
                 <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
                     {stationName} / {trainNo}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", gap: 8, alignItems: "center" }}>
-                    <div style={{ fontSize: 12, color: "#444" }}>着</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{c("arr")}</div>
                     <input
                         ref={ariRef}
                         // スマホではシステムのキーボードを出さず、下部のキーパッドで入力する
@@ -249,11 +254,11 @@ export function StopTimeEditDialog(props: {
                             setAriStr(e.target.value);
                             setWarning("");
                         }}
-                        placeholder="hhmm または hh:mm"
+                        placeholder={t("timePlaceholder")}
                         style={{ padding: "8px 10px", border: isMobile && activeField === "ari" ? "2px solid #0f5b8a" : "1px solid #ddd", borderRadius: 8 }}
                     />
 
-                    <div style={{ fontSize: 12, color: "#444" }}>発</div>
+                    <div style={{ fontSize: 12, color: "#444" }}>{c("dep")}</div>
                     <input
                         ref={depRef}
                         readOnly={isMobile}
@@ -271,28 +276,28 @@ export function StopTimeEditDialog(props: {
                         style={{ padding: "8px 10px", border: isMobile && activeField === "dep" ? "2px solid #0f5b8a" : "1px solid #ddd", borderRadius: 8 }}
                     />
 
-                    <div style={{ fontSize: 12, color: "#444", marginBottom: 6 }}>停車種別</div>
+                    <div style={{ fontSize: 12, color: "#444", marginBottom: 6 }}>{t("stopKind")}</div>
 
                     <div style={{ marginTop: 12 }}>
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                             <label>
                                 <input type="radio" name="stopType" value={0} checked={stopType === 0} onChange={() => setStopType(0)} />
-                                運行なし
+                                {t("stopNone")}
                             </label>
 
                             <label>
                                 <input type="radio" name="stopType" value={1} checked={stopType === 1} onChange={() => setStopType(1)} />
-                                停車
+                                {t("stopStop")}
                             </label>
 
                             <label>
                                 <input type="radio" name="stopType" value={2} checked={stopType === 2} onChange={() => setStopType(2)} />
-                                通過
+                                {t("stopPass")}
                             </label>
 
                             <label>
                                 <input type="radio" name="stopType" value={3} checked={stopType === 3} onChange={() => setStopType(3)} />
-                                経由なし
+                                {t("stopNoVia")}
                             </label>
                         </div>
                     </div>
@@ -306,10 +311,10 @@ export function StopTimeEditDialog(props: {
 
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
                     <button onClick={onCancel} style={{ padding: "8px 12px" }}>
-                        キャンセル
+                        {c("cancel")}
                     </button>
                     <button onClick={submit} disabled={!initial} style={{ padding: "8px 12px" }}>
-                        保存
+                        {c("save")}
                     </button>
                 </div>
             </div>
