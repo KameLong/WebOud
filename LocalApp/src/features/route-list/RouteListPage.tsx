@@ -13,7 +13,7 @@ import {
     subscribe,
 } from "../../store/localStore.ts";
 import { OudiaImportDialog } from "../oudia-import/OudiaImportDialog.tsx";
-import { createSampleRoute } from "../../store/sampleData.ts";
+import { loadSampleRoute, SAMPLE_ROUTE_NAME } from "../../store/sampleRoute.ts";
 import { HelpDialog, HelpList, HelpSection } from "../../shared/ui/HelpDialog.tsx";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
 
@@ -87,9 +87,15 @@ export default function RouteListPage() {
         duplicateRoute(id);
     }
 
-    function onLoadSample() {
-        const created = createSampleRoute();
-        nav(`/route/${created.id}`);
+    /** サンプルダイヤを新しい路線として読み込み、その路線の編集画面へ移動する */
+    async function onLoadSample() {
+        setError(null);
+        try {
+            const created = await loadSampleRoute();
+            nav(`/route/${created.id}`);
+        } catch (e) {
+            setError(getErrorMessage(e));
+        }
     }
 
     /**
@@ -177,8 +183,8 @@ export default function RouteListPage() {
             </form>
 
             <Group gap="xs" mb="md">
-                <Button variant="light" size="compact-sm" onClick={onLoadSample}>
-                    サンプルダイヤを読み込む（神戸電鉄粟生線）
+                <Button variant="light" size="compact-sm" onClick={() => void onLoadSample()}>
+                    サンプルダイヤを読み込む（{SAMPLE_ROUTE_NAME}）
                 </Button>
                 <Button variant="light" size="compact-sm" onClick={() => setOudiaOpen(true)}>
                     OuDiaファイルを取り込む
@@ -274,7 +280,7 @@ export default function RouteListPage() {
                         items={[
                             "右上の歯車アイコンから設定画面（文字サイズなど）を開く",
                             "新しい路線（ダイヤ）を名前を付けて作成する",
-                            "サンプルダイヤ（神戸電鉄粟生線）を読み込んで試す",
+                            `サンプルダイヤ（${SAMPLE_ROUTE_NAME}）を読み込んで試す`,
                             "OuDiaのファイル(.oud)をファイルまたはURLから読み込んで、新しい路線として取り込む（取り込むダイヤと路線名を選べる）",
                             "路線名をクリックして路線編集画面（駅・列車種別の編集）へ移動する。時刻表・ダイヤグラムは、路線編集画面などの左のメニュー（スマホでは下部のメニューボタン）から開く",
                             "路線を書き出す／複製する／削除する（スマホでは各行の「⋮」メニューから。削除は確認あり、取り消せません）",
