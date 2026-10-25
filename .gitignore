@@ -364,3 +364,6 @@ FodyWeavers.xsd
 /BE.API/appsettings.json
 
 /.idea/
+
+# macOS
+.DS_Store
