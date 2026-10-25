@@ -1,0 +1,102 @@
+import type { Cursor } from "./types.ts";
+import type { Part } from "../../domain/showStyle.ts";
+import type { StationDto, StopTimeDto } from "../../domain/dto.ts";
+import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, type GridMetrics } from "./gridMetrics.ts";
+import { decodeShowStyle, getDirectStyle } from "../../domain/showStyle.ts";
+import { ariTimeStr, depTimeStr } from "../../domain/stopTimeText.ts";
+
+/**
+ * 連続入力モード中の入力途中表示を作ります。
+ *
+ * @param buf 入力済みの数字
+ * @param lastTime 直前の確定時刻（秒）。-1なら時から入力する
+ */
+function contStr(buf: string, lastTime: number): string {
+    if (lastTime < 0) {
+        return buf.padEnd(4, "-");
+    }
+    const hh = Math.floor(lastTime / 3600) % 24;
+    return hh + buf.padEnd(2, "-");
+}
+/**
+ * 1駅×1列車分のセル（着/番線/発）を描画します。
+ *
+ * @param props r:駅の行 / c:列車の列 / cursor:現在のカーソル / station:駅 / stopTime:停車時刻 / cont:連続入力の状態 / direct:0:下り 1:上り / metrics:文字サイズから決まる寸法一式
+ */
+export function StopCell(props: {
+    r: number;
+    c: number;
+    cursor: Cursor;
+    station: StationDto;
+    stopTime: StopTimeDto;
+    cont: { buf: string; lastTime: number; enabled: boolean };
+    direct: number;
+    metrics: GridMetrics;
+}) {
+    const { r, c, cursor, station, stopTime, cont, direct, metrics } = props;
+    const style = getDirectStyle(station.showStyle, direct);
+    const ROW_H = cellHeight(style, metrics.LINE_HEIGHT);
+    const inThisCell = cursor.r === r && cursor.c === c;
+    /**
+     * このセルの指定パートにカーソルがあるかを返します。
+     *
+     * @param part arr/track/dep
+     */
+    const isPartSelected = (part: Part) => inThisCell && cursor.part === part;
+
+    /**
+     * 1パート分のスタイルを返します。
+     *
+     * @param selected カーソルがあるか
+     */
+    const partStyle = (selected: boolean): React.CSSProperties => ({
+        lineHeight: metrics.LINE_HEIGHT,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        boxSizing: "border-box",
+        outline: selected ? "1px dashed #333" : "1px solid transparent",
+        backgroundColor: selected && cont.enabled ? "#eef8ff" : "white",
+        outlineOffset: -1,
+    });
+    const s = decodeShowStyle(style);
+    const showArrBottomBorder = s.showArr && s.showDep;
+    return (
+        <div
+            style={{
+                height: ROW_H,
+                display: "flex",
+                flexDirection: "column",
+                background: "white",
+                userSelect: "none",
+                boxSizing: "border-box",
+                fontFamily: "DiaPro",
+            }}
+        >
+            {s.showArr && (
+                <div
+                    data-r={r}
+                    data-c={c}
+                    data-part="arr"
+                    style={{ ...partStyle(isPartSelected("arr")), ...(showArrBottomBorder ? { borderBottom: `${ARR_BORDER_BOTTOM_WIDTH}px solid black` } : {}) }}
+                >
+                    {ariTimeStr(stopTime, s.showArr, s.showDep, false)}
+                </div>
+            )}
+            {s.showTrack && (
+                <div data-r={r} data-c={c} data-part="track" style={{ ...partStyle(isPartSelected("track")) }}>
+                    {""}
+                </div>
+            )}
+
+            {s.showDep && (
+                <div data-r={r} data-c={c} data-part="dep" style={{ ...partStyle(isPartSelected("dep")) }}>
+                    {isPartSelected("dep") && cont.enabled ? contStr(cont.buf, cont.lastTime) : depTimeStr(stopTime, s.showArr, s.showDep, false)}
+                </div>
+            )}
+        </div>
+    );
+}

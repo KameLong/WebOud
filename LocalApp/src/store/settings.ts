@@ -24,6 +24,15 @@ function clampFontSize(v: number): number {
     return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, v));
 }
 
+/**
+ * 保存されていた値を、有効範囲に丸めた設定にします。
+ *
+ * @param saved 形式を確認済みの保存値
+ */
+function normalize(saved: Settings): Settings {
+    return { ...defaultSettings(), ...saved, fontSize: clampFontSize(saved.fontSize) };
+}
+
 function isValidSettings(v: unknown): v is Settings {
     return !!v && typeof v === "object" && typeof (v as Settings).fontSize === "number";
 }
@@ -34,7 +43,7 @@ function loadSettings(): Settings {
         if (!raw) return defaultSettings();
         const parsed = JSON.parse(raw) as unknown;
         if (!isValidSettings(parsed)) return defaultSettings();
-        return { ...defaultSettings(), ...parsed, fontSize: clampFontSize(parsed.fontSize) };
+        return normalize(parsed);
     } catch (e) {
         console.error("failed to load settings", e);
         return defaultSettings();
@@ -71,17 +80,13 @@ if (typeof window !== "undefined") {
         try {
             const parsed = JSON.parse(event.newValue) as unknown;
             if (isValidSettings(parsed)) {
-                state = { ...defaultSettings(), ...parsed, fontSize: clampFontSize(parsed.fontSize) };
+                state = normalize(parsed);
                 emit();
             }
         } catch (e) {
             console.error("failed to sync settings from another tab/window", e);
         }
     });
-}
-
-export function getSettings(): Settings {
-    return state;
 }
 
 export function getFontSize(): number {

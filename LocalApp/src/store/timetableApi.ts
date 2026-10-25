@@ -1,4 +1,5 @@
 import { getRoute, updateRoute, withDefaultTrainType } from "./localStore.ts";
+import type { RouteRecord } from "./types.ts";
 import type { StationDto, StopTimeDto, TimeTableDto, TrainTypeDto, TripDto, TripWithStopTimesDto } from "../domain/dto.ts";
 
 /**
@@ -30,6 +31,49 @@ function insertAtPosition<T extends { index: number }>(list: T[], position: numb
     return renumber(sorted);
 }
 
+/**
+ * 列車を、同じ方向の列車の中の指定位置に挿入します（他方向の列車の並びはそのまま。他方向の列車が先、挿入後の同方向の列車が後に並ぶ）。
+ *
+ * @param trips 現在の列車
+ * @param direct 挿入する方向
+ * @param position 同じ方向の列車内での挿入位置（範囲外は端に丸める）
+ * @param added 挿入する列車
+ */
+function insertIntoDirection(trips: TripWithStopTimesDto[], direct: number, position: number, added: TripWithStopTimesDto[]): TripWithStopTimesDto[] {
+    const sameDirection = trips.filter((t) => t.direct === direct);
+    const others = trips.filter((t) => t.direct !== direct);
+    sameDirection.splice(Math.max(0, Math.min(position, sameDirection.length)), 0, ...added);
+    return [...others, ...sameDirection];
+}
+
+/**
+ * 路線の中の1本の列車を、update が返す列車に差し替えます。列車が無い、または update が null を返したときは、路線をそのまま返します。
+ *
+ * @param r 路線
+ * @param tripId 対象の列車ID
+ * @param update 差し替え後の列車を返す関数（変更しないなら null）
+ */
+function replaceTrip(r: RouteRecord, tripId: number, update: (trip: TripWithStopTimesDto) => TripWithStopTimesDto | null): RouteRecord {
+    const tripIndex = r.trips.findIndex((t) => t.id === tripId);
+    if (tripIndex < 0) return r;
+    const next = update(r.trips[tripIndex]);
+    if (!next) return r;
+    const trips = [...r.trips];
+    trips[tripIndex] = next;
+    return { ...r, trips };
+}
+
+/**
+ * 時刻の無い列車を作ります。
+ *
+ * @param r 路線（種別の先頭を使う）
+ * @param id 列車ID
+ * @param direct 0:下り 1:上り
+ */
+function emptyTrip(r: RouteRecord, id: number, direct: number): TripWithStopTimesDto {
+    return { id, routeID: r.id, direct, trainTypeID: r.trainTypes[0]?.id ?? 0, name: "", no: "", stopTimesByStationId: {} };
+}
+
 /* ---------------- Stations ---------------- */
 
 /**
@@ -48,12 +92,6 @@ export function addStation(routeId: number, dto: Omit<StationDto, "id">): Statio
     return created;
 }
 
-/**
- * 駅を更新します。
- *
- * @param routeId 路線ID
- * @param item 更新後の駅（idで対象を特定）
- */
 /**
  * 駅を指定位置にまとめて挿入します（1回の更新。以降の駅のindexは振り直される）。
  *
@@ -89,6 +127,12 @@ export function deleteStations(routeId: number, ids: number[]) {
     }));
 }
 
+/**
+ * 駅を更新します。
+ *
+ * @param routeId 路線ID
+ * @param item 更新後の駅（idで対象を特定）
+ */
 export function updateStation(routeId: number, item: StationDto) {
     updateRoute(routeId, (r) => ({ ...r, stations: r.stations.map((s) => (s.id === item.id ? item : s)) }));
 }
@@ -111,12 +155,6 @@ export function addTrainType(routeId: number, dto: Omit<TrainTypeDto, "id">): Tr
     return created;
 }
 
-/**
- * 列車種別を更新します。
- *
- * @param routeId 路線ID
- * @param item 更新後の種別（idで対象を特定）
- */
 /**
  * 列車種別を指定位置にまとめて挿入します（1回の更新。以降の種別のindexは振り直される）。
  *
@@ -147,6 +185,12 @@ export function deleteTrainTypes(routeId: number, ids: number[]) {
     updateRoute(routeId, (r) => withDefaultTrainType({ ...r, trainTypes: renumber(r.trainTypes.filter((t) => !idSet.has(t.id))) }));
 }
 
+/**
+ * 列車種別を更新します。
+ *
+ * @param routeId 路線ID
+ * @param item 更新後の種別（idで対象を特定）
+ */
 export function updateTrainType(routeId: number, item: TrainTypeDto) {
     updateRoute(routeId, (r) => ({ ...r, trainTypes: r.trainTypes.map((t) => (t.id === item.id ? item : t)) }));
 }
@@ -178,15 +222,7 @@ export function createTrip(routeId: number, direct: number): TripWithStopTimesDt
     let created!: TripWithStopTimesDto;
     updateRoute(routeId, (r) => {
         const id = r.counters.trip;
-        created = {
-            id,
-            routeID: routeId,
-            direct,
-            trainTypeID: r.trainTypes[0]?.id ?? 0,
-            name: "",
-            no: "",
-            stopTimesByStationId: {},
-        };
+        created = emptyTrip(r, id, direct);
         return { ...r, counters: { ...r.counters, trip: id + 1 }, trips: [...r.trips, created] };
     });
     return created;
@@ -203,20 +239,8 @@ export function insertTripAt(routeId: number, index: number, direct: number): Tr
     let created!: TripWithStopTimesDto;
     updateRoute(routeId, (r) => {
         const id = r.counters.trip;
-        created = {
-            id,
-            routeID: routeId,
-            direct,
-            trainTypeID: r.trainTypes[0]?.id ?? 0,
-            name: "",
-            no: "",
-            stopTimesByStationId: {},
-        };
-        const sameDirection = r.trips.filter((t) => t.direct === direct);
-        const others = r.trips.filter((t) => t.direct !== direct);
-        const nextSameDirection = [...sameDirection];
-        nextSameDirection.splice(Math.max(0, Math.min(index, sameDirection.length)), 0, created);
-        return { ...r, counters: { ...r.counters, trip: id + 1 }, trips: [...others, ...nextSameDirection] };
+        created = emptyTrip(r, id, direct);
+        return { ...r, counters: { ...r.counters, trip: id + 1 }, trips: insertIntoDirection(r.trips, direct, index, [created]) };
     });
     return created;
 }
@@ -254,29 +278,15 @@ export function deleteTrips(routeId: number, ids: number[]) {
 export function setStopTime(routeId: number, stopTime: StopTimeDto): TripWithStopTimesDto | undefined {
     let updatedTrip: TripWithStopTimesDto | undefined;
     updateRoute(routeId, (r) => {
-        const tripIndex = r.trips.findIndex((t) => t.id === stopTime.tripID);
-        if (tripIndex < 0) return r;
+        const trip = r.trips.find((t) => t.id === stopTime.tripID);
+        if (!trip) return r;
 
-        const trip = r.trips[tripIndex];
         const existing = trip.stopTimesByStationId[stopTime.stationID];
         const usesNewId = !existing || existing.id <= 0;
         const id = usesNewId ? r.counters.stopTime : existing.id;
-        const nextStopTime: StopTimeDto = { ...stopTime, id };
+        updatedTrip = { ...trip, stopTimesByStationId: { ...trip.stopTimesByStationId, [stopTime.stationID]: { ...stopTime, id } } };
 
-        const nextTrip: TripWithStopTimesDto = {
-            ...trip,
-            stopTimesByStationId: { ...trip.stopTimesByStationId, [stopTime.stationID]: nextStopTime },
-        };
-        updatedTrip = nextTrip;
-
-        const nextTrips = [...r.trips];
-        nextTrips[tripIndex] = nextTrip;
-
-        return {
-            ...r,
-            counters: usesNewId ? { ...r.counters, stopTime: id + 1 } : r.counters,
-            trips: nextTrips,
-        };
+        return { ...replaceTrip(r, trip.id, () => updatedTrip!), counters: usesNewId ? { ...r.counters, stopTime: id + 1 } : r.counters };
     });
     return updatedTrip;
 }
@@ -292,27 +302,18 @@ export function setStopTime(routeId: number, stopTime: StopTimeDto): TripWithSto
  */
 export function shiftStopTime(routeId: number, tripId: number, stationId: number, part: "arr" | "dep" | "track", offsetSeconds: number) {
     let updatedTrip: TripWithStopTimesDto | undefined;
-    updateRoute(routeId, (r) => {
-        const tripIndex = r.trips.findIndex((t) => t.id === tripId);
-        if (tripIndex < 0) return r;
-        const trip = r.trips[tripIndex];
-        const existing = trip.stopTimesByStationId[stationId];
-        if (!existing) return r;
+    updateRoute(routeId, (r) =>
+        replaceTrip(r, tripId, (trip) => {
+            const existing = trip.stopTimesByStationId[stationId];
+            if (!existing) return null;
 
-        const next = { ...existing };
-        if (part === "arr" && next.ariTime >= 0) next.ariTime += offsetSeconds;
-        if (part === "dep" && next.depTime >= 0) next.depTime += offsetSeconds;
-
-        const nextTrip: TripWithStopTimesDto = {
-            ...trip,
-            stopTimesByStationId: { ...trip.stopTimesByStationId, [stationId]: next },
-        };
-        updatedTrip = nextTrip;
-
-        const nextTrips = [...r.trips];
-        nextTrips[tripIndex] = nextTrip;
-        return { ...r, trips: nextTrips };
-    });
+            const next = { ...existing };
+            if (part === "arr" && next.ariTime >= 0) next.ariTime += offsetSeconds;
+            if (part === "dep" && next.depTime >= 0) next.depTime += offsetSeconds;
+            updatedTrip = { ...trip, stopTimesByStationId: { ...trip.stopTimesByStationId, [stationId]: next } };
+            return updatedTrip;
+        }),
+    );
     return updatedTrip;
 }
 
@@ -328,27 +329,21 @@ export function shiftStopTime(routeId: number, tripId: number, stationId: number
  * @param offsetSeconds ずらす秒数（負で戻す）
  */
 export function shiftStopTimesFrom(routeId: number, tripId: number, stationIds: number[], firstPart: "arr" | "dep" | "track", offsetSeconds: number) {
-    updateRoute(routeId, (r) => {
-        const tripIndex = r.trips.findIndex((t) => t.id === tripId);
-        if (tripIndex < 0) return r;
-        const trip = r.trips[tripIndex];
-
-        const shift = (v: number) => (v >= 0 ? Math.max(0, v + offsetSeconds) : v);
-        const stopTimes = { ...trip.stopTimesByStationId };
-        stationIds.forEach((stationId, i) => {
-            const existing = stopTimes[stationId];
-            if (!existing) return;
-            const next = { ...existing };
-            const isFirst = i === 0;
-            if (!isFirst || firstPart === "arr") next.ariTime = shift(next.ariTime);
-            next.depTime = shift(next.depTime);
-            stopTimes[stationId] = next;
-        });
-
-        const nextTrips = [...r.trips];
-        nextTrips[tripIndex] = { ...trip, stopTimesByStationId: stopTimes };
-        return { ...r, trips: nextTrips };
-    });
+    const shift = (v: number) => (v >= 0 ? Math.max(0, v + offsetSeconds) : v);
+    updateRoute(routeId, (r) =>
+        replaceTrip(r, tripId, (trip) => {
+            const stopTimes = { ...trip.stopTimesByStationId };
+            stationIds.forEach((stationId, i) => {
+                const existing = stopTimes[stationId];
+                if (!existing) return;
+                const next = { ...existing };
+                if (i > 0 || firstPart === "arr") next.ariTime = shift(next.ariTime);
+                next.depTime = shift(next.depTime);
+                stopTimes[stationId] = next;
+            });
+            return { ...trip, stopTimesByStationId: stopTimes };
+        }),
+    );
 }
 
 /**
@@ -399,11 +394,7 @@ export function addTripBlock(routeId: number, trips: TripWithStopTimesDto[], pos
         }
 
         // 同じ方向の列車の中の指定位置へ挿入する（他方向の列車の並びはそのまま）
-        const direct = newTrips[0].direct;
-        const sameDirection = r.trips.filter((t) => t.direct === direct);
-        const others = r.trips.filter((t) => t.direct !== direct);
-        sameDirection.splice(Math.max(0, Math.min(position, sameDirection.length)), 0, ...newTrips);
-        return { ...r, counters, trips: [...others, ...sameDirection] };
+        return { ...r, counters, trips: insertIntoDirection(r.trips, newTrips[0].direct, position, newTrips) };
     });
     return created;
 }

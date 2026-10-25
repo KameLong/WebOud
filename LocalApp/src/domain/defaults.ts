@@ -12,3 +12,6 @@ export const DEFAULT_TRAIN_TYPE: Omit<TrainTypeDto, "id" | "routeID" | "index"> 
     lineBold: false,
     lineStyle: 0,
 };
+
+/** 列車の種別が見つからないとき（プレースホルダ列など）に使う種別。毎回同じ参照にして再描画を避ける */
+export const FALLBACK_TRAIN_TYPE: TrainTypeDto = { id: 0, routeID: 0, index: 0, name: "", shortName: "", color: "#000000", fontBold: false, lineBold: false, lineStyle: 0 };

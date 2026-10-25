@@ -1,5 +1,5 @@
 import type { StopTimeDto } from "./dto.ts";
-import { timeInt2Str } from "./utils.ts";
+import { timeInt2Str } from "./time.ts";
 
 /**
  * 発時刻欄に表示する文字列を返します。
