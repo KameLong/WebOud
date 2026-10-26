@@ -34,6 +34,8 @@ const STRIPE = "#e4e4e4";
 const HEAD_H = 34;
 /** 時の数字セルの幅 */
 const HOUR_W = 36;
+/** 時刻の塗りつぶしを、文字の枠から内側へ縮める量(pt)。画面の2px = 1.5pt（縦横で4px小さくなる） */
+const FILL_INSET = 1.5;
 /** 外枠の太さ（画面の3px = 2.25pt） */
 const BORDER_W = 2.25;
 
@@ -60,7 +62,8 @@ const BADGE_SIZES = [
  */
 function drawBadge(c: Canvas, x: number, cy: number, size: { fs: number; w: number }, trainType: TrainTypeDto, plain: boolean, label: string) {
     const h = size.fs + 4;
-    if (!plain) c.rect(x, cy - h / 2, size.w, h, trainType.color);
+    // 塗りつぶしは、文字の枠より縦横とも4px(=3pt)小さく（上下左右に1.5ptずつ内側へ）する
+    if (!plain) c.rect(x + FILL_INSET, cy - h / 2 + FILL_INSET, size.w - FILL_INSET * 2, h - FILL_INSET * 2, trainType.color);
     // 時刻（分）の数字は、画面と同じDiaProで描く
     c.text(label, x + size.w / 2, cy, size.fs, plain ? trainType.color : readableTextColor(trainType.color), { bold: trainType.fontBold || !plain, dia: true, align: "center" });
 }

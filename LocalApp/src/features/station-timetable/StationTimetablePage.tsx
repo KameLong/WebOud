@@ -19,6 +19,8 @@ const BRAND_COLOR = "#0a72be";
 const HOUR_CELL_COLOR = "#06406e";
 /** 偶数行の背景（縞模様） */
 const STRIPE_COLOR = "#e4e4e4";
+/** 時刻の塗りつぶしを、文字の枠から内側へ縮める量(px)。上下左右とも2px（縦横で4px小さくなる） */
+const FILL_INSET = 2;
 
 /**
  * 時刻（分）の見た目。線を太くする種別は種別色で塗りつぶした印、それ以外は色付き文字のみで表す。
@@ -31,18 +33,19 @@ function TimeBadge({ trainType, plain, children }: { trainType: TrainTypeDto; pl
     return (
         <span
             style={{
+                position: "relative",
                 display: "inline-block",
                 minWidth: 25,
                 padding: "1px 3px",
                 textAlign: "center",
-                borderRadius: 1,
                 lineHeight: 1.3,
                 fontWeight: trainType.fontBold || !plain ? 700 : 600,
-                background: plain ? "transparent" : trainType.color,
                 color: plain ? trainType.color : readableTextColor(trainType.color),
             }}
         >
-            {children}
+            {/* 塗りつぶしは、文字の枠より、縦横とも4px小さく（上下左右に2pxずつ内側へ）する */}
+            {!plain && <span aria-hidden style={{ position: "absolute", inset: FILL_INSET, background: trainType.color, borderRadius: 1 }} />}
+            <span style={{ position: "relative" }}>{children}</span>
         </span>
     );
 }
