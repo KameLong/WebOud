@@ -22,6 +22,8 @@ export type RouteRecord = {
     arrival?: { start?: number; end?: number };
     /** 解析対象の時間帯（始発駅をこの時間帯に出発する列車が、解析結果を表示する対象）。形式は arrival と同じ */
     target?: { start?: number; end?: number };
+    /** 合計所要時間を求める時間帯（この時間帯に発駅に着いた乗客が、着駅に着くまでに要した時間の合計を求める）。形式は arrival と同じ */
+    total?: { start?: number; end?: number };
 };
 
 export type RouteSummary = {

@@ -474,8 +474,9 @@
 
 /* 解析ページ：駅間の利用客数の表（発駅×着駅）。見出しの行と列は、スクロールしても見えるように固定する */
 .od-scroll {
-    overflow: auto;
-    max-height: max(320px, 68dvh);
+    /* 縦にはスクロールしない（ページ全体の高さが増える）。幅が足りないときだけ、横にスクロールする */
+    overflow-x: auto;
+    overflow-y: hidden;
     border: 1px solid #ddd;
     border-radius: 6px;
     background: #fff;
@@ -614,8 +615,9 @@
 
 /* 解析の結果の表：路線時刻表に似たスタイル。駅を縦に、解析対象の列車を横に並べる（列車ごとに「時刻」と「乗車客数」の2列） */
 .rr-scroll {
-    overflow: auto;
-    max-height: max(360px, 75dvh);
+    /* 縦にはスクロールしない（ページ全体の高さが増える）。幅が足りないときだけ、横にスクロールする */
+    overflow-x: auto;
+    overflow-y: hidden;
     border: 2px solid #333;
     background: #fff;
     display: inline-block;

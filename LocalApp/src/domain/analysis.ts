@@ -26,6 +26,9 @@ export type AnalysisInput = {
     /** 乗客が駅に来る時間帯（0:00からの秒。開始以上・終了未満の毎分0秒に乗客が着く） */
     arrivalStart: number;
     arrivalEnd: number;
+    /** 合計所要時間を求める時間帯（開始以上・終了未満に発駅に着いた乗客が対象。0:00からの秒）。省略すると求めない */
+    totalStart?: number;
+    totalEnd?: number;
 };
 
 /** 1本の列車の、乗客の割り当て結果 */
@@ -54,6 +57,11 @@ export type AnalysisResult = {
     assigned: number;
     /** 着駅まで行ける列車が無かった乗客の合計 */
     unreachable: number;
+    /**
+     * 合計所要時間（求める時間帯が無いときは null）。時間帯に発駅に着いた乗客が、発駅に着いてから着駅に着くまでに要した時間（待ち時間・乗り換えの待ち時間を含む）の合計。
+     * 着駅まで行けない乗客は含めない。
+     */
+    travel: { passengers: number; totalSeconds: number; unreachable: number } | null;
 };
 
 type StopInfo = { stationIdx: number; arr: number; dep: number };
@@ -216,7 +224,8 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
     const rank = new Array<number>(n);
     [...stations.keys()].sort((a, b) => stations[a].index - stations[b].index).forEach((idx, r) => (rank[idx] = r));
     const origins = stations.map((_, i) => i).filter((i) => stations.some((to, j) => i !== j && (od[odKey(stations[i].id, to.id)] ?? 0) > 0));
-    const result: AnalysisResult = { trips: loads, generated: 0, assigned: 0, unreachable: 0 };
+    const hasTotal = input.totalStart !== undefined && input.totalEnd !== undefined;
+    const result: AnalysisResult = { trips: loads, generated: 0, assigned: 0, unreachable: 0, travel: hasTotal ? { passengers: 0, totalSeconds: 0, unreachable: 0 } : null };
 
     for (let oi = 0; oi < origins.length; oi++) {
         const o = origins[oi];
@@ -278,11 +287,18 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
                     if (w <= 0) continue;
                     result.generated += w;
                     const final = best[j];
+                    // 合計所要時間を求める時間帯に、発駅に着いた乗客
+                    const inTotal = result.travel !== null && t >= input.totalStart! && t < input.totalEnd!;
                     if (!final) {
                         result.unreachable += w;
+                        if (inTotal) result.travel!.unreachable += w;
                         continue;
                     }
                     result.assigned += w;
+                    if (inTotal) {
+                        result.travel!.passengers += w;
+                        result.travel!.totalSeconds += w * (final.time - t);
+                    }
                     let cur: AtStation | null = final;
                     while (cur && cur.via) {
                         const a: Aboard = cur.via;

@@ -8,6 +8,7 @@ import { HelpDialog, HelpSection, HelpShortcutTable, HelpList } from "../../shar
 import { helpButtonStyle } from "../../shared/ui/helpButtonStyle.ts";
 import { ArrivalWindow } from "./ArrivalWindow.tsx";
 import { TargetWindow } from "./TargetWindow.tsx";
+import { TotalWindow } from "./TotalWindow.tsx";
 import { AnalysisResult } from "./AnalysisResult.tsx";
 import { OdAssistDialog } from "./OdAssistDialog.tsx";
 import { OdCell } from "./OdCell.tsx";
@@ -158,6 +159,7 @@ export function AnalysisPage() {
 
             <ArrivalWindow routeId={routeId} arrival={route.arrival} perHour={totals.grand} />
             <TargetWindow route={route} />
+            <TotalWindow route={route} />
 
             <Group justify="space-between" align="flex-end" mb={4}>
                 <Title order={4}>{t("odTitle")}</Title>

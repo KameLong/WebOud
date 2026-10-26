@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Alert, Button, Group, Popover, Text, Title, UnstyledButton } from "@mantine/core";
 import { analyzePassengers, type AnalysisResult as Result, type TripLoad } from "../../domain/analysis.ts";
 import { selectTargetTrips } from "../../domain/analysisTargets.ts";
-import { timeInt2Str } from "../../domain/time.ts";
+import { formatClock, timeInt2Str } from "../../domain/time.ts";
 import type { StationDto } from "../../domain/dto.ts";
 import type { RouteRecord } from "../../store/types.ts";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
@@ -199,7 +199,7 @@ export function AnalysisResult({ route }: { route: RouteRecord }) {
         setRunning({ done: 0, total: 1 });
         try {
             const result = await analyzePassengers(
-                { stations: route.stations, trips: route.trips, od: route.od ?? {}, arrivalStart: arrival!.start!, arrivalEnd: arrival!.end! },
+                { stations: route.stations, trips: route.trips, od: route.od ?? {}, arrivalStart: arrival!.start!, arrivalEnd: arrival!.end!, totalStart: route.total?.start, totalEnd: route.total?.end },
                 (d, total) => setRunning({ done: d, total }),
             );
             setDone({ result, route });
@@ -257,6 +257,30 @@ export function AnalysisResult({ route }: { route: RouteRecord }) {
                     <Text size="sm" mb="xs">
                         {t("resultSummary", { generated: fmt(done.result.generated), assigned: fmt(done.result.assigned), unreachable: fmt(done.result.unreachable) })}
                     </Text>
+                    {done.result.travel && done.route.total?.start !== undefined && done.route.total.end !== undefined && (
+                        <div style={{ marginBottom: 8 }}>
+                            <Text size="sm" fw={700}>
+                                {t("travelTitle")}
+                            </Text>
+                            {done.result.travel.passengers > 0 ? (
+                                <Text size="sm">
+                                    {t("travelSummary", {
+                                        start: formatClock(done.route.total.start),
+                                        end: formatClock(done.route.total.end),
+                                        passengers: fmt(done.result.travel.passengers),
+                                        hours: fmt(done.result.travel.totalSeconds / 3600),
+                                        minutes: fmt(done.result.travel.totalSeconds / 60),
+                                        average: fmt(done.result.travel.totalSeconds / 60 / done.result.travel.passengers),
+                                    })}
+                                    {done.result.travel.unreachable > 0 ? ` ${t("travelUnreachable", { n: fmt(done.result.travel.unreachable) })}` : ""}
+                                </Text>
+                            ) : (
+                                <Text size="sm" c="dimmed">
+                                    {t("travelNone")}
+                                </Text>
+                            )}
+                        </div>
+                    )}
                     {done.result.unreachable > 0 && (
                         <Text size="xs" c="red" mb="xs">
                             {t("resultUnreachable")}
