@@ -736,3 +736,98 @@
     background: #fafafa;
     font-variant-numeric: tabular-nums;
 }
+
+/* 解析の結果：乗車客数の数字（押すと、乗客の目的地が出る） */
+.rr-count .rr-count-button {
+    display: block;
+    width: 100%;
+    text-align: right;
+    font: inherit;
+    cursor: pointer;
+    min-height: 22px;
+}
+
+.rr-count .rr-count-button:hover {
+    text-decoration: underline;
+}
+
+.rr-dest-list {
+    max-height: 260px;
+    overflow: auto;
+}
+
+.rr-dest-row {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 4px;
+    font-size: 12px;
+}
+
+.rr-dest-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(15, 91, 138, 0.15);
+    border-radius: 2px;
+}
+
+.rr-dest-name,
+.rr-dest-n {
+    position: relative;
+}
+
+.rr-dest-n {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+/* 解析ページ：駅間の利用客数の入力補助ダイアログ */
+.od-assist-scroll {
+    max-height: 52dvh;
+    overflow: auto;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+}
+
+.od-assist-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.od-assist-table th,
+.od-assist-table td {
+    padding: 2px 6px;
+    border-bottom: 1px solid #eee;
+}
+
+.od-assist-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fafafa;
+    text-align: left;
+}
+
+.od-assist-table tbody th {
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.od-assist-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #555;
+}
+
+.od-assist-total th,
+.od-assist-total td {
+    font-weight: 700;
+    background: #fafafa;
+    border-top: 2px solid #ccc;
+}

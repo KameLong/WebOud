@@ -9,6 +9,7 @@ import { helpButtonStyle } from "../../shared/ui/helpButtonStyle.ts";
 import { ArrivalWindow } from "./ArrivalWindow.tsx";
 import { TargetWindow } from "./TargetWindow.tsx";
 import { AnalysisResult } from "./AnalysisResult.tsx";
+import { OdAssistDialog } from "./OdAssistDialog.tsx";
 import { OdCell } from "./OdCell.tsx";
 import { useT } from "./messages.ts";
 
@@ -23,6 +24,7 @@ export function AnalysisPage() {
     const { t, tl, table } = useT();
     const route = useSyncExternalStore(subscribe, () => getRoute(routeId));
     const [helpOpen, setHelpOpen] = useState(false);
+    const [assistOpen, setAssistOpen] = useState(false);
     const tableRef = useRef<HTMLTableElement | null>(null);
 
     const stations = useMemo(() => [...(route?.stations ?? [])].sort((a, b) => a.index - b.index), [route?.stations]);
@@ -159,9 +161,14 @@ export function AnalysisPage() {
 
             <Group justify="space-between" align="flex-end" mb={4}>
                 <Title order={4}>{t("odTitle")}</Title>
-                <Button variant="default" color="red" c="red" size="compact-xs" onClick={clearAll} disabled={!od || Object.keys(od).length === 0}>
-                    {t("clearAll")}
-                </Button>
+                <Group gap={6}>
+                    <Button variant="default" size="compact-xs" onClick={() => setAssistOpen(true)} disabled={stations.length < 2}>
+                        {t("assistButton")}
+                    </Button>
+                    <Button variant="default" color="red" c="red" size="compact-xs" onClick={clearAll} disabled={!od || Object.keys(od).length === 0}>
+                        {t("clearAll")}
+                    </Button>
+                </Group>
             </Group>
             <Text size="xs" c="dimmed" mb={4}>
                 {t("odIntro")}
@@ -232,6 +239,7 @@ export function AnalysisPage() {
 
             <AnalysisResult route={route} />
 
+            <OdAssistDialog open={assistOpen} onClose={() => setAssistOpen(false)} routeId={routeId} stations={route.stations} od={od} />
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title={t("helpTitle")}>
                 <HelpSection title={t("helpDoSection")}>
                     <HelpList items={tl("helpDoItems")} />

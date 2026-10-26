@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { Alert, Button, Group, Text, Title } from "@mantine/core";
+import { Alert, Button, Group, Popover, Text, Title, UnstyledButton } from "@mantine/core";
 import { analyzePassengers, type AnalysisResult as Result, type TripLoad } from "../../domain/analysis.ts";
 import { selectTargetTrips } from "../../domain/analysisTargets.ts";
 import { timeInt2Str } from "../../domain/time.ts";
+import type { StationDto } from "../../domain/dto.ts";
 import type { RouteRecord } from "../../store/types.ts";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
 import { useCommonT } from "../../shared/i18n/common.ts";
@@ -18,11 +19,51 @@ function fmt(n: number): string {
 }
 
 /**
+ * 乗車客数の数字。押す（タッチする）と、その乗客が行きたい目的地を、人数の多い順に表示します。
+ *
+ * @param props value:乗車客数 / dests:着駅ごとの人数（着駅の位置 → 人数） / stations:駅（destsの位置と同じ並び） / title:表示する見出し
+ */
+function CountButton({ value, dests, stations, title }: { value: number; dests: number[]; stations: StationDto[]; title: string }) {
+    const { t } = useT();
+    if (value <= 0) return <span>{fmt(value)}</span>;
+    const list = dests
+        .map((n, j) => ({ name: stations[j]?.name ?? "", n }))
+        .filter((x) => x.n > 0.0005)
+        .sort((a, b) => b.n - a.n);
+    return (
+        <Popover width={240} position="bottom-start" shadow="md" withArrow withinPortal>
+            <Popover.Target>
+                <UnstyledButton className="rr-count-button" aria-label={t("destAria", { title, n: fmt(value) })}>
+                    {fmt(value)}
+                </UnstyledButton>
+            </Popover.Target>
+            <Popover.Dropdown p="xs">
+                <Text size="xs" fw={700} mb={4}>
+                    {title}
+                </Text>
+                <Text size="xs" c="dimmed" mb={6}>
+                    {t("destHeading", { n: fmt(value) })}
+                </Text>
+                <div className="rr-dest-list">
+                    {list.map((x) => (
+                        <div key={x.name} className="rr-dest-row">
+                            <span className="rr-dest-bar" style={{ width: `${Math.max(2, (x.n / value) * 100)}%` }} />
+                            <span className="rr-dest-name">{x.name}</span>
+                            <span className="rr-dest-n">{fmt(x.n)}</span>
+                        </div>
+                    ))}
+                </div>
+            </Popover.Dropdown>
+        </Popover>
+    );
+}
+
+/**
  * 解析の結果の表（1方向分）。路線時刻表と同じように、駅を縦に並べ（走行順）、解析対象の列車を横に並べます。
  * 各列車は、時刻と、その右側の乗車客数（各駅を出発したあとの車内の乗客数）の2列です。
  * 時刻は、出発時刻（終着駅は到着時刻）です。通る駅は「↓」、走らない区間は空欄です。
  *
- * @param props route:路線 / direct:0:下り 1:上り / loads:解析対象の列車の割り当て結果（出発時刻順）
+ * @param props route:路線 / direct:0:下り 1:上り / loads:解析対象の列車の割り当て結果（路線時刻表と同じ並び順）
  */
 function ResultTable({ route, direct, loads }: { route: RouteRecord; direct: number; loads: TripLoad[] }) {
     const { t } = useT();
@@ -104,7 +145,7 @@ function ResultTable({ route, direct, loads }: { route: RouteRecord; direct: num
                                             {timeInt2Str(time, false)}
                                         </td>,
                                         <td key={`${l.trip.id}n`} className="rr-count" style={{ background: v ? `rgba(220, 60, 40, ${Math.min(0.45, (v / maxLoad) * 0.45)})` : undefined }}>
-                                            {v === null ? "" : fmt(v)}
+                                            {v === null ? "" : <CountButton value={v} dests={l.onboardDest[p]} stations={route.stations} title={t("destTitle", { train: `${timeInt2Str(l.times[0].dep, false)} ${l.trip.no}`.trim(), station: s.name })} />}
                                         </td>,
                                     ];
                                 })}
@@ -174,7 +215,9 @@ export function AnalysisResult({ route }: { route: RouteRecord }) {
     const shown = useMemo(() => {
         if (!done || target?.start === undefined || target?.end === undefined) return null;
         const ids = new Set(selectTargetTrips(done.route.trips, done.route.stations, done.route.target?.start ?? 0, done.route.target?.end ?? 0).map((x) => x.trip.id));
-        const loads = done.result.trips.filter((l) => ids.has(l.trip.id)).sort((a, b) => a.times[0].dep - b.times[0].dep);
+        // 列車の並びは、路線時刻表と同じ（路線データでの並び順）
+        const order = new Map(done.route.trips.map((tr, i) => [tr.id, i]));
+        const loads = done.result.trips.filter((l) => ids.has(l.trip.id)).sort((a, b) => order.get(a.trip.id)! - order.get(b.trip.id)!);
         return { down: loads.filter((l) => l.trip.direct === 0), up: loads.filter((l) => l.trip.direct === 1), count: ids.size };
     }, [done, target?.start, target?.end]);
 

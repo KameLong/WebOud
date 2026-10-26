@@ -37,6 +37,8 @@ export type TripLoad = {
     times: { arr: number; dep: number }[];
     /** 各区間（停車駅i→i+1）を走るときの乗車人数。長さは 停車駅数-1 */
     onboard: number[];
+    /** 各区間の乗客が、行きたい着駅ごとに何人か（[区間][着駅の位置]。着駅の位置は、入力の stations の並びでの位置） */
+    onboardDest: number[][];
     /** 各停車駅での乗車人数・降車人数 */
     boardings: number[];
     alightings: number[];
@@ -175,6 +177,7 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
         stationIds: stops.map((s) => stations[s.stationIdx].id),
         times: stops.map((s) => ({ arr: s.arr, dep: s.dep })),
         onboard: stops.slice(1).map(() => 0),
+        onboardDest: stops.slice(1).map(() => new Array<number>(stations.length).fill(0)),
         boardings: stops.map(() => 0),
         alightings: stops.map(() => 0),
     }));
@@ -286,7 +289,10 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
                         const load = loads[a.trip];
                         load.boardings[a.boardPos] += w;
                         load.alightings[cur.alightPos] += w;
-                        for (let p = a.boardPos; p < cur.alightPos; p++) load.onboard[p] += w;
+                        for (let p = a.boardPos; p < cur.alightPos; p++) {
+                            load.onboard[p] += w;
+                            load.onboardDest[p][j] += w;
+                        }
                         cur = a.from;
                     }
                 }
