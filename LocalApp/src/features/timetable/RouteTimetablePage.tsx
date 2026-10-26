@@ -388,7 +388,7 @@ export default function RouteTimetablePage() {
     };
 
     return (
-        <div style={{ height: "100%", padding: "10px" }}>
+        <div className="rt-page">
             <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end", marginBottom: 6 }}>
                 <Switch
                     label={msg("continuousInput")}

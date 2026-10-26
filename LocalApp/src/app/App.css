@@ -96,14 +96,28 @@
     }
 }
 
-/* グリッドの描画領域からスマホ用キーパッド分の高さを確保する(時刻表画面側でこのクラスを付与) */
-.rt-grid-scroll {
-    height: calc(100% - 38px);
+/* 時刻表画面：上のメニューは固定の高さ、グリッドが残りの高さいっぱいを使ってスクロールする */
+.rt-page {
+    height: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
 }
 
+.rt-page > * {
+    flex: none;
+}
+
+.rt-page > .rt-grid-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* スマホでは、画面下に固定表示するキーパッドの高さぶん、下を空けて、グリッドの下端がキーパッドに隠れないようにする */
 @media (max-width: 780px) {
-    .rt-grid-scroll {
-        height: calc(100% - 38px - var(--rt-keypad-h));
+    .rt-page {
+        padding-bottom: calc(10px + var(--rt-keypad-h));
     }
 }
 

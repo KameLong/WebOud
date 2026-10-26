@@ -24,6 +24,8 @@ a:hover {
 
 html {
     height: 100vh;
+    /* スマホのブラウザは、アドレスバーを含む高さが100vhになり、画面の下端が見えなくなるため、実際に見える高さ(dvh)を使う */
+    height: 100dvh;
     overflow: hidden;
 }
 
