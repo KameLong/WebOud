@@ -1,3 +1,4 @@
+import type { OdTable } from "../domain/od.ts";
 import type { StationDto, TrainTypeDto, TripWithStopTimesDto } from "../domain/dto.ts";
 
 export type RouteCounters = {
@@ -15,6 +16,10 @@ export type RouteRecord = {
     stations: StationDto[];
     trainTypes: TrainTypeDto[];
     trips: TripWithStopTimesDto[];
+    /** 駅間の利用客数（解析ページで入力する、1時間あたりの人数）。入力が無い路線・古いデータには無い */
+    od?: OdTable;
+    /** 乗客が駅に来る時間帯（解析ページで入力する）。0:00からの秒（3時より前は翌日として+24h）。どちらも入力が無いうちは無い */
+    arrival?: { start?: number; end?: number };
 };
 
 export type RouteSummary = {

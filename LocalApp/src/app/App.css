@@ -471,3 +471,130 @@
         display: none;
     }
 }
+
+/* 解析ページ：駅間の利用客数の表（発駅×着駅）。見出しの行と列は、スクロールしても見えるように固定する */
+.od-scroll {
+    overflow: auto;
+    max-height: max(320px, 68dvh);
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.od-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+}
+
+.od-table th,
+.od-table td {
+    border-right: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    padding: 0;
+    text-align: center;
+}
+
+.od-corner,
+.od-col-head,
+.od-total-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fafafa;
+    font-weight: 600;
+}
+
+.od-corner {
+    left: 0;
+    z-index: 3;
+    min-width: 96px;
+    padding: 4px 6px !important;
+}
+
+.od-col-head {
+    min-width: 52px;
+    max-width: 52px;
+    height: 110px;
+    vertical-align: bottom;
+}
+
+.od-col-head span {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    max-height: 104px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px 0;
+}
+
+.od-row-head {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fafafa;
+    font-weight: 600;
+    text-align: left !important;
+    padding: 0 8px !important;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.od-down {
+    background: #f4f9ff;
+}
+
+.od-up {
+    background: #fff8f0;
+}
+
+.od-diagonal {
+    background: repeating-linear-gradient(45deg, #f0f0f0, #f0f0f0 4px, #e6e6e6 4px, #e6e6e6 8px);
+}
+
+.od-cell {
+    width: 52px;
+    height: 28px;
+    box-sizing: border-box;
+    border: none;
+    background: transparent;
+    text-align: right;
+    padding: 0 6px;
+    font: inherit;
+}
+
+.od-cell:focus {
+    outline: 2px solid #0f5b8a;
+    outline-offset: -2px;
+    background: #fff;
+}
+
+.od-cell-invalid {
+    background: #fdecea;
+    outline: 2px solid #c0392b;
+    outline-offset: -2px;
+}
+
+.od-total {
+    padding: 0 8px !important;
+    text-align: right !important;
+    background: #fafafa;
+    font-variant-numeric: tabular-nums;
+}
+
+.od-total-head {
+    min-width: 56px;
+    padding: 4px 6px !important;
+}
+
+.od-total-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: #fafafa;
+    font-weight: 600;
+}

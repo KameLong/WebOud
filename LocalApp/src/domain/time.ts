@@ -53,3 +53,27 @@ export function timeStr2Int(timeStr: string): number {
     }
     return res;
 }
+
+/**
+ * 0:00からの秒を「hh:mm」の表示にします（24時以降は24を引く。3時より前を翌日として足した秒も、そのまま読める）。
+ *
+ * @param seconds 0:00からの秒
+ */
+export function formatClock(seconds: number): string {
+    const h = Math.floor(seconds / 3600) % 24;
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * 入力された時刻の文字（全角の数字も可）を、0:00からの秒にします。3時より前は翌日扱い(+24h)です。
+ *
+ * @param text 入力された文字（hmm / hhmm / h:mm / hh:mm）
+ * @returns 秒。空欄なら null（値なし）、時刻として読めなければ undefined
+ */
+export function parseClockInput(text: string): number | null | undefined {
+    const s = text.normalize("NFKC").trim().replace(/：/g, ":");
+    if (s === "") return null;
+    if (!isValidTimeStr(s)) return undefined;
+    return timeStr2Int(s);
+}

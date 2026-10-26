@@ -1,5 +1,6 @@
 import { getRoute, updateRoute, withDefaultTrainType } from "./localStore.ts";
 import type { RouteRecord } from "./types.ts";
+import { odKey, type OdTable } from "../domain/od.ts";
 import type { StationDto, StopTimeDto, TimeTableDto, TrainTypeDto, TripDto, TripWithStopTimesDto } from "../domain/dto.ts";
 
 /**
@@ -120,6 +121,8 @@ export function deleteStations(routeId: number, ids: number[]) {
     updateRoute(routeId, (r) => ({
         ...r,
         stations: renumber(r.stations.filter((s) => !idSet.has(s.id))),
+        // 削除した駅の利用客数も消す
+        od: r.od && Object.fromEntries(Object.entries(r.od).filter(([k]) => k.split("-").every((id) => !idSet.has(Number(id))))),
         trips: r.trips.map((t) => {
             if (!Object.keys(t.stopTimesByStationId).some((k) => idSet.has(Number(k)))) return t;
             return { ...t, stopTimesByStationId: Object.fromEntries(Object.entries(t.stopTimesByStationId).filter(([k]) => !idSet.has(Number(k)))) };
@@ -135,6 +138,42 @@ export function deleteStations(routeId: number, ids: number[]) {
  */
 export function updateStation(routeId: number, item: StationDto) {
     updateRoute(routeId, (r) => ({ ...r, stations: r.stations.map((s) => (s.id === item.id ? item : s)) }));
+}
+
+/* ---------------- 駅間の利用客数(OD表) ---------------- */
+
+/**
+ * 駅間の利用客数を、まとめて書き換えます（1回の更新）。
+ *
+ * @param routeId 路線ID
+ * @param changes 変更する組（from:発駅のID / to:着駅のID / value:1時間あたりの人数。nullなら値を消す）
+ */
+export function setOdValues(routeId: number, changes: { from: number; to: number; value: number | null }[]) {
+    if (changes.length === 0) return;
+    updateRoute(routeId, (r) => {
+        const od: OdTable = { ...r.od };
+        for (const { from, to, value } of changes) {
+            if (value === null) delete od[odKey(from, to)];
+            else od[odKey(from, to)] = value;
+        }
+        return { ...r, od };
+    });
+}
+
+/**
+ * 乗客が駅に来る時間帯の、開始または終了の時刻を書き換えます。
+ *
+ * @param routeId 路線ID
+ * @param which start:開始 / end:終了
+ * @param seconds 0:00からの秒（3時より前は翌日として+24h）。nullなら消す
+ */
+export function setArrivalTime(routeId: number, which: "start" | "end", seconds: number | null) {
+    updateRoute(routeId, (r) => {
+        const arrival = { ...r.arrival };
+        if (seconds === null) delete arrival[which];
+        else arrival[which] = seconds;
+        return { ...r, arrival };
+    });
 }
 
 /* ---------------- TrainTypes ---------------- */

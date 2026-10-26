@@ -3,7 +3,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getRoute, listRoutes, subscribe } from "../../store/localStore.ts";
 
-type ActivePage = "edit" | "down" | "up" | "diagram" | "station" | null;
+type ActivePage = "edit" | "down" | "up" | "diagram" | "station" | "analysis" | null;
 
 /**
  * 現在のURLから、アクティブな路線IDと表示中のページ種別を判定する
@@ -11,10 +11,11 @@ type ActivePage = "edit" | "down" | "up" | "diagram" | "station" | null;
  * @param pathname 現在のURLパス
  */
 function parseActive(pathname: string): { routeId: number | null; page: ActivePage } {
-    const m = pathname.match(/^\/route\/(\d+)(?:\/timetable\/(\d+)|\/diagram|\/station\/\d+)?\/?$/);
+    const m = pathname.match(/^\/route\/(\d+)(?:\/timetable\/(\d+)|\/diagram|\/analysis|\/station\/\d+)?\/?$/);
     if (!m) return { routeId: null, page: null };
     const routeId = Number(m[1]);
     if (pathname.endsWith("/diagram")) return { routeId, page: "diagram" };
+    if (pathname.endsWith("/analysis")) return { routeId, page: "analysis" };
     if (pathname.includes("/station/")) return { routeId, page: "station" };
     if (m[2] != null) return { routeId, page: m[2] === "1" ? "up" : "down" };
     return { routeId, page: "edit" };
@@ -145,6 +146,7 @@ export function RouteTreeList(props: { onNavigate?: () => void }) {
                                             {firstStation && (
                                                 <TreeItem label={t("stationTimetable")} active={isActiveRoute && activePage === "station"} onClick={() => go(`/route/${r.id}/station/${firstStation.id}`)} />
                                             )}
+                                            <TreeItem label={t("analysis")} active={isActiveRoute && activePage === "analysis"} onClick={() => go(`/route/${r.id}/analysis`)} />
                                         </div>
                                     );
                                 })()}
