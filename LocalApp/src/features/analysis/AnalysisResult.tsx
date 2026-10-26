@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Alert, Button, Group, Text, Title } from "@mantine/core";
 import { analyzePassengers, type AnalysisResult as Result, type TripLoad } from "../../domain/analysis.ts";
 import { selectTargetTrips } from "../../domain/analysisTargets.ts";
-import { formatClock } from "../../domain/time.ts";
+import { timeInt2Str } from "../../domain/time.ts";
 import type { RouteRecord } from "../../store/types.ts";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
 import { useCommonT } from "../../shared/i18n/common.ts";
@@ -18,63 +18,108 @@ function fmt(n: number): string {
 }
 
 /**
- * 解析の結果の表（1方向分）。行が解析対象の列車、列が駅（走行順）で、各駅を出発したあとの乗車人数を表示します。
+ * 解析の結果の表（1方向分）。路線時刻表と同じように、駅を縦に並べ（走行順）、解析対象の列車を横に並べます。
+ * 各列車は、時刻と、その右側の乗車客数（各駅を出発したあとの車内の乗客数）の2列です。
+ * 時刻は、出発時刻（終着駅は到着時刻）です。通る駅は「↓」、走らない区間は空欄です。
  *
- * @param props route:路線 / direct:0:下り 1:上り / loads:解析対象の列車の割り当て結果
+ * @param props route:路線 / direct:0:下り 1:上り / loads:解析対象の列車の割り当て結果（出発時刻順）
  */
 function ResultTable({ route, direct, loads }: { route: RouteRecord; direct: number; loads: TripLoad[] }) {
     const { t } = useT();
     const cm = useCommonT().t;
     const typeById = useMemo(() => new Map(route.trainTypes.map((x) => [x.id, x])), [route.trainTypes]);
-    const columns = useMemo(() => {
+    const rows = useMemo(() => {
         const asc = [...route.stations].sort((a, b) => a.index - b.index);
         return direct === 1 ? asc.reverse() : asc;
     }, [route.stations, direct]);
+    // 色の濃さの基準にする、車内人数の最大
+    const maxLoad = useMemo(() => Math.max(1, ...loads.flatMap((l) => l.onboard)), [loads]);
+    // 列車ごとの、駅ID → 停車位置
+    const positions = useMemo(() => loads.map((l) => new Map(l.stationIds.map((id, p) => [id, p]))), [loads]);
     if (loads.length === 0) return null;
+
+    const summaryRows: { label: string; value: (l: TripLoad) => number }[] = [
+        { label: t("resultBoarded"), value: (l) => l.boardings.reduce((a, b) => a + b, 0) },
+        { label: t("resultPeak"), value: (l) => Math.max(0, ...l.onboard) },
+    ];
 
     return (
         <section style={{ marginBottom: 20 }}>
             <Text fw={700} size="sm" mb={4}>
                 {cm(direct === 1 ? "up" : "down")}　{t("resultCount", { n: loads.length })}
             </Text>
-            <div className="od-scroll">
-                <table className="od-table res-table">
+            <div className="rr-scroll">
+                <table className="rr-table">
                     <thead>
                         <tr>
-                            <th className="od-corner">{t("resultOrigin")}</th>
-                            <th className="od-total-head">{cm("trainType")}</th>
-                            <th className="od-total-head">{cm("trainNo")}</th>
-                            <th className="od-total-head">{t("resultBoarded")}</th>
-                            <th className="od-total-head">{t("resultPeak")}</th>
-                            {columns.map((s) => (
-                                <th key={s.id} className="od-col-head" title={s.name}>
-                                    <span>{s.name}</span>
+                            <th className="rr-corner">{cm("trainType")}</th>
+                            {loads.map((l) => {
+                                const type = typeById.get(l.trip.trainTypeID);
+                                return (
+                                    <th key={l.trip.id} colSpan={2} className="rr-train" style={{ color: type?.color, fontWeight: type?.fontBold ? 700 : 400 }}>
+                                        {type?.shortName || type?.name}
+                                    </th>
+                                );
+                            })}
+                        </tr>
+                        <tr>
+                            <th className="rr-corner">{cm("trainNo")}</th>
+                            {loads.map((l) => (
+                                <th key={l.trip.id} colSpan={2} className="rr-train" style={{ color: typeById.get(l.trip.trainTypeID)?.color }}>
+                                    {l.trip.no || "\u00a0"}
+                                </th>
+                            ))}
+                        </tr>
+                        <tr className="rr-head-last">
+                            <th className="rr-corner">{cm("trainName")}</th>
+                            {loads.map((l) => (
+                                <th key={l.trip.id} colSpan={2} className="rr-train rr-name" title={l.trip.name}>
+                                    {l.trip.name || "\u00a0"}
                                 </th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {loads.map((l) => {
-                            const type = typeById.get(l.trip.trainTypeID);
-                            const onboard = new Map(l.stationIds.map((id, p) => [id, p < l.onboard.length ? l.onboard[p] : null]));
-                            return (
-                                <tr key={l.trip.id}>
-                                    <th className="od-row-head">{formatClock(l.times[0].dep)}</th>
-                                    <td style={{ color: type?.color, fontWeight: 600, padding: "0 6px", whiteSpace: "nowrap" }}>{type?.shortName || type?.name}</td>
-                                    <td style={{ padding: "0 6px", whiteSpace: "nowrap" }}>{l.trip.no}</td>
-                                    <td className="od-total">{fmt(l.boardings.reduce((a, b) => a + b, 0))}</td>
-                                    <td className="od-total">{fmt(Math.max(0, ...l.onboard))}</td>
-                                    {columns.map((s) => {
-                                        const v = onboard.get(s.id);
+                        {rows.map((s) => (
+                            <tr key={s.id}>
+                                <th className="rr-station" title={s.name}>
+                                    {s.name}
+                                </th>
+                                {loads.map((l, k) => {
+                                    const p = positions[k].get(s.id);
+                                    const type = typeById.get(l.trip.trainTypeID);
+                                    if (p === undefined) {
+                                        // 走る区間の途中で停車しない駅は「↓」、走らない区間は空欄
+                                        const between = l.stationIds.length > 0 && rows.findIndex((r) => r.id === l.stationIds[0]) < rows.indexOf(s) && rows.indexOf(s) < rows.findIndex((r) => r.id === l.stationIds[l.stationIds.length - 1]);
                                         return (
-                                            <td key={s.id} className="res-cell">
-                                                {v === undefined ? "" : v === null ? "▏" : fmt(v)}
+                                            <td key={l.trip.id} colSpan={2} className="rr-pass">
+                                                {between ? "↓" : ""}
                                             </td>
                                         );
-                                    })}
-                                </tr>
-                            );
-                        })}
+                                    }
+                                    const v = p < l.onboard.length ? l.onboard[p] : null;
+                                    const time = p === 0 ? l.times[p].dep : p === l.times.length - 1 ? l.times[p].arr : l.times[p].dep;
+                                    return [
+                                        <td key={`${l.trip.id}t`} className="rr-time" style={{ color: type?.color }}>
+                                            {timeInt2Str(time, false)}
+                                        </td>,
+                                        <td key={`${l.trip.id}n`} className="rr-count" style={{ background: v ? `rgba(220, 60, 40, ${Math.min(0.45, (v / maxLoad) * 0.45)})` : undefined }}>
+                                            {v === null ? "" : fmt(v)}
+                                        </td>,
+                                    ];
+                                })}
+                            </tr>
+                        ))}
+                        {summaryRows.map((row, i) => (
+                            <tr key={row.label} className={i === 0 ? "rr-summary-first" : undefined}>
+                                <th className="rr-station">{row.label}</th>
+                                {loads.map((l) => (
+                                    <td key={l.trip.id} colSpan={2} className="rr-summary">
+                                        {fmt(row.value(l))}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>

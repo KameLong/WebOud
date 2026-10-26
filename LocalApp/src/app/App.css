@@ -611,3 +611,128 @@
 .res-table .od-total {
     white-space: nowrap;
 }
+
+/* 解析の結果の表：路線時刻表に似たスタイル。駅を縦に、解析対象の列車を横に並べる（列車ごとに「時刻」と「乗車客数」の2列） */
+.rr-scroll {
+    overflow: auto;
+    max-height: max(360px, 75dvh);
+    border: 2px solid #333;
+    background: #fff;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.rr-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.rr-table th,
+.rr-table td {
+    padding: 0;
+    height: 22px;
+    line-height: 22px;
+    white-space: nowrap;
+    border-right: 1px solid #333;
+}
+
+.rr-corner,
+.rr-train {
+    position: sticky;
+    background: #fafafa;
+    text-align: center;
+    font-weight: 400;
+    z-index: 2;
+    border-bottom: 1px solid #333;
+}
+
+.rr-table thead tr:nth-child(1) th {
+    top: 0;
+}
+
+.rr-table thead tr:nth-child(2) th {
+    top: 23px;
+    border-bottom: 2px solid #333;
+}
+
+.rr-table thead tr:nth-child(3) th {
+    top: 47px;
+    border-bottom: 2px solid #333;
+}
+
+.rr-corner {
+    left: 0;
+    z-index: 4;
+    min-width: 96px;
+    padding: 0 6px;
+    border-right: 2px solid #333;
+}
+
+.rr-train {
+    min-width: 96px;
+    padding: 0 4px;
+}
+
+.rr-name {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+}
+
+.rr-station {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fafafa;
+    text-align: left;
+    font-weight: 400;
+    padding: 0 8px !important;
+    min-width: 96px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-right: 2px solid #333 !important;
+    border-bottom: 1px solid #ddd;
+}
+
+.rr-time,
+.rr-count,
+.rr-pass,
+.rr-summary {
+    border-bottom: 1px solid #ddd;
+}
+
+.rr-time {
+    font-family: DiaPro, system-ui, sans-serif;
+    text-align: center;
+    min-width: 40px;
+    padding: 0 3px !important;
+    border-right: none !important;
+}
+
+.rr-count {
+    min-width: 56px;
+    text-align: right;
+    padding: 0 5px !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.rr-pass {
+    text-align: center;
+    color: #888;
+}
+
+.rr-summary-first .rr-station,
+.rr-summary-first .rr-summary {
+    border-top: 2px solid #333;
+}
+
+.rr-summary {
+    text-align: right;
+    padding: 0 8px !important;
+    font-weight: 600;
+    background: #fafafa;
+    font-variant-numeric: tabular-nums;
+}

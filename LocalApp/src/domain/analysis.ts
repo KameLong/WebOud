@@ -12,6 +12,7 @@ import { odKey, type OdTable } from "./od.ts";
  *     4. それでも同じ列車の並びがあるときは、今乗っている列車に乗り続ける（乗り換えを遅くする）経路
  *   （それでも決まらないときは、列車の並び順が前のものを選ぶ）
  * ・乗り換えは、同じ駅の中だけで、到着と同時刻の出発にも乗れる（乗り換えにかかる時間は0とする）。
+ * ・下りの列車と上りの列車を両方使う経路（途中で折り返す経路）は選ばない。着駅が発駅より下り側（駅の並びが後ろ）なら下りの列車だけ、上り側なら上りの列車だけを使う。
  */
 
 /** 計算の入力 */
@@ -187,18 +188,20 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
         });
     });
     events.sort((a, b) => a.time - b.time || a.type - b.type || a.trip - b.trip || a.pos - b.pos);
+    // 方向ごとの出来事（下りの客は下りの列車だけ、上りの客は上りの列車だけを使う）
+    const eventsByDirect: Event[][] = [events.filter((e) => infos[e.trip].trip.direct !== 1), events.filter((e) => infos[e.trip].trip.direct === 1)];
 
     /**
      * 指定の時刻以降の、最初の出来事の位置を返す。
      *
      * @param time 時刻（秒）
      */
-    const firstEventAt = (time: number) => {
+    const firstEventAt = (list: Event[], time: number) => {
         let lo = 0;
-        let hi = events.length;
+        let hi = list.length;
         while (lo < hi) {
             const mid = (lo + hi) >> 1;
-            if (events[mid].time < time) lo = mid + 1;
+            if (list[mid].time < time) lo = mid + 1;
             else hi = mid;
         }
         return lo;
@@ -206,78 +209,86 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
 
     const n = stations.length;
     const K = infos.length;
+    // 駅の並び順（下りの順）での位置。着駅が発駅より後ろなら下り、前なら上り
+    const rank = new Array<number>(n);
+    [...stations.keys()].sort((a, b) => stations[a].index - stations[b].index).forEach((idx, r) => (rank[idx] = r));
     const origins = stations.map((_, i) => i).filter((i) => stations.some((to, j) => i !== j && (od[odKey(stations[i].id, to.id)] ?? 0) > 0));
     const result: AnalysisResult = { trips: loads, generated: 0, assigned: 0, unreachable: 0 };
 
     for (let oi = 0; oi < origins.length; oi++) {
         const o = origins[oi];
-        // この発駅から、利用客数が入っている着駅
-        const weights = new Array<number>(n).fill(0);
-        let destCount = 0;
-        for (let j = 0; j < n; j++) {
-            const v = j === o ? 0 : (od[odKey(stations[o].id, stations[j].id)] ?? 0);
-            if (v > 0) {
-                weights[j] = v / 60;
-                destCount++;
-            }
-        }
-
-        for (let t = input.arrivalStart; t < input.arrivalEnd; t += 60) {
-            const origin: AtStation = { kind: "S", transfers: -1, ride: 0, via: null, alightPos: -1, time: t };
-            const aboard: (Aboard | null)[] = new Array(K).fill(null);
-            const atStation: (AtStation | null)[] = new Array(n).fill(null);
-            atStation[o] = origin;
-            const best: (AtStation | null)[] = new Array(n).fill(null);
-            let pending = destCount;
-            let stopAfter = Infinity;
-
-            for (let e = firstEventAt(t); e < events.length; e++) {
-                const ev = events[e];
-                if (ev.time > stopAfter) break;
-                if (ev.type === 0) {
-                    // 到着：乗っている状態から、ここで降りた状態を作る
-                    const a = aboard[ev.trip];
-                    if (!a) continue;
-                    const s: AtStation = { kind: "S", transfers: a.transfers, ride: a.rideBase + ev.time, via: a, alightPos: ev.pos, time: ev.time };
-                    const cur = atStation[ev.stationIdx];
-                    if (!cur || compare(s, cur) < 0) atStation[ev.stationIdx] = s;
-                    if (weights[ev.stationIdx] > 0) {
-                        const b = best[ev.stationIdx];
-                        if (!b) {
-                            best[ev.stationIdx] = s;
-                            pending--;
-                            if (pending === 0) stopAfter = Math.max(...best.map((x) => (x ? x.time : -Infinity)));
-                        } else if (s.time === b.time && compare(s, b) < 0) best[ev.stationIdx] = s;
-                    }
-                } else {
-                    // 出発：駅にいる状態から、この列車に乗った状態を作り、今乗っている状態と比べる
-                    const from = atStation[ev.stationIdx];
-                    if (!from) continue;
-                    const boarded: Aboard = { kind: "A", transfers: from.transfers + 1, rideBase: from.ride - ev.time, trip: ev.trip, boardPos: ev.pos, from };
-                    const cur = aboard[ev.trip];
-                    if (!cur || compare(boarded, cur) < 0) aboard[ev.trip] = boarded;
-                }
-            }
-
-            // 着駅ごとに、選んだ経路の列車へ、乗客を割り当てる
+        for (let direct = 0; direct < 2; direct++) {
+            const list = eventsByDirect[direct];
+            // この発駅から、この方向にある、利用客数が入っている着駅
+            const weights = new Array<number>(n).fill(0);
+            let destCount = 0;
             for (let j = 0; j < n; j++) {
-                const w = weights[j];
-                if (w <= 0) continue;
-                result.generated += w;
-                const final = best[j];
-                if (!final) {
-                    result.unreachable += w;
-                    continue;
+                if (j === o || (rank[j] > rank[o] ? 0 : 1) !== direct) continue;
+                const v = od[odKey(stations[o].id, stations[j].id)] ?? 0;
+                if (v > 0) {
+                    weights[j] = v / 60;
+                    destCount++;
                 }
-                result.assigned += w;
-                let cur: AtStation | null = final;
-                while (cur && cur.via) {
-                    const a: Aboard = cur.via;
-                    const load = loads[a.trip];
-                    load.boardings[a.boardPos] += w;
-                    load.alightings[cur.alightPos] += w;
-                    for (let p = a.boardPos; p < cur.alightPos; p++) load.onboard[p] += w;
-                    cur = a.from;
+            }
+            if (destCount === 0) continue;
+
+            for (let t = input.arrivalStart; t < input.arrivalEnd; t += 60) {
+                const origin: AtStation = { kind: "S", transfers: -1, ride: 0, via: null, alightPos: -1, time: t };
+                const aboard: (Aboard | null)[] = new Array(K).fill(null);
+                const atStation: (AtStation | null)[] = new Array(n).fill(null);
+                atStation[o] = origin;
+                const best: (AtStation | null)[] = new Array(n).fill(null);
+                let pending = destCount;
+                let stopAfter = Infinity;
+
+                for (let e = firstEventAt(list, t); e < list.length; e++) {
+                    const ev = list[e];
+                    if (ev.time > stopAfter) break;
+                    if (ev.type === 0) {
+                        // 到着：乗っている状態から、ここで降りた状態を作る
+                        const a = aboard[ev.trip];
+                        if (!a) continue;
+                        const s: AtStation = { kind: "S", transfers: a.transfers, ride: a.rideBase + ev.time, via: a, alightPos: ev.pos, time: ev.time };
+                        const cur = atStation[ev.stationIdx];
+                        if (!cur || compare(s, cur) < 0) atStation[ev.stationIdx] = s;
+                        if (weights[ev.stationIdx] > 0) {
+                            const b = best[ev.stationIdx];
+                            if (!b) {
+                                best[ev.stationIdx] = s;
+                                pending--;
+                                if (pending === 0) stopAfter = Math.max(...best.map((x) => (x ? x.time : -Infinity)));
+                            } else if (s.time === b.time && compare(s, b) < 0) best[ev.stationIdx] = s;
+                        }
+                    } else {
+                        // 出発：駅にいる状態から、この列車に乗った状態を作り、今乗っている状態と比べる
+                        const from = atStation[ev.stationIdx];
+                        if (!from) continue;
+                        const boarded: Aboard = { kind: "A", transfers: from.transfers + 1, rideBase: from.ride - ev.time, trip: ev.trip, boardPos: ev.pos, from };
+                        const cur = aboard[ev.trip];
+                        if (!cur || compare(boarded, cur) < 0) aboard[ev.trip] = boarded;
+                    }
+                }
+
+                // 着駅ごとに、選んだ経路の列車へ、乗客を割り当てる
+                for (let j = 0; j < n; j++) {
+                    const w = weights[j];
+                    if (w <= 0) continue;
+                    result.generated += w;
+                    const final = best[j];
+                    if (!final) {
+                        result.unreachable += w;
+                        continue;
+                    }
+                    result.assigned += w;
+                    let cur: AtStation | null = final;
+                    while (cur && cur.via) {
+                        const a: Aboard = cur.via;
+                        const load = loads[a.trip];
+                        load.boardings[a.boardPos] += w;
+                        load.alightings[cur.alightPos] += w;
+                        for (let p = a.boardPos; p < cur.alightPos; p++) load.onboard[p] += w;
+                        cur = a.from;
+                    }
                 }
             }
         }
