@@ -59,3 +59,21 @@ export function odTotals(od: OdTable, stationIds: number[]): { fromTotals: numbe
     });
     return { fromTotals, toTotals, grand };
 }
+
+/**
+ * 入力補助に、Excelなどからコピーした表（駅ごとの行・乗車数と下車数の列）を貼り付けたときの文字を、行ごとの文字の並びにします。
+ * 行の先頭にある、人数として読めない文字（駅名）は取り除き、すべて文字の行（見出し）は読み飛ばします。
+ *
+ * @param text コピーした文字（タブ区切り・改行区切り）
+ * @returns 駅ごとの行（各行は、乗車数・下車数の順の文字。人数が空欄のところは空文字）
+ */
+export function parseAssistGrid(text: string): string[][] {
+    const out: string[][] = [];
+    for (const cells of parsePastedGrid(text)) {
+        let row = cells.map((x) => x.trim());
+        while (row.length > 0 && row[0] !== "" && parseOdInput(row[0]) === undefined) row = row.slice(1);
+        if (row.length === 0 && cells.some((x) => x.trim() !== "")) continue;
+        out.push(row);
+    }
+    return out;
+}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Alert, Button, Group, Modal, Stack, Tabs, Text, TextInput } from "@mantine/core";
-import { odKey, parseOdInput, type OdTable } from "../../domain/od.ts";
+import { odKey, parseAssistGrid, parseOdInput, type OdTable } from "../../domain/od.ts";
 import { fillTriangle } from "../../domain/odFill.ts";
 import type { StationDto } from "../../domain/dto.ts";
 import { useCommonT } from "../../shared/i18n/common.ts";
@@ -37,6 +37,45 @@ function DirectionPanel({ routeId, direct, stations, od, onDone }: { routeId: nu
     }, []);
     const [board, setBoard] = useState<string[]>(initial.board);
     const [alight, setAlight] = useState<string[]>(initial.alight);
+
+    /**
+     * Excelなどからコピーした範囲を、貼り付けた欄から始めて、駅の並びに沿って入れる。
+     * 乗車数の欄に貼ったときは、1列目が乗車数、2列目が下車数。下車数の欄に貼ったときは、1列目が下車数。
+     * 入力できない欄（最初の駅の下車数・最後の駅の乗車数）は飛ばす。
+     *
+     * @param k 貼り付けた欄の駅の位置（走行順）
+     * @param column 0:乗車数 1:下車数
+     * @param text コピーした文字
+     */
+    function pasteAt(k: number, column: 0 | 1, text: string) {
+        const rows = parseAssistGrid(text);
+        const nextBoard = [...board];
+        const nextAlight = [...alight];
+        rows.forEach((cells, i) => {
+            const pos = k + i;
+            if (pos >= m) return;
+            if (column === 0) {
+                if (pos !== m - 1 && cells[0] !== undefined) nextBoard[pos] = cells[0];
+                if (pos !== 0 && cells[1] !== undefined) nextAlight[pos] = cells[1];
+            } else if (pos !== 0 && cells[0] !== undefined) nextAlight[pos] = cells[0];
+        });
+        setBoard(nextBoard);
+        setAlight(nextAlight);
+    }
+
+    /**
+     * 欄への貼り付け。複数のマス（改行・タブ区切り）のときだけ、まとめて入れる（1つの値は、普通に貼り付ける）。
+     *
+     * @param e 貼り付けのイベント
+     * @param k 欄の駅の位置
+     * @param column 0:乗車数 1:下車数
+     */
+    function onPaste(e: React.ClipboardEvent<HTMLInputElement>, k: number, column: 0 | 1) {
+        const text = e.clipboardData.getData("text");
+        if (!/[\t\n\r]/.test(text.trim())) return;
+        e.preventDefault();
+        pasteAt(k, column, text);
+    }
 
     const parsed = useMemo(() => {
         const read = (strs: string[], skip: number) => strs.map((x, k) => (k === skip ? 0 : parseOdInput(x)));
@@ -92,6 +131,7 @@ function DirectionPanel({ routeId, direct, stations, od, onDone }: { routeId: nu
                                         error={parsed.board[k] === undefined}
                                         inputMode="decimal"
                                         aria-label={`${s.name} ${t("assistBoard")}`}
+                                        onPaste={(e) => onPaste(e, k, 0)}
                                         onChange={(e) => {
                                             const v = e.currentTarget.value;
                                             setBoard((prev) => prev.map((x, i) => (i === k ? v : x)));
@@ -106,6 +146,7 @@ function DirectionPanel({ routeId, direct, stations, od, onDone }: { routeId: nu
                                         error={parsed.alight[k] === undefined}
                                         inputMode="decimal"
                                         aria-label={`${s.name} ${t("assistAlight")}`}
+                                        onPaste={(e) => onPaste(e, k, 1)}
                                         onChange={(e) => {
                                             const v = e.currentTarget.value;
                                             setAlight((prev) => prev.map((x, i) => (i === k ? v : x)));
