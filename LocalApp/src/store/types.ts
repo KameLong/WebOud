@@ -20,6 +20,8 @@ export type RouteRecord = {
     od?: OdTable;
     /** 乗客が駅に来る時間帯（解析ページで入力する）。0:00からの秒（3時より前は翌日として+24h）。どちらも入力が無いうちは無い */
     arrival?: { start?: number; end?: number };
+    /** 解析対象の時間帯（始発駅をこの時間帯に出発する列車が、解析結果を表示する対象）。形式は arrival と同じ */
+    target?: { start?: number; end?: number };
 };
 
 export type RouteSummary = {

@@ -161,18 +161,19 @@ export function setOdValues(routeId: number, changes: { from: number; to: number
 }
 
 /**
- * 乗客が駅に来る時間帯の、開始または終了の時刻を書き換えます。
+ * 解析ページの時間帯（乗客が駅に来る時間帯・解析対象の時間帯）の、開始または終了の時刻を書き換えます。
  *
  * @param routeId 路線ID
+ * @param kind arrival:乗客が駅に来る時間帯 / target:解析対象の時間帯
  * @param which start:開始 / end:終了
  * @param seconds 0:00からの秒（3時より前は翌日として+24h）。nullなら消す
  */
-export function setArrivalTime(routeId: number, which: "start" | "end", seconds: number | null) {
+export function setAnalysisTime(routeId: number, kind: "arrival" | "target", which: "start" | "end", seconds: number | null) {
     updateRoute(routeId, (r) => {
-        const arrival = { ...r.arrival };
-        if (seconds === null) delete arrival[which];
-        else arrival[which] = seconds;
-        return { ...r, arrival };
+        const window: { start?: number; end?: number } = { ...r[kind] };
+        if (seconds === null) delete window[which];
+        else window[which] = seconds;
+        return { ...r, [kind]: window };
     });
 }
 

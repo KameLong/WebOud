@@ -598,3 +598,16 @@
     background: #fafafa;
     font-weight: 600;
 }
+
+/* 解析の結果の表：行は解析対象の列車、列は駅。マスの数字は右寄せ */
+.res-table .res-cell {
+    min-width: 52px;
+    padding: 0 6px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.res-table .od-total-head,
+.res-table .od-total {
+    white-space: nowrap;
+}

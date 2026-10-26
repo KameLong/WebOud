@@ -7,6 +7,8 @@ import { setOdValues } from "../../store/timetableApi.ts";
 import { HelpDialog, HelpSection, HelpShortcutTable, HelpList } from "../../shared/ui/HelpDialog.tsx";
 import { helpButtonStyle } from "../../shared/ui/helpButtonStyle.ts";
 import { ArrivalWindow } from "./ArrivalWindow.tsx";
+import { TargetWindow } from "./TargetWindow.tsx";
+import { AnalysisResult } from "./AnalysisResult.tsx";
 import { OdCell } from "./OdCell.tsx";
 import { useT } from "./messages.ts";
 
@@ -153,6 +155,7 @@ export function AnalysisPage() {
             </Text>
 
             <ArrivalWindow routeId={routeId} arrival={route.arrival} perHour={totals.grand} />
+            <TargetWindow route={route} />
 
             <Group justify="space-between" align="flex-end" mb={4}>
                 <Title order={4}>{t("odTitle")}</Title>
@@ -226,6 +229,8 @@ export function AnalysisPage() {
                     </table>
                 </div>
             )}
+
+            <AnalysisResult route={route} />
 
             <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} title={t("helpTitle")}>
                 <HelpSection title={t("helpDoSection")}>
