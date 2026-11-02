@@ -143,7 +143,8 @@ export function AnalysisPage() {
     const fmt = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100));
 
     return (
-        <Container size="xl" py="md" px="sm" style={{ height: "100%", overflow: "auto" }}>
+        <div style={{ height: "100%", overflow: "auto" }}>
+        <Container size="xl" py="md" px="sm">
             <Group justify="space-between" mb="xs" wrap="nowrap">
                 <Button variant="default" size="compact-sm" onClick={() => nav(`/route/${routeId}`)}>
                     {t("backToEdit")}
@@ -251,6 +252,7 @@ export function AnalysisPage() {
                 </HelpSection>
             </HelpDialog>
         </Container>
+        </div>
     );
 }
 

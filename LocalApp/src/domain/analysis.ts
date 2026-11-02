@@ -171,6 +171,107 @@ function yieldToUi(): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** 経路の探索に使う、列車の出来事など（入力から1度だけ作る） */
+type Plan = {
+    infos: { trip: TripWithStopTimesDto; stops: StopInfo[] }[];
+    /** 方向ごとの出来事（下りの客は下りの列車だけ、上りの客は上りの列車だけを使う） */
+    eventsByDirect: Event[][];
+    /** 駅の並び順（下りの順）での位置。着駅が発駅より後ろなら下り、前なら上り */
+    rank: number[];
+};
+
+/**
+ * 経路の探索の準備をします。到着・出発の出来事を、時刻順に並べます（同じ時刻では、到着を先に：乗り換え時間0）。
+ *
+ * @param input 計算の入力
+ * @param infos 列車ごとの停車駅
+ */
+function createPlan(input: AnalysisInput, infos: Plan["infos"]): Plan {
+    const { stations } = input;
+    const events: Event[] = [];
+    infos.forEach(({ stops }, k) => {
+        stops.forEach((s, p) => {
+            if (p > 0) events.push({ time: s.arr, type: 0, trip: k, pos: p, stationIdx: s.stationIdx });
+            if (p < stops.length - 1) events.push({ time: s.dep, type: 1, trip: k, pos: p, stationIdx: s.stationIdx });
+        });
+    });
+    events.sort((a, b) => a.time - b.time || a.type - b.type || a.trip - b.trip || a.pos - b.pos);
+    const eventsByDirect: Event[][] = [events.filter((e) => infos[e.trip].trip.direct !== 1), events.filter((e) => infos[e.trip].trip.direct === 1)];
+    const rank = new Array<number>(stations.length);
+    [...stations.keys()].sort((a, b) => stations[a].index - stations[b].index).forEach((idx, r) => (rank[idx] = r));
+    return { infos, eventsByDirect, rank };
+}
+
+/**
+ * 指定の時刻以降の、最初の出来事の位置を返します。
+ *
+ * @param list 時刻順の出来事
+ * @param time 時刻（秒）
+ */
+function firstEventAt(list: Event[], time: number): number {
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (list[mid].time < time) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+
+/**
+ * 発駅に時刻 t に着いた乗客が、各着駅へ行くときに選ぶ経路（着駅に着く状態）を求めます。
+ *
+ * @param plan 探索の準備
+ * @param o 発駅の位置
+ * @param direct 方向（0:下り 1:上り）
+ * @param t 発駅に着いた時刻（秒）
+ * @param weights 着駅の位置ごとの、行き先にするか（0より大きいと行き先）
+ * @param destCount 行き先の数
+ * @returns 着駅の位置ごとの、着駅に着く状態（着けないときは null）
+ */
+function searchRoutes(plan: Plan, o: number, direct: number, t: number, weights: number[], destCount: number): (AtStation | null)[] {
+    const { infos } = plan;
+    const list = plan.eventsByDirect[direct];
+    const n = weights.length;
+    const origin: AtStation = { kind: "S", transfers: -1, ride: 0, via: null, alightPos: -1, time: t };
+    const aboard: (Aboard | null)[] = new Array(infos.length).fill(null);
+    const atStation: (AtStation | null)[] = new Array(n).fill(null);
+    atStation[o] = origin;
+    const best: (AtStation | null)[] = new Array(n).fill(null);
+    let pending = destCount;
+    let stopAfter = Infinity;
+
+    for (let e = firstEventAt(list, t); e < list.length; e++) {
+        const ev = list[e];
+        if (ev.time > stopAfter) break;
+        if (ev.type === 0) {
+            // 到着：乗っている状態から、ここで降りた状態を作る
+            const a = aboard[ev.trip];
+            if (!a) continue;
+            const s: AtStation = { kind: "S", transfers: a.transfers, ride: a.rideBase + ev.time, via: a, alightPos: ev.pos, time: ev.time };
+            const cur = atStation[ev.stationIdx];
+            if (!cur || compare(s, cur) < 0) atStation[ev.stationIdx] = s;
+            if (weights[ev.stationIdx] > 0) {
+                const b = best[ev.stationIdx];
+                if (!b) {
+                    best[ev.stationIdx] = s;
+                    pending--;
+                    if (pending === 0) stopAfter = Math.max(...best.map((x) => (x ? x.time : -Infinity)));
+                } else if (s.time === b.time && compare(s, b) < 0) best[ev.stationIdx] = s;
+            }
+        } else {
+            // 出発：駅にいる状態から、この列車に乗った状態を作り、今乗っている状態と比べる
+            const from = atStation[ev.stationIdx];
+            if (!from) continue;
+            const boarded: Aboard = { kind: "A", transfers: from.transfers + 1, rideBase: from.ride - ev.time, trip: ev.trip, boardPos: ev.pos, from };
+            const cur = aboard[ev.trip];
+            if (!cur || compare(boarded, cur) < 0) aboard[ev.trip] = boarded;
+        }
+    }
+    return best;
+}
+
 /**
  * 乗客を各列車に割り当てます。発駅ごとに計算を区切り、そのたびに画面へ処理を譲って、進み具合を知らせます。
  *
@@ -190,39 +291,9 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
         alightings: stops.map(() => 0),
     }));
 
-    // 到着・出発の出来事を、時刻順に並べる（同じ時刻では、到着を先に：乗り換え時間0）
-    const events: Event[] = [];
-    infos.forEach(({ stops }, k) => {
-        stops.forEach((s, p) => {
-            if (p > 0) events.push({ time: s.arr, type: 0, trip: k, pos: p, stationIdx: s.stationIdx });
-            if (p < stops.length - 1) events.push({ time: s.dep, type: 1, trip: k, pos: p, stationIdx: s.stationIdx });
-        });
-    });
-    events.sort((a, b) => a.time - b.time || a.type - b.type || a.trip - b.trip || a.pos - b.pos);
-    // 方向ごとの出来事（下りの客は下りの列車だけ、上りの客は上りの列車だけを使う）
-    const eventsByDirect: Event[][] = [events.filter((e) => infos[e.trip].trip.direct !== 1), events.filter((e) => infos[e.trip].trip.direct === 1)];
-
-    /**
-     * 指定の時刻以降の、最初の出来事の位置を返す。
-     *
-     * @param time 時刻（秒）
-     */
-    const firstEventAt = (list: Event[], time: number) => {
-        let lo = 0;
-        let hi = list.length;
-        while (lo < hi) {
-            const mid = (lo + hi) >> 1;
-            if (list[mid].time < time) lo = mid + 1;
-            else hi = mid;
-        }
-        return lo;
-    };
-
+    const plan = createPlan(input, infos);
+    const { rank } = plan;
     const n = stations.length;
-    const K = infos.length;
-    // 駅の並び順（下りの順）での位置。着駅が発駅より後ろなら下り、前なら上り
-    const rank = new Array<number>(n);
-    [...stations.keys()].sort((a, b) => stations[a].index - stations[b].index).forEach((idx, r) => (rank[idx] = r));
     const origins = stations.map((_, i) => i).filter((i) => stations.some((to, j) => i !== j && (od[odKey(stations[i].id, to.id)] ?? 0) > 0));
     const hasTotal = input.totalStart !== undefined && input.totalEnd !== undefined;
     const result: AnalysisResult = { trips: loads, generated: 0, assigned: 0, unreachable: 0, travel: hasTotal ? { passengers: 0, totalSeconds: 0, unreachable: 0 } : null };
@@ -230,7 +301,6 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
     for (let oi = 0; oi < origins.length; oi++) {
         const o = origins[oi];
         for (let direct = 0; direct < 2; direct++) {
-            const list = eventsByDirect[direct];
             // この発駅から、この方向にある、利用客数が入っている着駅
             const weights = new Array<number>(n).fill(0);
             let destCount = 0;
@@ -245,41 +315,7 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
             if (destCount === 0) continue;
 
             for (let t = input.arrivalStart; t < input.arrivalEnd; t += 60) {
-                const origin: AtStation = { kind: "S", transfers: -1, ride: 0, via: null, alightPos: -1, time: t };
-                const aboard: (Aboard | null)[] = new Array(K).fill(null);
-                const atStation: (AtStation | null)[] = new Array(n).fill(null);
-                atStation[o] = origin;
-                const best: (AtStation | null)[] = new Array(n).fill(null);
-                let pending = destCount;
-                let stopAfter = Infinity;
-
-                for (let e = firstEventAt(list, t); e < list.length; e++) {
-                    const ev = list[e];
-                    if (ev.time > stopAfter) break;
-                    if (ev.type === 0) {
-                        // 到着：乗っている状態から、ここで降りた状態を作る
-                        const a = aboard[ev.trip];
-                        if (!a) continue;
-                        const s: AtStation = { kind: "S", transfers: a.transfers, ride: a.rideBase + ev.time, via: a, alightPos: ev.pos, time: ev.time };
-                        const cur = atStation[ev.stationIdx];
-                        if (!cur || compare(s, cur) < 0) atStation[ev.stationIdx] = s;
-                        if (weights[ev.stationIdx] > 0) {
-                            const b = best[ev.stationIdx];
-                            if (!b) {
-                                best[ev.stationIdx] = s;
-                                pending--;
-                                if (pending === 0) stopAfter = Math.max(...best.map((x) => (x ? x.time : -Infinity)));
-                            } else if (s.time === b.time && compare(s, b) < 0) best[ev.stationIdx] = s;
-                        }
-                    } else {
-                        // 出発：駅にいる状態から、この列車に乗った状態を作り、今乗っている状態と比べる
-                        const from = atStation[ev.stationIdx];
-                        if (!from) continue;
-                        const boarded: Aboard = { kind: "A", transfers: from.transfers + 1, rideBase: from.ride - ev.time, trip: ev.trip, boardPos: ev.pos, from };
-                        const cur = aboard[ev.trip];
-                        if (!cur || compare(boarded, cur) < 0) aboard[ev.trip] = boarded;
-                    }
-                }
+                const best = searchRoutes(plan, o, direct, t, weights, destCount);
 
                 // 着駅ごとに、選んだ経路の列車へ、乗客を割り当てる
                 for (let j = 0; j < n; j++) {
@@ -318,4 +354,69 @@ export async function analyzePassengers(input: AnalysisInput, onProgress?: (done
         await yieldToUi();
     }
     return result;
+}
+
+/** 経路の1区間（1本の列車に乗って、ある駅からある駅まで行く） */
+export type RouteLeg = {
+    trip: TripWithStopTimesDto;
+    boardStationId: number;
+    alightStationId: number;
+    /** 乗る駅の出発時刻・降りる駅の到着時刻（0:00からの秒） */
+    dep: number;
+    arr: number;
+};
+
+/** 2駅間を移動する乗客の経路。同じ経路になる、連続した分の乗客をまとめたもの */
+export type RouteGroup = {
+    /** 発駅に着く時刻の範囲（最初と最後の分。0:00からの秒） */
+    firstArrival: number;
+    lastArrival: number;
+    /** 乗客が発駅に着く分の数 */
+    minutes: number;
+    /** 経路（着駅まで行けないときは null） */
+    legs: RouteLeg[] | null;
+};
+
+/**
+ * 発駅から着駅へ移動する乗客が、発駅に着く時刻（毎分0秒）ごとに選ぶ経路を求め、同じ経路になる連続した分をまとめます。
+ * 経路の選び方は、乗客の割り当てと同じです。結果は、発駅に着く時刻の順（＝発駅を出発する時刻の順）です。
+ *
+ * @param input 駅・列車・乗客が駅に来る時間帯（利用客数は使わない）
+ * @param fromId 発駅のID
+ * @param toId 着駅のID
+ */
+export function traceRoutes(input: AnalysisInput, fromId: number, toId: number): RouteGroup[] {
+    const { stations } = input;
+    const o = stations.findIndex((s) => s.id === fromId);
+    const d = stations.findIndex((s) => s.id === toId);
+    if (o < 0 || d < 0 || o === d) return [];
+    const plan = createPlan(input, buildTripStops(input.trips, stations));
+    const direct = plan.rank[d] > plan.rank[o] ? 0 : 1;
+    const weights = new Array<number>(stations.length).fill(0);
+    weights[d] = 1;
+
+    const groups: RouteGroup[] = [];
+    let lastKey = "";
+    for (let t = input.arrivalStart; t < input.arrivalEnd; t += 60) {
+        const final = searchRoutes(plan, o, direct, t, weights, 1)[d];
+        let legs: RouteLeg[] | null = null;
+        if (final) {
+            legs = [];
+            for (let cur: AtStation | null = final; cur && cur.via; cur = cur.via.from) {
+                const a: Aboard = cur.via;
+                const { trip, stops } = plan.infos[a.trip];
+                legs.unshift({ trip, boardStationId: stations[stops[a.boardPos].stationIdx].id, alightStationId: stations[stops[cur.alightPos].stationIdx].id, dep: stops[a.boardPos].dep, arr: stops[cur.alightPos].arr });
+            }
+        }
+        const key = legs ? legs.map((l) => `${l.trip.id}:${l.boardStationId}:${l.alightStationId}`).join(",") : "-";
+        const last = groups[groups.length - 1];
+        if (last && key === lastKey) {
+            last.lastArrival = t;
+            last.minutes++;
+        } else {
+            groups.push({ firstArrival: t, lastArrival: t, minutes: 1, legs });
+            lastKey = key;
+        }
+    }
+    return groups;
 }

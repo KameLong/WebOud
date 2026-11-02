@@ -270,7 +270,8 @@ export function StationTimetablePage() {
     }
 
     return (
-        <Container size="md" py="md" style={{ height: "100%", overflow: "auto" }}>
+        <div style={{ height: "100%", overflow: "auto" }}>
+        <Container size="md" py="md">
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
                 <Button variant="default" size="compact-sm" onClick={() => nav(`/route/${routeId}`)}>
                     {t("backToEditArrow")}
@@ -304,6 +305,7 @@ export function StationTimetablePage() {
                 </HelpSection>
             </HelpDialog>
         </Container>
+        </div>
     );
 }
 

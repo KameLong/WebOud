@@ -14,6 +14,8 @@ type Props = {
 const ARR = 1;
 const TRACK = 2;
 const DEP = 4;
+// 番線の表示設定は、しばらくの間、変更できないようにしている（再開するときは false にする）
+const TRACK_DISABLED = true;
 
 /**
  * 指定ビットが立っているかを返します。
@@ -57,7 +59,7 @@ export function ShowStyleChecks({ title, bits, disabled, onChangeBits, labels }:
                     <label key={flag} className="show-style-cell" style={chkCell}>
                         <Checkbox
                             size="md"
-                            disabled={disabled}
+                            disabled={disabled || (flag === TRACK && TRACK_DISABLED)}
                             checked={has(bits, flag)}
                             onChange={(e) => onChangeBits?.(set(bits, flag, e.currentTarget.checked))}
                             aria-label={labelTexts[i]}

@@ -8,6 +8,7 @@ import type { RouteRecord } from "../../store/types.ts";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
 import { useCommonT } from "../../shared/i18n/common.ts";
 import { useT } from "./messages.ts";
+import { PairRoutes } from "./PairRoutes.tsx";
 
 /**
  * 人数を、小数1桁までで表示します（0は「0」）。
@@ -299,6 +300,7 @@ export function AnalysisResult({ route }: { route: RouteRecord }) {
                             <ResultTable route={done.route} direct={1} loads={shown.up} />
                         </>
                     )}
+                    <PairRoutes route={done.route} />
                 </>
             )}
         </section>
