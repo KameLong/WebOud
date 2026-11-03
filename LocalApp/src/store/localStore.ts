@@ -4,17 +4,21 @@ import type { RouteRecord, RouteSummary, StoreState } from "./types.ts";
 import { defaultTrainType } from "../domain/defaults.ts";
 import { migrateStorageKey } from "../shared/lib/storageKey.ts";
 import { DATA_VERSION, isSupportedDataVersion } from "./dataVersion.ts";
+import { createDebouncedWriter, idbGet, idbSet } from "./idb.ts";
 
-const STORAGE_KEY = "webdia.routes";
+// IndexedDBのキー（store/idb.tsのkvストア内）
+const IDB_KEY = "routes";
+// 旧版(localStorage)のキー。IndexedDBに何も無いときだけ、初回起動時にここから引き継ぐ
+const LOCALSTORAGE_KEY = "webdia.routes";
 // サイト名の変更前のキー（このキーのデータは、初回に新しいキーへ引き継ぐ）
-migrateStorageKey("weboud.localapp.routes.v1", STORAGE_KEY);
+migrateStorageKey("weboud.localapp.routes.v1", LOCALSTORAGE_KEY);
 
 function defaultState(): StoreState {
     return { version: DATA_VERSION, nextRouteId: 1, routes: [] };
 }
 
 /**
- * localStorage等から読んだ値が保存データの形式かを判定します。
+ * 保存データの形式かを判定します。
  *
  * @param v 検査する値
  */
@@ -37,34 +41,106 @@ export function withDefaultTrainType(route: RouteRecord): RouteRecord {
     };
 }
 
-function loadState(): StoreState {
+/**
+ * 読み込んだ値を、現在のデータバージョンに補って使える状態にします（不正な形式ならnull）。
+ *
+ * @param parsed 読み込んだ値
+ */
+function normalizeLoaded(parsed: unknown): StoreState | null {
+    if (!isValidStoreState(parsed)) return null;
+    // 以前のデータで種別が空の路線にも、標準の種別を補う
+    return { ...parsed, version: DATA_VERSION, routes: parsed.routes.map(withDefaultTrainType) };
+}
+
+/**
+ * 旧版(localStorage)に残っているデータを読み込みます（無ければnull）。
+ */
+function loadFromLocalStorage(): StoreState | null {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return defaultState();
-        const parsed = JSON.parse(raw) as unknown;
-        if (!isValidStoreState(parsed)) return defaultState();
-        // 以前のデータで種別が空の路線にも、標準の種別を補う
-        return { ...parsed, version: DATA_VERSION, routes: parsed.routes.map(withDefaultTrainType) };
+        const raw = localStorage.getItem(LOCALSTORAGE_KEY);
+        if (!raw) return null;
+        return normalizeLoaded(JSON.parse(raw) as unknown);
     } catch (e) {
-        console.error("failed to load local data", e);
-        return defaultState();
+        console.error("failed to load local data from localStorage", e);
+        return null;
     }
 }
 
-let state: StoreState = loadState();
+let state: StoreState = defaultState();
 const listeners = new Set<() => void>();
+let initialized = false;
 
 function emit() {
     for (const l of listeners) l();
 }
 
-function persist() {
+/**
+ * 他のタブ/ウィンドウでの変更をこのタブへ反映する（IndexedDBへの書き込み完了後に通知が届く）。
+ */
+const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("webdia-routes-sync") : null;
+
+const writer = createDebouncedWriter(
+    IDB_KEY,
+    () => state,
+    (e) => console.error("failed to save to IndexedDB", e),
+    400,
+    () => channel?.postMessage("updated")
+);
+
+channel?.addEventListener("message", () => {
+    void idbGet<StoreState>(IDB_KEY).then((loaded) => {
+        const normalized = loaded ? normalizeLoaded(loaded) : null;
+        if (normalized) {
+            state = normalized;
+            emit();
+        }
+    });
+});
+
+/**
+ * IndexedDBから初期データを読み込みます（アプリ起動時に1回、描画の前に呼ぶ）。
+ * IndexedDBに何も無く、旧版のlocalStorageにデータが残っていればそちらを引き継ぎ、
+ * IndexedDBへの書き込みに成功した時点でlocalStorage側は消します（失敗時は残したままにする）。
+ */
+export async function initRoutesStore(): Promise<void> {
+    if (initialized) return;
+    initialized = true;
+
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        const fromIdb = await idbGet<StoreState>(IDB_KEY);
+        const normalized = fromIdb ? normalizeLoaded(fromIdb) : null;
+        if (normalized) {
+            state = normalized;
+            return;
+        }
     } catch (e) {
-        console.error("failed to save to localStorage", e);
+        console.error("failed to load local data from IndexedDB", e);
     }
+
+    const fromLocalStorage = loadFromLocalStorage();
+    if (!fromLocalStorage) return;
+
+    state = fromLocalStorage;
+    try {
+        await idbSet(IDB_KEY, state);
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+    } catch (e) {
+        // IndexedDBへの書き込みに失敗した場合、localStorage側は引き継ぎ元として残しておく
+        console.error("failed to migrate local data to IndexedDB", e);
+    }
+}
+
+function persist() {
     emit();
+    writer.schedule();
+}
+
+if (typeof window !== "undefined") {
+    const flush = () => writer.flush();
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") flush();
+    });
 }
 
 /**
@@ -75,32 +151,6 @@ function persist() {
 function setState(next: StoreState) {
     state = next;
     persist();
-}
-
-/**
- * 他のタブ/ウィンドウでの変更をこのタブへ反映する（最後に保存した方が勝つ）。
- * `storage`イベントは変更元のタブでは発火しないため、他タブの更新のみを拾う。
- */
-if (typeof window !== "undefined") {
-    window.addEventListener("storage", (event) => {
-        if (event.key !== STORAGE_KEY) return;
-
-        if (event.newValue == null) {
-            state = defaultState();
-            emit();
-            return;
-        }
-
-        try {
-            const parsed = JSON.parse(event.newValue) as unknown;
-            if (isValidStoreState(parsed)) {
-                state = { ...parsed, version: DATA_VERSION };
-                emit();
-            }
-        } catch (e) {
-            console.error("failed to sync state from another tab/window", e);
-        }
-    });
 }
 
 /**
