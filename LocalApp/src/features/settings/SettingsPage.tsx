@@ -67,6 +67,18 @@ export default function SettingsPage() {
                     {t("languageHelp")}
                 </Text>
             </Stack>
+
+            <Stack gap="xs" mt="lg">
+                <Text fw={600} size="sm">
+                    {t("feedback")}
+                </Text>
+                <Button variant="default" size="compact-sm" onClick={() => nav("/feedback")} style={{ alignSelf: "flex-start" }}>
+                    {t("openFeedback")}
+                </Button>
+                <Text size="xs" c="dimmed">
+                    {t("feedbackHelp")}
+                </Text>
+            </Stack>
         </Container>
     );
 }
