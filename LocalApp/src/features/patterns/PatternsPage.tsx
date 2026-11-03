@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { Button, Container, List, Text, Title } from "@mantine/core";
 import { PatternDiagram } from "./PatternDiagram.tsx";
+import { CycleExamples } from "./CycleExamples.tsx";
+import { EXAMPLES_10, EXAMPLES_15 } from "./cycleExamples.ts";
 import { DIAGRAMS, type PatternDiagramData } from "./patternData.ts";
 
 type Pattern = {
@@ -93,6 +95,14 @@ export default function PatternsPage() {
                         </List>
                     </section>
                 ))}
+                <Title order={3} size="h4" mt="xl" mb={4}>
+                    パターンダイヤの例（全国の路線）
+                </Title>
+                <Text size="sm" mb="md">
+                    毎時同じ分に同じ列車が来る「パターンダイヤ」を、全国の路線から紹介します。1サイクル（15分、10分）の中に、どの種別の列車が何分に来るかを示します。
+                </Text>
+                <CycleExamples cycle={15} examples={EXAMPLES_15} intro="15分ごとに同じパターンを繰り返すダイヤです。1時間に4回、同じ分に同じ種別が来ます。" />
+                <CycleExamples cycle={10} examples={EXAMPLES_10} intro="10分ごとに同じパターンを繰り返すダイヤです。1時間に6回、同じ分に同じ種別が来ます。" />
             </Container>
         </div>
     );
