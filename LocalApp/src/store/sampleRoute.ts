@@ -3,7 +3,7 @@ import { importRoutesFromJson } from "./localStore.ts";
 import type { RouteRecord } from "./types.ts";
 
 /** サンプルダイヤ（路線データのJSON。路線の「エクスポート」で書き出したものと同じ形式） */
-const SAMPLE_URL = `${import.meta.env.BASE_URL}sample/sample.weboud.json`;
+const SAMPLE_URL = `${import.meta.env.BASE_URL}sample/sample.webdia.json`;
 
 /**
  * サンプルダイヤを読み込み、新しい路線として追加します。ファイルが大きい（約1.4MB）ので、ボタンを押したときに初めて読み込みます。

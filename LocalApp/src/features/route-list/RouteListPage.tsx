@@ -119,11 +119,11 @@ export default function RouteListPage() {
     function onExportRoute(id: number, name: string) {
         const json = exportRouteAsJson(id);
         if (!json) return;
-        downloadText(`${name || "route"}.weboud.json`, json);
+        downloadText(`${name || "route"}.webdia.json`, json);
     }
 
     function onExportAll() {
-        downloadText(`weboud-backup-${new Date().toISOString().slice(0, 10)}.json`, exportAllAsJson());
+        downloadText(`webdia-backup-${new Date().toISOString().slice(0, 10)}.json`, exportAllAsJson());
     }
 
     /**

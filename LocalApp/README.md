@@ -29,7 +29,7 @@ src/
   main.tsx            エントリ
   app/                アプリ全体（ルーティング・テーマ・全体CSS）
   domain/             画面に依存しないデータの型と計算（駅の表示形式・時刻・列車・色など）
-  store/              localStorageへの保存、路線データの操作API、データ取得フック、サンプルダイヤの読み込み（`public/sample/sample.weboud.json`）
+  store/              localStorageへの保存、路線データの操作API、データ取得フック、サンプルダイヤの読み込み（`public/sample/sample.webdia.json`）
   shared/
     lib/              エラー処理・キー入力・直列実行キュー
     ui/               ヘルプ・ゴミ箱アイコン・均等割付の文字など共通の部品
@@ -60,8 +60,8 @@ src/
 
 ## データの保存場所
 
-`localStorage` キー `weboud.localapp.routes.v1` に、全路線データがJSONとして保存されます。
+`localStorage` キー `webdia.routes`（設定は `webdia.settings`）に、全路線データがJSONとして保存されます。
 
-JSONには `version`（`メジャー.マイナー` 形式。現在は `1.0`）が付きます。要素を追加するたびに上げ、古いデータでもデフォルト値で補える追加はマイナー、補えない変更はメジャーです（詳細は `src/store/dataVersion.ts`）。バージョンの無い古いデータは 1.0 として読みます。
+JSONには `version`（`メジャー.マイナー` 形式。現在は `1.0`）が付きます。要素を追加するたびに上げ、古いデータでもデフォルト値で補える追加はマイナー、補えない変更はメジャーです（詳細は `src/store/dataVersion.ts`）。バージョンの無い古いデータは 1.0 として読みます。サイト名の変更前のキー（`weboud.localapp.*`）のデータは、初回の起動で新しいキーへ引き継ぎます。
 ブラウザのデータを消去すると失われるため、重要なデータは適宜「全データをエクスポート」で
 バックアップしてください。

@@ -2,9 +2,12 @@ import { translate } from "./messages.ts";
 import { commonT } from "../shared/i18n/common.ts";
 import type { RouteRecord, RouteSummary, StoreState } from "./types.ts";
 import { defaultTrainType } from "../domain/defaults.ts";
+import { migrateStorageKey } from "../shared/lib/storageKey.ts";
 import { DATA_VERSION, isSupportedDataVersion } from "./dataVersion.ts";
 
-const STORAGE_KEY = "weboud.localapp.routes.v1";
+const STORAGE_KEY = "webdia.routes";
+// サイト名の変更前のキー（このキーのデータは、初回に新しいキーへ引き継ぐ）
+migrateStorageKey("weboud.localapp.routes.v1", STORAGE_KEY);
 
 function defaultState(): StoreState {
     return { version: DATA_VERSION, nextRouteId: 1, routes: [] };

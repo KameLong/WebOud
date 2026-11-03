@@ -1,6 +1,9 @@
+import { migrateStorageKey } from "../shared/lib/storageKey.ts";
 import { DEFAULT_LANGUAGE, isLang, type Lang } from "../shared/i18n/languages.ts";
 
-const STORAGE_KEY = "weboud.localapp.settings.v1";
+const STORAGE_KEY = "webdia.settings";
+// サイト名の変更前のキー（このキーのデータは、初回に新しいキーへ引き継ぐ）
+migrateStorageKey("weboud.localapp.settings.v1", STORAGE_KEY);
 
 /** 全体の文字サイズ(px)の既定値 */
 export const DEFAULT_FONT_SIZE = 14;
