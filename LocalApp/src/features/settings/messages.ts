@@ -9,6 +9,9 @@ export const messages = defineMessages({
         fontSizeHelp: "時刻表グリッドなどの表示もこの文字サイズに合わせて拡大縮小します（{min}〜{max}pxの範囲）。変更は自動で保存され、すぐに反映されます。",
         language: "表示言語",
         languageHelp: "画面とPDFの言語です。ブラウザの言語設定では切り替わらず、ここで選んだ言語が使われます。路線のデータ（駅名や列車名など）は翻訳されません。",
+        feedback: "不具合報告・ご質問",
+        feedbackHelp: "不具合の報告、質問、ご要望を投稿できます。投稿前に注意事項をご確認ください。",
+        openFeedback: "投稿ページを開く",
     },
     en: {
         title: "Settings",
@@ -18,6 +21,9 @@ export const messages = defineMessages({
         fontSizeHelp: "The timetable grid and other displays scale with this text size (range {min}–{max}px). Changes are saved automatically and applied immediately.",
         language: "Display language",
         languageHelp: "The language of the screens and PDFs. It is not switched by your browser's language; the language chosen here is always used. Your line data (station names, train names, etc.) is not translated.",
+        feedback: "Bug reports & questions",
+        feedbackHelp: "Post bug reports, questions, or feature requests. Please read the notes before posting.",
+        openFeedback: "Open the posting page",
     },
     "zh-TW": {
         title: "設定",
@@ -27,6 +33,9 @@ export const messages = defineMessages({
         fontSizeHelp: "時刻表格線等的顯示也會依此文字大小縮放（範圍 {min}～{max}px）。變更會自動儲存並立即套用。",
         language: "顯示語言",
         languageHelp: "畫面與 PDF 使用的語言。不會依瀏覽器的語言設定切換，一律使用此處選擇的語言。路線資料（站名、列車名稱等）不會被翻譯。",
+        feedback: "問題回報・提問",
+        feedbackHelp: "可投稿問題回報、疑問或功能需求。投稿前請先確認注意事項。",
+        openFeedback: "開啟投稿頁面",
     },
 });
 

@@ -6,6 +6,7 @@ import { RoutePage } from "../features/route-edit/RoutePage.tsx";
 import RouteTimetablePage from "../features/timetable/RouteTimetablePage.tsx";
 import { RouteDiagramPage } from "../features/diagram/RouteDiagramPage.tsx";
 import { StationTimetablePage } from "../features/station-timetable/StationTimetablePage.tsx";
+import FeedbackPage from "../features/feedback/FeedbackPage.tsx";
 import PatternsPage from "../features/patterns/PatternsPage.tsx";
 import AnalysisPage from "../features/analysis/AnalysisPage.tsx";
 import { RouteTreeSidebar } from "../features/navigation/RouteTreeSidebar.tsx";
@@ -30,6 +31,7 @@ function App() {
             <Routes>
                 <Route path="/" element={<RouteListPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
                 {/* 隠しページ：ほかのページからのリンクは無く、URLを直接開いて見る */}
                 <Route path="/patterns" element={<PatternsPage />} />
                 <Route element={<RouteLayout />}>

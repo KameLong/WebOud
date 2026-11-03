@@ -1,0 +1,5 @@
+bin/
+obj/
+# 投稿データ（IPアドレスを含むため、絶対にコミットしない）
+Data/
+appsettings.Production.json
