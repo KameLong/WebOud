@@ -1,9 +1,13 @@
 import { migrateStorageKey } from "../shared/lib/storageKey.ts";
 import { DEFAULT_LANGUAGE, isLang, type Lang } from "../shared/i18n/languages.ts";
+import { createDebouncedWriter, idbGet, idbSet } from "./idb.ts";
 
-const STORAGE_KEY = "webdia.settings";
+// IndexedDBのキー（store/idb.tsのkvストア内）
+const IDB_KEY = "settings";
+// 旧版(localStorage)のキー。IndexedDBに何も無いときだけ、初回起動時にここから引き継ぐ
+const LOCALSTORAGE_KEY = "webdia.settings";
 // サイト名の変更前のキー（このキーのデータは、初回に新しいキーへ引き継ぐ）
-migrateStorageKey("weboud.localapp.settings.v1", STORAGE_KEY);
+migrateStorageKey("weboud.localapp.settings.v1", LOCALSTORAGE_KEY);
 
 /** 全体の文字サイズ(px)の既定値 */
 export const DEFAULT_FONT_SIZE = 14;
@@ -31,68 +35,107 @@ function clampFontSize(v: number): number {
     return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, v));
 }
 
-/**
- * 保存されていた値を、有効範囲に丸めた設定にします。
- *
- * @param saved 形式を確認済みの保存値
- */
-function normalize(saved: Settings): Settings {
-    return { ...defaultSettings(), ...saved, fontSize: clampFontSize(saved.fontSize), language: isLang(saved.language) ? saved.language : DEFAULT_LANGUAGE };
-}
-
 function isValidSettings(v: unknown): v is Settings {
     return !!v && typeof v === "object" && typeof (v as Settings).fontSize === "number";
 }
 
-function loadSettings(): Settings {
+/**
+ * 読み込んだ値を、有効範囲に丸めた設定にします（不正な形式ならnull）。
+ *
+ * @param v 読み込んだ値
+ */
+function normalizeLoaded(v: unknown): Settings | null {
+    if (!isValidSettings(v)) return null;
+    return { ...defaultSettings(), ...v, fontSize: clampFontSize(v.fontSize), language: isLang(v.language) ? v.language : DEFAULT_LANGUAGE };
+}
+
+/**
+ * 旧版(localStorage)に残っているデータを読み込みます（無ければnull）。
+ */
+function loadFromLocalStorage(): Settings | null {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return defaultSettings();
-        const parsed = JSON.parse(raw) as unknown;
-        if (!isValidSettings(parsed)) return defaultSettings();
-        return normalize(parsed);
+        const raw = localStorage.getItem(LOCALSTORAGE_KEY);
+        if (!raw) return null;
+        return normalizeLoaded(JSON.parse(raw) as unknown);
     } catch (e) {
-        console.error("failed to load settings", e);
-        return defaultSettings();
+        console.error("failed to load settings from localStorage", e);
+        return null;
     }
 }
 
-let state: Settings = loadSettings();
+let state: Settings = defaultSettings();
 const listeners = new Set<() => void>();
+let initialized = false;
 
 function emit() {
     for (const l of listeners) l();
 }
 
-function persist() {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (e) {
-        console.error("failed to save settings to localStorage", e);
-    }
-    emit();
-}
+/**
+ * 他のタブ/ウィンドウでの変更をこのタブへ反映する（IndexedDBへの書き込み完了後に通知が届く）。
+ */
+const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("webdia-settings-sync") : null;
+
+const writer = createDebouncedWriter(
+    IDB_KEY,
+    () => state,
+    (e) => console.error("failed to save settings to IndexedDB", e),
+    400,
+    () => channel?.postMessage("updated")
+);
+
+channel?.addEventListener("message", () => {
+    void idbGet<Settings>(IDB_KEY).then((loaded) => {
+        const normalized = loaded ? normalizeLoaded(loaded) : null;
+        if (normalized) {
+            state = normalized;
+            emit();
+        }
+    });
+});
 
 /**
- * 他のタブ/ウィンドウでの変更をこのタブへ反映する。
+ * IndexedDBから初期データを読み込みます（アプリ起動時に1回、描画の前に呼ぶ）。
+ * IndexedDBに何も無く、旧版のlocalStorageにデータが残っていればそちらを引き継ぎ、
+ * IndexedDBへの書き込みに成功した時点でlocalStorage側は消します（失敗時は残したままにする）。
  */
-if (typeof window !== "undefined") {
-    window.addEventListener("storage", (event) => {
-        if (event.key !== STORAGE_KEY) return;
-        if (event.newValue == null) {
-            state = defaultSettings();
-            emit();
+export async function initSettingsStore(): Promise<void> {
+    if (initialized) return;
+    initialized = true;
+
+    try {
+        const fromIdb = await idbGet<Settings>(IDB_KEY);
+        const normalized = fromIdb ? normalizeLoaded(fromIdb) : null;
+        if (normalized) {
+            state = normalized;
             return;
         }
-        try {
-            const parsed = JSON.parse(event.newValue) as unknown;
-            if (isValidSettings(parsed)) {
-                state = normalize(parsed);
-                emit();
-            }
-        } catch (e) {
-            console.error("failed to sync settings from another tab/window", e);
-        }
+    } catch (e) {
+        console.error("failed to load settings from IndexedDB", e);
+    }
+
+    const fromLocalStorage = loadFromLocalStorage();
+    if (!fromLocalStorage) return;
+
+    state = fromLocalStorage;
+    try {
+        await idbSet(IDB_KEY, state);
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+    } catch (e) {
+        console.error("failed to migrate settings to IndexedDB", e);
+    }
+}
+
+function persist() {
+    emit();
+    writer.schedule();
+}
+
+if (typeof window !== "undefined") {
+    const flush = () => writer.flush();
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") flush();
     });
 }
 
