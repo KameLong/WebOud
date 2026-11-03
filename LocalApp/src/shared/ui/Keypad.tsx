@@ -7,7 +7,7 @@ function keepFocus(e: MouseEvent) {
 
 /**
  * 画面下端に固定表示するスマホ用キーパッドの枠。
- * 時刻表のグリッド用・各ダイアログ用のキーパッドはすべてこの枠とKeypadKeyで作り、見た目と配置（5列×4行）を統一する。
+ * 時刻表のグリッド用・各ダイアログ用のキーパッドはすべてこの枠とKeypadKeyで作り、見た目と配置（6列×4行）を統一する。
  *
  * @param props className:追加のクラス / collapsed:下に隠すか / zIndex:重なり順（ダイアログの上に出すとき用） / children:キー（KeypadKey）
  */

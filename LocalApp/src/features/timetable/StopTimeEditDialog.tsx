@@ -290,7 +290,7 @@ export function StopTimeEditDialog(props: {
                 </div>
             </div>
             {isMobile && (
-                // 連続入力時のキーパッドと同一の配置・見た目。↵は決定、空きマスには着/発の切り替えを置く
+                // 連続入力時のキーパッドと同一の配置・見た目。↵は決定、2段目の右端に着/発の切り替えを置く
                 <TimetableKeypad
                     zIndex={10000}
                     onDigit={padDigit}

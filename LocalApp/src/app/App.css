@@ -72,11 +72,11 @@
     }
 }
 
-/* スマホ用キーパッド（時刻表のグリッド用・各ダイアログ用で共通）。画面下端に固定し、5列×4行のキーを並べる */
+/* スマホ用キーパッド（時刻表のグリッド用・各ダイアログ用で共通）。画面下端に固定し、6列×4行のキーを並べる */
 .kp-panel {
     --kp-h: 208px;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     grid-template-rows: repeat(4, 1fr);
     gap: 4px;
     position: fixed;

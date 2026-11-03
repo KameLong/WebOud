@@ -180,7 +180,7 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                 </div>
             </div>
             {isMobile && (
-                // 連続入力時のキーパッドと同一の配置・見た目。↵は決定、空きマスには符号の反転を置く
+                // 連続入力時のキーパッドと同一の配置・見た目。↵は決定、2段目の右端に符号の反転を置く
                 <TimetableKeypad
                     zIndex={10000}
                     onDigit={padDigit}

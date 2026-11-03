@@ -40,7 +40,7 @@ export type KeypadShortcut = "plus1" | "minus1" | "pass" | "noVia" | "erase";
  * 時刻表のグリッド用キーパッドと各入力ダイアログで、この1つを共通で使い、配置・大きさ・見た目を完全に同一にする。
  * 使わないショートカットは、handlersに渡さなければ空きマスになる。
  *
- * @param props onDigit:数字 / onBackspace:⌫ / onEnter:↵ / enterTitle:↵のツールチップ / shortcuts:文字キーごとの処理 / extra:2段目右の空きマスに入れるキー / className,collapsed,zIndex:Keypadの設定
+ * @param props onDigit:数字 / onBackspace:⌫ / onEnter:↵ / enterTitle:↵のツールチップ / shortcuts:文字キーごとの処理 / extra:2段目の右端に入れるキー / className,collapsed,zIndex:Keypadの設定
  */
 export function TimetableKeypad(props: {
     onDigit: (d: string) => void;
@@ -65,19 +65,20 @@ export function TimetableKeypad(props: {
             {["1", "2", "3"].map(digit)}
             {shortcut("plus1")}
             {shortcut("minus1")}
+            {shortcut("erase")}
 
             {["4", "5", "6"].map(digit)}
-            {extra ?? <KeypadBlank />}
             {shortcut("pass")}
+            {shortcut("noVia")}
+            {extra ?? <KeypadBlank />}
 
             {["7", "8", "9"].map(digit)}
-            {shortcut("noVia")}
-            {shortcut("erase")}
+            <KeypadBlank colSpan={3} />
 
             <KeypadKey label="⌫" title={t("backspaceTitle")} onPress={onBackspace} />
             {digit("0")}
             <KeypadKey label="↵" title={enterTitle ?? t("nextRowTitle")} onPress={onEnter} />
-            <KeypadBlank colSpan={2} />
+            <KeypadBlank colSpan={3} />
         </Keypad>
     );
 }
