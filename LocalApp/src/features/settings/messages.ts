@@ -12,6 +12,9 @@ export const messages = defineMessages({
         feedback: "不具合報告・ご質問",
         feedbackHelp: "不具合の報告、質問、ご要望を投稿できます。投稿前に注意事項をご確認ください。",
         openFeedback: "投稿ページを開く",
+        licenses: "ライセンス表記",
+        licensesHelp: "このアプリが利用しているオープンソースソフトウェアのライセンスを表示します。",
+        openLicenses: "ライセンス表記を開く",
     },
     en: {
         title: "Settings",
@@ -24,6 +27,9 @@ export const messages = defineMessages({
         feedback: "Bug reports & questions",
         feedbackHelp: "Post bug reports, questions, or feature requests. Please read the notes before posting.",
         openFeedback: "Open the posting page",
+        licenses: "Open source licenses",
+        licensesHelp: "Shows the licenses of the open source software this app uses.",
+        openLicenses: "Open the licenses page",
     },
     "zh-TW": {
         title: "設定",
@@ -36,6 +42,9 @@ export const messages = defineMessages({
         feedback: "問題回報・提問",
         feedbackHelp: "可投稿問題回報、疑問或功能需求。投稿前請先確認注意事項。",
         openFeedback: "開啟投稿頁面",
+        licenses: "授權聲明",
+        licensesHelp: "顯示本應用程式所使用之開放原始碼軟體的授權。",
+        openLicenses: "開啟授權聲明",
     },
 });
 

@@ -7,6 +7,7 @@ import RouteTimetablePage from "../features/timetable/RouteTimetablePage.tsx";
 import { RouteDiagramPage } from "../features/diagram/RouteDiagramPage.tsx";
 import { StationTimetablePage } from "../features/station-timetable/StationTimetablePage.tsx";
 import FeedbackPage from "../features/feedback/FeedbackPage.tsx";
+import LicensesPage from "../features/licenses/LicensesPage.tsx";
 import PatternsPage from "../features/patterns/PatternsPage.tsx";
 import AnalysisPage from "../features/analysis/AnalysisPage.tsx";
 import { RouteTreeSidebar } from "../features/navigation/RouteTreeSidebar.tsx";
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/" element={<RouteListPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/licenses" element={<LicensesPage />} />
                 {/* 隠しページ：ほかのページからのリンクは無く、URLを直接開いて見る */}
                 <Route path="/patterns" element={<PatternsPage />} />
                 <Route element={<RouteLayout />}>

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "licenses": "node scripts/generate-licenses.mjs",
+    "build": "node scripts/generate-licenses.mjs && tsc -b && vite build",
     "publish": "npm run build && node scripts/publish.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
