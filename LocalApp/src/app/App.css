@@ -72,7 +72,60 @@
     }
 }
 
-/* スマホ用時刻表キーパッド：PC幅(780px以上)では非表示 */
+/* スマホ用キーパッド（時刻表のグリッド用・各ダイアログ用で共通）。画面下端に固定し、5列×4行のキーを並べる */
+.kp-panel {
+    --kp-h: 208px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 4px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--kp-h);
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: #f0f0f0;
+    border-top: 1px solid #ccc;
+    box-sizing: border-box;
+    z-index: 900;
+    transition: transform 0.2s ease;
+}
+
+.kp-collapsed {
+    transform: translateY(100%);
+    pointer-events: none;
+}
+
+.kp-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.kp-key-small {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: normal;
+}
+
+.kp-key-accent {
+    background: #0f5b8a;
+    color: #fff;
+    border-color: #0f5b8a;
+}
+
+.kp-key-accent:disabled {
+    opacity: 0.5;
+}
+
+/* 時刻表のグリッド用キーパッドはスマホ幅(780px以下)のみ表示 */
 .rt-keypad {
     display: none;
 }
@@ -80,19 +133,38 @@
 @media (max-width: 780px) {
     .rt-keypad {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        grid-template-rows: repeat(4, 1fr);
-        gap: 4px;
+    }
+}
+
+/* キーパッドを隠している間は、グリッドの下の空きや下部メニューの位置も戻す */
+body.rt-keypad-collapsed {
+    --rt-keypad-h: 0px;
+}
+
+.rt-keypad-toggle {
+    display: none;
+}
+
+@media (max-width: 780px) {
+    /* キーパッドの右上（隠している間は画面右下）に付く開閉ボタン */
+    .rt-keypad-toggle {
+        display: block;
         position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: var(--rt-keypad-h);
-        padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+        right: 8px;
+        bottom: var(--rt-keypad-h);
+        z-index: 1001;
+        padding: 2px 12px;
+        font-size: 13px;
+        line-height: 1.4;
+        color: #333;
         background: #f0f0f0;
-        border-top: 1px solid #ccc;
-        box-sizing: border-box;
-        z-index: 900;
+        border: 1px solid #ccc;
+        border-bottom: none;
+        border-radius: 8px 8px 0 0;
+        transition: bottom 0.2s ease;
+    }
+    body.rt-keypad-collapsed .rt-keypad-toggle {
+        bottom: env(safe-area-inset-bottom, 0px);
     }
 }
 

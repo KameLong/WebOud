@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
+import { useIsMobile } from "../../shared/hooks/useIsMobile.ts";
 import { isImeComposing } from "../../shared/lib/keyboard.ts";
+import { KeypadKey } from "../../shared/ui/Keypad.tsx";
+import { TimetableKeypad } from "./MobileTimetableKeypad.tsx";
 import { useT } from "./messages.ts";
 import { useCommonT } from "../../shared/i18n/common.ts";
 
@@ -32,6 +35,52 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
 
     const minRef = useRef<HTMLInputElement | null>(null);
 
+    // スマホではシステムのキーボードを出さず、他の入力と同じキーパッドで入力する
+    const isMobile = useIsMobile();
+    const [activeField, setActiveField] = useState<"min" | "sec">("min");
+    /** 欄をタップした直後の最初の数字は、入っていた値を置き換える */
+    const [replaceNext, setReplaceNext] = useState(true);
+
+    /** 入力欄を切り替える（切り替えた欄は、最初の数字で値を置き換える） */
+    function selectField(f: "min" | "sec") {
+        setActiveField(f);
+        setReplaceNext(true);
+    }
+
+    /** キーパッドの数字を入力中の欄へ入れる（分の欄は符号を保つ） */
+    function padDigit(d: string) {
+        if (activeField === "min") {
+            setMinStr((cur) => {
+                const sign = cur.startsWith("-") ? "-" : "";
+                const body = cur.replace("-", "");
+                return sign + (replaceNext ? d : body.length >= 4 ? body : body + d);
+            });
+        } else {
+            setSecStr((cur) => (replaceNext ? d : cur.length >= 2 ? cur : cur + d));
+        }
+        setReplaceNext(false);
+    }
+
+    /** キーパッドで入力中の欄の末尾を1文字消す */
+    function padBackspace() {
+        if (activeField === "min") {
+            setMinStr((cur) => {
+                const sign = cur.startsWith("-") ? "-" : "";
+                return sign + cur.replace("-", "").slice(0, -1);
+            });
+        } else {
+            setSecStr((cur) => cur.slice(0, -1));
+        }
+        setReplaceNext(false);
+    }
+
+    /** キーパッドで入力中の欄を空にする（分の欄は符号を保つ） */
+    function padClear() {
+        if (activeField === "min") setMinStr((cur) => (cur.startsWith("-") ? "-" : ""));
+        else setSecStr("");
+        setReplaceNext(false);
+    }
+
     /** 分の欄の符号を反転する（「-」を直接打てない端末向け） */
     function toggleSign() {
         setMinStr((s) => (s.startsWith("-") ? s.slice(1) : `-${s}`));
@@ -55,8 +104,10 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                 inset: 0,
                 background: "rgba(0,0,0,0.35)",
                 display: "flex",
-                alignItems: "center",
+                // スマホでは、画面下部のキーパッドに隠れないよう、ダイアログを上寄せにする
+                alignItems: isMobile ? "flex-start" : "center",
                 justifyContent: "center",
+                paddingTop: isMobile ? 12 : 0,
                 zIndex: 9999,
             }}
         >
@@ -74,7 +125,8 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                     }
                 }}
                 style={{
-                    width: 360,
+                    width: isMobile ? "calc(100% - 24px)" : 360,
+                    maxWidth: 360,
                     background: "#fff",
                     borderRadius: 10,
                     boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
@@ -90,10 +142,14 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                         <input
                             ref={minRef}
                             autoFocus
-                            onFocus={(e) => e.currentTarget.select()}
+                            onFocus={(e) => {
+                                e.currentTarget.select();
+                                selectField("min");
+                            }}
+                            readOnly={isMobile}
                             value={minStr}
                             onChange={(e) => setMinStr(e.target.value.replace(/[^\d-]/g, "").replace(/(?!^)-/g, ""))}
-                            inputMode="text"
+                            inputMode={isMobile ? "none" : "text"}
                             placeholder={t("pasteMinutesPlaceholder")}
                             style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8, flex: 1, minWidth: 0 }}
                         />
@@ -106,7 +162,9 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                     <input
                         value={secStr}
                         onChange={(e) => setSecStr(e.target.value.replace(/[^\d]/g, ""))}
-                        inputMode="numeric"
+                        inputMode={isMobile ? "none" : "numeric"}
+                        readOnly={isMobile}
+                        onFocus={() => selectField("sec")}
                         placeholder={t("pasteSecondsPlaceholder")}
                         style={{ padding: "8px 10px", border: "1px solid #ddd", borderRadius: 8 }}
                     />
@@ -121,6 +179,18 @@ function PasteMoveDialogBody(props: { value: number; onCancel: () => void; onSav
                     </button>
                 </div>
             </div>
+            {isMobile && (
+                // 連続入力時のキーパッドと同一の配置・見た目。↵は決定、空きマスには符号の反転を置く
+                <TimetableKeypad
+                    zIndex={10000}
+                    onDigit={padDigit}
+                    onBackspace={padBackspace}
+                    onEnter={submit}
+                    enterTitle={t("padOk")}
+                    extra={<KeypadKey label="±" title={t("pasteSignTitle")} onPress={toggleSign} />}
+                    shortcuts={{ erase: padClear }}
+                />
+            )}
         </div>
     );
 }

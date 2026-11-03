@@ -4,64 +4,10 @@ import { isImeComposing } from "../../shared/lib/keyboard.ts";
 import type { StopTimeDto } from "../../domain/dto.ts";
 import { isValidTimeStr, timeInt2Str, timeStr2Int } from "../../domain/time.ts";
 import type { Part } from "../../domain/showStyle.ts";
+import { KeypadKey } from "../../shared/ui/Keypad.tsx";
+import { TimetableKeypad } from "./MobileTimetableKeypad.tsx";
 import { useT } from "./messages.ts";
 import { useCommonT } from "../../shared/i18n/common.ts";
-
-/** キーパッドのボタンのスタイル */
-const padKeyStyle: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 600, padding: 0, minWidth: 0 };
-
-/**
- * スマホ用の時刻入力キーパッド。システムのキーボードを出さずに、数字入力・1文字削除・消去・着/発の切り替え・決定を行う。
- * 画面下端に固定表示する。ボタンを押してもフォーカスが入力欄から外れないようにしている。
- *
- * @param props onDigit:数字 / onBackspace:1文字削除 / onClear:入力中の欄を空にする / onSwitch:着と発を切り替える / onOk:決定 / okDisabled:決定を押せないか
- */
-function TimePad(props: { onDigit: (d: string) => void; onBackspace: () => void; onClear: () => void; onSwitch: () => void; onOk: () => void; okDisabled: boolean }) {
-    const { t } = useT();
-    const keepFocus = (e: React.MouseEvent) => e.preventDefault();
-    const digit = (d: string) => (
-        <button key={d} onMouseDown={keepFocus} onClick={() => props.onDigit(d)} style={padKeyStyle}>
-            {d}
-        </button>
-    );
-    return (
-        <div
-            onPointerDown={(e) => e.stopPropagation()}
-            style={{
-                position: "fixed",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gridTemplateRows: "repeat(4, 52px)",
-                gap: 4,
-                padding: "6px 6px calc(6px + env(safe-area-inset-bottom, 0px))",
-                background: "#f0f0f0",
-                borderTop: "1px solid #ccc",
-                boxSizing: "border-box",
-                zIndex: 10000,
-            }}
-        >
-            {["1", "2", "3"].map(digit)}
-            <button onMouseDown={keepFocus} onClick={props.onBackspace} style={padKeyStyle} title={t("padBackspaceTitle")}>
-                ⌫
-            </button>
-            {["4", "5", "6"].map(digit)}
-            <button onMouseDown={keepFocus} onClick={props.onClear} style={{ ...padKeyStyle, fontSize: 14 }}>
-                {t("padClear")}
-            </button>
-            {["7", "8", "9"].map(digit)}
-            <button onMouseDown={keepFocus} onClick={props.onSwitch} style={{ ...padKeyStyle, fontSize: 13 }} title={t("padSwitchTitle")}>
-                {t("padSwitch")}
-            </button>
-            {digit("0")}
-            <button onMouseDown={keepFocus} onClick={props.onOk} disabled={props.okDisabled} style={{ ...padKeyStyle, gridColumn: "span 3", fontSize: 16 }}>
-                {t("padOk")}
-            </button>
-        </div>
-    );
-}
 
 /**
  * 駅の着・発時刻と停車種別を編集するダイアログです。
@@ -157,9 +103,34 @@ export function StopTimeEditDialog(props: {
         setWarning("");
     }
 
-    /** キーパッドで入力中の欄を空にする */
+    /** キーパッドの「消去」：グリッドの消去と同じく、着・発の時刻を両方空にして未設定に戻す */
     function padClear() {
-        (activeField === "ari" ? setAriStr : setDepStr)("");
+        padSetStopType(0);
+    }
+
+    /**
+     * 入力中の欄の時刻を、指定した分だけ進める・戻す（正しい時刻のときだけ）
+     *
+     * @param delta 進める分（負なら戻す）
+     */
+    function padAddMinutes(delta: number) {
+        const cur = activeField === "ari" ? ariStr : depStr;
+        if (cur === "" || !isValidTimeStr(cur)) return;
+        const sec = (((timeStr2Int(cur) + delta * 60) % 86400) + 86400) % 86400;
+        (activeField === "ari" ? setAriStr : setDepStr)(timeInt2Str(sec, false));
+        setReplaceNext(true);
+        setWarning("");
+    }
+
+    /**
+     * 停車種別を通過・経由なしにする（時刻は空にする）
+     *
+     * @param type 2:通過 3:経由なし
+     */
+    function padSetStopType(type: number) {
+        setStopType(type);
+        setAriStr("");
+        setDepStr("");
         setReplaceNext(false);
         setWarning("");
     }
@@ -318,7 +289,24 @@ export function StopTimeEditDialog(props: {
                     </button>
                 </div>
             </div>
-            {isMobile && <TimePad onDigit={padDigit} onBackspace={padBackspace} onClear={padClear} onSwitch={padSwitch} onOk={submit} okDisabled={!initial} />}
+            {isMobile && (
+                // 連続入力時のキーパッドと同一の配置・見た目。↵は決定、空きマスには着/発の切り替えを置く
+                <TimetableKeypad
+                    zIndex={10000}
+                    onDigit={padDigit}
+                    onBackspace={padBackspace}
+                    onEnter={submit}
+                    enterTitle={t("padOk")}
+                    extra={<KeypadKey small label={t("padSwitch")} title={t("padSwitchTitle")} onPress={padSwitch} />}
+                    shortcuts={{
+                        plus1: () => padAddMinutes(1),
+                        minus1: () => padAddMinutes(-1),
+                        pass: () => padSetStopType(2),
+                        noVia: () => padSetStopType(3),
+                        erase: padClear,
+                    }}
+                />
+            )}
         </div>
     );
 }

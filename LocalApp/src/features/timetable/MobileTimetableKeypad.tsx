@@ -1,5 +1,19 @@
-import type { RefObject } from "react";
+import { useEffect, useState } from "react";
+import type { ReactNode, RefObject } from "react";
+import { Keypad, KeypadBlank, KeypadKey } from "../../shared/ui/Keypad.tsx";
 import { useT } from "./messages.ts";
+
+/** キーパッドの開閉の状態を次回以降も覚えておくためのlocalStorageキー */
+const COLLAPSED_STORAGE_KEY = "rt-keypad-collapsed";
+
+/** 保存済みの「隠している」状態を読み出す（localStorageが使えない環境では表示扱い） */
+function loadCollapsed(): boolean {
+    try {
+        return localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
 
 type KeyInit = { key: string; code: string; altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean };
 
@@ -18,45 +32,53 @@ function dispatchKey(target: HTMLElement, init: KeyInit) {
     );
 }
 
-// ボタンタップでフォーカスが奪われない(グリッドのフォーカスを保つ)ようにする
-function keepFocus(e: React.MouseEvent) {
-    e.preventDefault();
-}
+/** ショートカットキーの種類（キーパッド上の文字キー） */
+export type KeypadShortcut = "plus1" | "minus1" | "pass" | "noVia" | "erase";
 
-const keyStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 16,
-    fontWeight: 600,
-    padding: 0,
-    minWidth: 0,
-};
-
-const shortcutStyle: React.CSSProperties = {
-    ...keyStyle,
-    fontSize: 12,
-    fontWeight: 500,
-    lineHeight: 1.2,
-    textAlign: "center",
-    whiteSpace: "normal",
-};
-
-/** 数字キー1つ分のボタン(モジュールスコープの安定した関数。インライン定義だと親の再レンダリングのたびに作り直されてしまうため) */
-function DigitButton(props: { label: string; onPress: (label: string) => void }) {
+/**
+ * 時刻入力用キーパッドのキー配置（数字・±1分・通過・経由なし・消去・⌫・↵）。
+ * 時刻表のグリッド用キーパッドと各入力ダイアログで、この1つを共通で使い、配置・大きさ・見た目を完全に同一にする。
+ * 使わないショートカットは、handlersに渡さなければ空きマスになる。
+ *
+ * @param props onDigit:数字 / onBackspace:⌫ / onEnter:↵ / enterTitle:↵のツールチップ / shortcuts:文字キーごとの処理 / extra:2段目右の空きマスに入れるキー / className,collapsed,zIndex:Keypadの設定
+ */
+export function TimetableKeypad(props: {
+    onDigit: (d: string) => void;
+    onBackspace: () => void;
+    onEnter: () => void;
+    enterTitle?: string;
+    shortcuts?: Partial<Record<KeypadShortcut, () => void>>;
+    extra?: ReactNode;
+    className?: string;
+    collapsed?: boolean;
+    zIndex?: number;
+}) {
+    const { onDigit, onBackspace, onEnter, enterTitle, shortcuts = {}, extra, className, collapsed, zIndex } = props;
+    const { t } = useT();
+    const digit = (d: string) => <KeypadKey key={d} label={d} onPress={() => onDigit(d)} />;
+    const shortcut = (kind: KeypadShortcut) => {
+        const handler = shortcuts[kind];
+        return handler ? <KeypadKey small label={t(kind)} onPress={handler} /> : <KeypadBlank />;
+    };
     return (
-        <button onMouseDown={keepFocus} onClick={() => props.onPress(props.label)} style={keyStyle}>
-            {props.label}
-        </button>
-    );
-}
+        <Keypad className={className} collapsed={collapsed} zIndex={zIndex}>
+            {["1", "2", "3"].map(digit)}
+            {shortcut("plus1")}
+            {shortcut("minus1")}
 
-/** ショートカット1つ分のボタン(モジュールスコープの安定した関数) */
-function ShortcutButton(props: { label: string; init: KeyInit; onPress: (init: KeyInit) => void }) {
-    return (
-        <button onMouseDown={keepFocus} onClick={() => props.onPress(props.init)} style={shortcutStyle}>
-            {props.label}
-        </button>
+            {["4", "5", "6"].map(digit)}
+            {extra ?? <KeypadBlank />}
+            {shortcut("pass")}
+
+            {["7", "8", "9"].map(digit)}
+            {shortcut("noVia")}
+            {shortcut("erase")}
+
+            <KeypadKey label="⌫" title={t("backspaceTitle")} onPress={onBackspace} />
+            {digit("0")}
+            <KeypadKey label="↵" title={enterTitle ?? t("nextRowTitle")} onPress={onEnter} />
+            <KeypadBlank colSpan={2} />
+        </Keypad>
     );
 }
 
@@ -74,6 +96,18 @@ function ShortcutButton(props: { label: string; init: KeyInit; onPress: (init: K
 export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | null> }) {
     const { gridRef } = props;
     const { t } = useT();
+    const [collapsed, setCollapsed] = useState(loadCollapsed);
+
+    // 隠している間はキーパッド分の高さ(--rt-keypad-h)を0にして、グリッドを下まで広げる(App.css側で参照)
+    useEffect(() => {
+        document.body.classList.toggle("rt-keypad-collapsed", collapsed);
+        try {
+            localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? "1" : "0");
+        } catch {
+            // 保存できなくても動作には影響しない
+        }
+        return () => document.body.classList.remove("rt-keypad-collapsed");
+    }, [collapsed]);
 
     function focusedOrGrid(): HTMLElement | null {
         return (document.activeElement as HTMLElement | null) ?? gridRef.current;
@@ -100,34 +134,31 @@ export function MobileTimetableKeypad(props: { gridRef: RefObject<HTMLElement | 
     }
 
     return (
-        <div className="rt-keypad">
-            <DigitButton label="1" onPress={pressDigit} />
-            <DigitButton label="2" onPress={pressDigit} />
-            <DigitButton label="3" onPress={pressDigit} />
-            <ShortcutButton label={t("plus1")} init={{ key: "l", code: "KeyL", altKey: true }} onPress={pressShortcut} />
-            <ShortcutButton label={t("minus1")} init={{ key: "j", code: "KeyJ", altKey: true }} onPress={pressShortcut} />
-
-            <DigitButton label="4" onPress={pressDigit} />
-            <DigitButton label="5" onPress={pressDigit} />
-            <DigitButton label="6" onPress={pressDigit} />
-            <div />
-            <ShortcutButton label={t("pass")} init={{ key: "-", code: "Minus", altKey: true }} onPress={pressShortcut} />
-
-            <DigitButton label="7" onPress={pressDigit} />
-            <DigitButton label="8" onPress={pressDigit} />
-            <DigitButton label="9" onPress={pressDigit} />
-            <ShortcutButton label={t("noVia")} init={{ key: "^", code: "Digit6", ctrlKey: true }} onPress={pressShortcut} />
-            <ShortcutButton label={t("erase")} init={{ key: "Delete", code: "Delete", ctrlKey: true }} onPress={pressShortcut} />
-
-            <button onMouseDown={keepFocus} onClick={pressBackspace} style={keyStyle} title={t("backspaceTitle")}>
-                ⌫
+        <>
+            <button
+                type="button"
+                className="rt-keypad-toggle"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setCollapsed((v) => !v)}
+                aria-label={collapsed ? t("keypadShow") : t("keypadHide")}
+                title={collapsed ? t("keypadShow") : t("keypadHide")}
+            >
+                ⌨ {collapsed ? "▲" : "▼"}
             </button>
-            <DigitButton label="0" onPress={pressDigit} />
-            <button onMouseDown={keepFocus} onClick={pressEnter} style={keyStyle} title={t("nextRowTitle")}>
-                ↵
-            </button>
-            <div />
-            <div />
-        </div>
+            <TimetableKeypad
+                className="rt-keypad"
+                collapsed={collapsed}
+                onDigit={pressDigit}
+                onBackspace={pressBackspace}
+                onEnter={pressEnter}
+                shortcuts={{
+                    plus1: () => pressShortcut({ key: "l", code: "KeyL", altKey: true }),
+                    minus1: () => pressShortcut({ key: "j", code: "KeyJ", altKey: true }),
+                    pass: () => pressShortcut({ key: "-", code: "Minus", altKey: true }),
+                    noVia: () => pressShortcut({ key: "^", code: "Digit6", ctrlKey: true }),
+                    erase: () => pressShortcut({ key: "Delete", code: "Delete", ctrlKey: true }),
+                }}
+            />
+        </>
     );
 }
