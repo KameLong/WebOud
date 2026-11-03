@@ -23,6 +23,8 @@ export default function FeedbackPage() {
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
     const [agreed, setAgreed] = useState(false);
+    /** ハニーポット。人間には見えない欄で、Botが入力した場合だけ値が入る */
+    const [website, setWebsite] = useState("");
     const [sending, setSending] = useState(false);
     const [done, setDone] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export default function FeedbackPage() {
             const res = await fetch(ENDPOINT, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ category, subject: subject.trim(), body: body.trim() }),
+                body: JSON.stringify({ category, subject: subject.trim(), body: body.trim(), website }),
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             setDone(true);
@@ -116,6 +118,13 @@ export default function FeedbackPage() {
                     onChange={(e) => setBody(e.currentTarget.value)}
                     description={t("counter", { n: body.length, max: MAX_BODY })}
                 />
+                {/* ハニーポット：画面外に置き、人間には見えず、Tabでも移動しない */}
+                <div aria-hidden="true" style={{ position: "absolute", left: -10000, width: 1, height: 1, overflow: "hidden" }}>
+                    <label>
+                        Website
+                        <input type="text" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.currentTarget.value)} />
+                    </label>
+                </div>
                 <Checkbox checked={agreed} onChange={(e) => setAgreed(e.currentTarget.checked)} label={t("agree")} />
                 {error && <Alert color="red">{error}</Alert>}
                 {done && <Alert color="green">{t("success")}</Alert>}
