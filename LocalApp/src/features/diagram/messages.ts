@@ -13,7 +13,7 @@ export const messages = defineMessages({
         helpDoSection: "このページでできること",
         helpDoItems: [
             "登録されている下り・上りすべての列車の運行ダイヤを時刻表ダイヤグラムとして表示する（編集はできません）",
-            "「PDF出力」ボタンで、A4のPDFにする（余白・1ページの時間・高さを指定でき、どのページにも駅名欄が付く）",
+            "「PDF出力」ボタンで、A4のPDFにする（用紙の向き・余白・1ページの時間・高さを指定でき、どのページにも駅名欄が付く）",
             "左のメニュー（スマホでは下部のメニューボタン）から、時刻表の編集画面へ移動する",
         ],
         helpViewSection: "表示操作",
@@ -55,7 +55,7 @@ export const messages = defineMessages({
         helpDoSection: "What you can do on this page",
         helpDoItems: [
             "Show the running lines of all registered down and up trains as a train diagram (it cannot be edited)",
-            "Use the \"Export PDF\" button to make an A4 PDF (you can set the margin, the hours per page and the height; every page has a station-name column)",
+            "Use the \"Export PDF\" button to make an A4 PDF (you can set the paper orientation, the margin, the hours per page and the height; every page has a station-name column)",
             "Go to the timetable editor from the menu on the left (the menu button at the bottom on phones)",
         ],
         helpViewSection: "Viewing controls",
@@ -95,7 +95,7 @@ export const messages = defineMessages({
         helpDoSection: "此頁面可進行的操作",
         helpDoItems: [
             "將已登錄的所有下行、上行列車的運行，顯示為時刻表運行圖（無法編輯）",
-            "按「輸出 PDF」按鈕可製成 A4 的 PDF（可指定邊界、每頁的時間與高度，每頁都附有站名欄）",
+            "按「輸出 PDF」按鈕可製成 A4 的 PDF（可指定紙張方向、邊界、每頁的時間與高度，每頁都附有站名欄）",
             "從左側選單（手機為下方的選單按鈕）前往時刻表的編輯畫面",
         ],
         helpViewSection: "顯示操作",
