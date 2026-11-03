@@ -17,6 +17,8 @@ export function TrainHeader(props: {
 }) {
     const { t, HEADER_H, zHeader, traintype, metrics } = props;
     const { FONT_SIZE, LINE_HEIGHT } = metrics;
+    const THIN = metrics.THIN_LINE;
+    const THICK = metrics.THICK_LINE;
     // 列車名欄の高さ（縦書きで4文字×2列まで収まる分）。HEADER_Hの余白内に収まるサイズにしてある
     const TRAIN_NAME_ROW_H = FONT_SIZE * 4 + 8;
     // 縦書きの1文字分の実質幅（行間込み）
@@ -32,14 +34,14 @@ export function TrainHeader(props: {
                 display: "flex",
                 flexDirection: "column",
                 boxSizing: "border-box",
-                borderBottom: "2px solid #333",
+                borderBottom: `${THICK}px solid #333`,
                 backgroundColor: "white",
             }}
         >
             <div style={{ height: LINE_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>{traintype.shortName}</div>
-            <div style={{ borderBottom: "1px solid #333" }}></div>
+            <div style={{ borderBottom: `${THIN}px solid #333` }}></div>
             <div style={{ height: LINE_HEIGHT, display: "flex", alignItems: "center", justifyContent: "center" }}>{t.no || " "}</div>
-            <div style={{ borderBottom: "2px solid #333" }}></div>
+            <div style={{ borderBottom: `${THICK}px solid #333` }}></div>
             <div style={{ height: TRAIN_NAME_ROW_H, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {t.name && (
                     <span

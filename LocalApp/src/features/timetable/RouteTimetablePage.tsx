@@ -50,10 +50,10 @@ export default function RouteTimetablePage() {
 
     const fontSize = useFontSize();
     const metrics = useMemo(() => gridMetrics(fontSize), [fontSize]);
-    const { FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH } = metrics;
+    const { FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH, COLUMN_WIDTH, THICK_LINE } = metrics;
 
     const HEADER_ROW_H = LINE_HEIGHT;
-    const HEADER_H = HEADER_ROW_H * 7 + 2;
+    const HEADER_H = HEADER_ROW_H * 7 + THICK_LINE;
 
     const z = { header: 3, left: 4, corner: 5 };
 

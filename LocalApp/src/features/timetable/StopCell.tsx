@@ -1,7 +1,7 @@
 import type { Cursor } from "./types.ts";
 import type { Part } from "../../domain/showStyle.ts";
 import type { StationDto, StopTimeDto } from "../../domain/dto.ts";
-import { ARR_BORDER_BOTTOM_WIDTH, cellHeight, type GridMetrics } from "./gridMetrics.ts";
+import { cellHeight, type GridMetrics } from "./gridMetrics.ts";
 import { decodeShowStyle, getDirectStyle } from "../../domain/showStyle.ts";
 import { ariTimeStr, depTimeStr } from "../../domain/stopTimeText.ts";
 
@@ -35,7 +35,7 @@ export function StopCell(props: {
 }) {
     const { r, c, cursor, station, stopTime, cont, direct, metrics } = props;
     const style = getDirectStyle(station.showStyle, direct);
-    const ROW_H = cellHeight(style, metrics.LINE_HEIGHT);
+    const ROW_H = cellHeight(style, metrics.LINE_HEIGHT, metrics.THIN_LINE);
     const inThisCell = cursor.r === r && cursor.c === c;
     /**
      * このセルの指定パートにカーソルがあるかを返します。
@@ -81,7 +81,7 @@ export function StopCell(props: {
                     data-r={r}
                     data-c={c}
                     data-part="arr"
-                    style={{ ...partStyle(isPartSelected("arr")), ...(showArrBottomBorder ? { borderBottom: `${ARR_BORDER_BOTTOM_WIDTH}px solid black` } : {}) }}
+                    style={{ ...partStyle(isPartSelected("arr")), ...(showArrBottomBorder ? { borderBottom: `${metrics.THIN_LINE}px solid black` } : {}) }}
                 >
                     {ariTimeStr(stopTime, s.showArr, s.showDep, false)}
                 </div>

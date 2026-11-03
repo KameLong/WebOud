@@ -29,6 +29,8 @@ export function StationSidebar(props: {
 }) {
     const { stations, trips, routeId, direct, HEADER_H, zLeft, zCorner, metrics } = props;
     const { FONT_SIZE, LINE_HEIGHT, STATION_NAME_WIDTH } = metrics;
+    const THIN = metrics.THIN_LINE;
+    const THICK = metrics.THICK_LINE;
     const LABEL_WIDTH = LINE_HEIGHT;
     const { t } = useT();
     const c = useCommonT().t;
@@ -105,10 +107,10 @@ export function StationSidebar(props: {
                 left: 0,
                 flexShrink: 0,
                 zIndex: zLeft,
-                borderRight: "2px solid #333",
-                borderTop: "2px solid #333",
-                borderLeft: "2px solid #333",
-                borderBottom: "2px solid #333",
+                borderRight: `${THICK}px solid #333`,
+                borderTop: `${THICK}px solid #333`,
+                borderLeft: `${THICK}px solid #333`,
+                borderBottom: `${THICK}px solid #333`,
                 marginBottom: "10px",
             }}
         >
@@ -124,7 +126,7 @@ export function StationSidebar(props: {
                     height: HEADER_H,
                     boxSizing: "border-box",
                     background: "#fafafa",
-                    borderBottom: "2px solid #333",
+                    borderBottom: `${THICK}px solid #333`,
                     display: "flex",
                 }}
             >
@@ -133,7 +135,7 @@ export function StationSidebar(props: {
                     <div
                         style={{
                             width: STATION_NAME_WIDTH + LABEL_WIDTH,
-                            borderBottom: "1px solid #333",
+                            borderBottom: `${THIN}px solid #333`,
                         }}
                     >
                         {" "}
@@ -142,7 +144,7 @@ export function StationSidebar(props: {
                     <div
                         style={{
                             width: STATION_NAME_WIDTH + LABEL_WIDTH,
-                            borderBottom: "2px solid #333",
+                            borderBottom: `${THICK}px solid #333`,
                         }}
                     >
                         {" "}
@@ -156,8 +158,8 @@ export function StationSidebar(props: {
                     const showStyle = getDirectStyle(st.showStyle, direct);
                     const parts = buildPartsForStation(showStyle);
                     const withSep = withSeparatorsForStation(showStyle);
-                    const sepH = 1;
-                    const ROW_H = cellHeight(showStyle, LINE_HEIGHT);
+                    const sepH = THIN;
+                    const ROW_H = cellHeight(showStyle, LINE_HEIGHT, THIN);
                     const sepCount = withSep ? Math.max(0, parts.length - 1) : 0;
                     const contentH = Math.max(0, ROW_H - sepCount * sepH);
                     const unitH = parts.length > 0 ? Math.floor(contentH / parts.length) : ROW_H;

@@ -26,6 +26,8 @@ export const TrainColumn = React.memo(
         direct: number;
         metrics: GridMetrics;
     }) {
+        const THIN = props.metrics.THIN_LINE;
+        const THICK = props.metrics.THICK_LINE;
         const { trip, c, stations, cursor, isSelected, invert, HEADER_H, zHeader, trainType, cont, direct, metrics } = props;
 
         return (
@@ -34,9 +36,9 @@ export const TrainColumn = React.memo(
                     width: metrics.COLUMN_WIDTH,
                     flexShrink: 0,
                     boxSizing: "border-box",
-                    borderRight: "1px solid #333",
-                    borderBottom: "2px solid #333",
-                    borderTop: "2px solid #333",
+                    borderRight: `${THIN}px solid #333`,
+                    borderBottom: `${THICK}px solid #333`,
+                    borderTop: `${THICK}px solid #333`,
                     color: trainType.color,
                     filter: invert ? "invert(100%)" : "",
                 }}
