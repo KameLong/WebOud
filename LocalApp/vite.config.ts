@@ -13,8 +13,8 @@ export default defineConfig({
             registerType: "autoUpdate",
             includeAssets: ["icons/apple-touch-icon.png", "font/*"],
             manifest: {
-                name: "WebOud Local",
-                short_name: "WebOud",
+                name: "webdia",
+                short_name: "webdia",
                 description: "オフラインで使える運行ダイヤ作成ソフト（データは端末内保存）",
                 start_url: "/",
                 scope: "/",

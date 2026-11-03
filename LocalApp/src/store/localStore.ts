@@ -2,11 +2,12 @@ import { translate } from "./messages.ts";
 import { commonT } from "../shared/i18n/common.ts";
 import type { RouteRecord, RouteSummary, StoreState } from "./types.ts";
 import { defaultTrainType } from "../domain/defaults.ts";
+import { DATA_VERSION, isSupportedDataVersion } from "./dataVersion.ts";
 
 const STORAGE_KEY = "weboud.localapp.routes.v1";
 
 function defaultState(): StoreState {
-    return { version: 1, nextRouteId: 1, routes: [] };
+    return { version: DATA_VERSION, nextRouteId: 1, routes: [] };
 }
 
 /**
@@ -15,7 +16,7 @@ function defaultState(): StoreState {
  * @param v 検査する値
  */
 function isValidStoreState(v: unknown): v is StoreState {
-    return !!v && typeof v === "object" && Array.isArray((v as StoreState).routes) && typeof (v as StoreState).nextRouteId === "number";
+    return !!v && typeof v === "object" && Array.isArray((v as StoreState).routes) && typeof (v as StoreState).nextRouteId === "number" && isSupportedDataVersion((v as StoreState).version);
 }
 
 /**
@@ -40,7 +41,7 @@ function loadState(): StoreState {
         const parsed = JSON.parse(raw) as unknown;
         if (!isValidStoreState(parsed)) return defaultState();
         // 以前のデータで種別が空の路線にも、標準の種別を補う
-        return { ...parsed, routes: parsed.routes.map(withDefaultTrainType) };
+        return { ...parsed, version: DATA_VERSION, routes: parsed.routes.map(withDefaultTrainType) };
     } catch (e) {
         console.error("failed to load local data", e);
         return defaultState();
@@ -90,7 +91,7 @@ if (typeof window !== "undefined") {
         try {
             const parsed = JSON.parse(event.newValue) as unknown;
             if (isValidStoreState(parsed)) {
-                state = parsed;
+                state = { ...parsed, version: DATA_VERSION };
                 emit();
             }
         } catch (e) {
@@ -253,7 +254,7 @@ export function exportAllAsJson(): string {
 export function exportRouteAsJson(id: number): string | undefined {
     const route = getRoute(id);
     if (!route) return undefined;
-    return JSON.stringify(route, null, 2);
+    return JSON.stringify({ version: DATA_VERSION, ...route }, null, 2);
 }
 
 /**
@@ -268,6 +269,16 @@ function isRouteRecord(v: unknown): v is RouteRecord {
 }
 
 /**
+ * JSONのバージョンがこのアプリで読めないとき（メジャーバージョンが違うとき）は、例外を投げます。
+ *
+ * @param parsed 読み込んだJSON
+ */
+function assertSupportedVersion(parsed: unknown) {
+    const version = parsed && typeof parsed === "object" ? (parsed as { version?: unknown }).version : undefined;
+    if (!isSupportedDataVersion(version)) throw new Error(translate().t("unsupportedVersion", { version: String(version) }));
+}
+
+/**
  * 全データのJSONを読み込み、既存データを置き換えます
  *
  * @param json exportAllAsJsonで書き出したJSON文字列
@@ -277,7 +288,8 @@ export function importAllFromJson(json: string) {
     if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as StoreState).routes)) {
         throw new Error(translate().t("invalidFile"));
     }
-    setState({ ...(parsed as StoreState), routes: (parsed as StoreState).routes.map(withDefaultTrainType) });
+    assertSupportedVersion(parsed);
+    setState({ ...(parsed as StoreState), version: DATA_VERSION, routes: (parsed as StoreState).routes.map(withDefaultTrainType) });
 }
 
 /**
@@ -302,8 +314,11 @@ export function addRoute(build: (id: number) => RouteRecord): RouteRecord {
  * @param id 新しい路線ID
  */
 function withRouteId(route: RouteRecord, id: number): RouteRecord {
+    // 路線ファイルに付いているバージョンは、ストア全体のバージョンで表すので、路線には残さない
+    const copy: RouteRecord & { version?: unknown } = { ...route };
+    delete copy.version;
     return {
-        ...route,
+        ...copy,
         id,
         updatedAt: Date.now(),
         stations: route.stations.map((x) => ({ ...x, routeID: id })),
@@ -320,6 +335,7 @@ function withRouteId(route: RouteRecord, id: number): RouteRecord {
  */
 function parseImportedRoutes(json: string): RouteRecord[] {
     const parsed = JSON.parse(json) as unknown;
+    assertSupportedVersion(parsed);
     const list: unknown[] = isValidStoreState(parsed) ? parsed.routes : [parsed];
     if (list.length === 0 || !list.every(isRouteRecord)) throw new Error(translate().t("invalidFile"));
     const byName = new Map<string, RouteRecord>();

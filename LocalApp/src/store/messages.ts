@@ -4,16 +4,19 @@ export const messages = defineMessages({
     ja: {
         duplicateName: "「{name}」という名前の路線はすでにあります",
         invalidFile: "不正なファイル形式です",
+        unsupportedVersion: "このファイルは、対応していないバージョン（{version}）のデータです",
         sampleLoadFailed: "サンプルダイヤを読み込めませんでした ({status})",
     },
     en: {
         duplicateName: "A line named \"{name}\" already exists",
         invalidFile: "Invalid file format",
+        unsupportedVersion: "This file uses an unsupported data version ({version})",
         sampleLoadFailed: "Could not load the sample timetable ({status})",
     },
     "zh-TW": {
         duplicateName: "已有名為「{name}」的路線",
         invalidFile: "檔案格式不正確",
+        unsupportedVersion: "此檔案的資料版本（{version}）不受支援",
         sampleLoadFailed: "無法載入範例時刻表 ({status})",
     },
 });

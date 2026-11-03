@@ -113,7 +113,7 @@ async function embedTextFonts(doc: PDFDocument, fonts: PdfFonts, subset: FontSub
 export async function createPdfDocument(title: string, fonts: PdfFonts, subset: FontSubsetter, used: string): Promise<{ doc: PDFDocument; textFonts: PdfTextFonts }> {
     const doc = await PDFDocument.create();
     doc.setTitle(title);
-    doc.setCreator("WebOud");
+    doc.setCreator("webdia");
     return { doc, textFonts: await embedTextFonts(doc, fonts, subset, used) };
 }
 

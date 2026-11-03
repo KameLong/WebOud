@@ -36,7 +36,8 @@ export type RouteSummary = {
 };
 
 export type StoreState = {
-    version: 1;
+    /** データのバージョン（dataVersion.ts を参照） */
+    version: string;
     nextRouteId: number;
     routes: RouteRecord[];
 };
