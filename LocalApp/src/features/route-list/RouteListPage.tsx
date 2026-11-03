@@ -19,6 +19,7 @@ import { loadSampleRoute } from "../../store/sampleRoute.ts";
 import { translate, useT } from "./messages.ts";
 import { formatDateTime } from "../../shared/i18n/languages.ts";
 import { HelpDialog, HelpList, HelpSection } from "../../shared/ui/HelpDialog.tsx";
+import { StorageUsageIndicator } from "../../shared/ui/StorageUsageIndicator.tsx";
 import { getErrorMessage } from "../../shared/lib/errors.ts";
 
 /**
@@ -181,6 +182,7 @@ export default function RouteListPage() {
             <Text size="xs" c="dimmed" mb="sm">
                 {t("storageNote")}
             </Text>
+            <StorageUsageIndicator label={t("storageUsage")} />
 
             <form onSubmit={onCreate}>
                 <Group gap="xs" wrap="nowrap" mb="xs">
