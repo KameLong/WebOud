@@ -6,6 +6,7 @@ import { RoutePage } from "../features/route-edit/RoutePage.tsx";
 import RouteTimetablePage from "../features/timetable/RouteTimetablePage.tsx";
 import { RouteDiagramPage } from "../features/diagram/RouteDiagramPage.tsx";
 import { StationTimetablePage } from "../features/station-timetable/StationTimetablePage.tsx";
+import PatternsPage from "../features/patterns/PatternsPage.tsx";
 import AnalysisPage from "../features/analysis/AnalysisPage.tsx";
 import { RouteTreeSidebar } from "../features/navigation/RouteTreeSidebar.tsx";
 import { MobileRouteMenu } from "../features/navigation/MobileRouteMenu.tsx";
@@ -29,6 +30,8 @@ function App() {
             <Routes>
                 <Route path="/" element={<RouteListPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                {/* 隠しページ：ほかのページからのリンクは無く、URLを直接開いて見る */}
+                <Route path="/patterns" element={<PatternsPage />} />
                 <Route element={<RouteLayout />}>
                     <Route path="/route/:routeId" element={<RoutePage />} />
                     <Route path="/route/:routeId/timetable/:direct" element={<RouteTimetablePage />} />
