@@ -79,6 +79,18 @@ export default function SettingsPage() {
                     {t("feedbackHelp")}
                 </Text>
             </Stack>
+
+            <Stack gap="xs" mt="lg">
+                <Text fw={600} size="sm">
+                    {t("licenses")}
+                </Text>
+                <Button variant="default" size="compact-sm" onClick={() => nav("/licenses")} style={{ alignSelf: "flex-start" }}>
+                    {t("openLicenses")}
+                </Button>
+                <Text size="xs" c="dimmed">
+                    {t("licensesHelp")}
+                </Text>
+            </Stack>
         </Container>
     );
 }
