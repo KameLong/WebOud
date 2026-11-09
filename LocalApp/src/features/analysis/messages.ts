@@ -89,6 +89,7 @@ export const messages = defineMessages({
             "解析対象の時間帯（開始・終了の時刻）を入力する。始発駅をこの時間帯に出発する列車が、解析結果を表示する対象になる。対象の列車の本数を表示する",
             "合計所要時間を求める時間帯（開始・終了の時刻）を入力する。この時間帯に発駅に着いた乗客が、着駅に着くまでに要した時間の合計を、解析の結果に表示する",
             "乗客が駅に来る時間帯（開始・終了の時刻）を入力する。時間帯の長さと、駅間の利用客数の合計から求めた想定の総乗客数を表示する",
+            "計算した結果から、発駅と着駅を選んで2駅間の経路を見る。発駅に着いた時刻ごとに、乗客が選ぶ経路（乗る列車・乗り換え駅・待ち時間）と、その時刻帯の人数を表示する",
         ],
         helpKeysSection: "入力のしかた",
         helpKeys: [
@@ -186,6 +187,7 @@ export const messages = defineMessages({
             "Enter the time window to analyze (start and end times). The trains that leave their origin station within this window are the ones whose results are shown, and the number of target trains is displayed",
             "Enter the time window for the total travel time (start and end times). The total time taken by the passengers who arrived at their origin station in this window to reach their destination is shown in the analysis results",
             "Enter the time window in which passengers come to the stations (start and end times). The length of the window and the expected total number of passengers (from the total passengers per hour between stations) are shown",
+            "From the calculated results, choose an origin and a destination to see the route between them. For each time passengers arrive at the origin, it shows the route they take (which train they board and where they transfer, and the wait time) and the number of passengers at that time",
         ],
         helpKeysSection: "How to enter",
         helpKeys: [
@@ -283,6 +285,7 @@ export const messages = defineMessages({
             "輸入分析對象的時段（開始與結束時刻）。在此時段內從始發站發車的列車，就是要顯示結果的對象，並會顯示對象列車的班數",
             "輸入計算總所需時間的時段（開始與結束時刻）。在此時段內到達出發站的乘客，抵達目的站所花時間的合計，會顯示在分析結果中",
             "輸入乘客到車站的時段（開始與結束時刻）。會顯示時段的長度，以及由車站間乘客人數的合計算出的預估總乘客數",
+            "從計算結果中，選擇起站與迄站以查看兩站之間的路線。依乘客抵達起站的時刻，顯示乘客所選的路線（搭乘哪些列車、在哪裡轉乘、等待時間）以及該時段的人數",
         ],
         helpKeysSection: "輸入方式",
         helpKeys: [
